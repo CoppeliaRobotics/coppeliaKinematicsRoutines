@@ -1,0 +1,45 @@
+All the files in each directory are licensed under the terms of the
+license text contained at the beginning of the same file, or if not
+present, under the terms of the license file (license, license.txt,
+copying, etc.) contained in the same directory if it is present, or
+under the same terms of the files in the parent directory otherwise.
+
+-------------------------------------------------------------------
+COPPELIA KINEMATICS ROUTINES source code files
+
+Copyright (C) 2019-2020 Coppelia Robotics GmbH / Marc Freese
+
+All rights reserved.
+
+The COPPELIA KINEMATICS ROUTINES are licensed under the terms of EITHER:
+  1. COPPELIA KINEMATICS ROUTINES commercial license (contact us for details)
+  2. COPPELIA KINEMATICS ROUTINES educational license (see below)
+
+COPPELIA KINEMATICS ROUTINES educational license:
+=================================================
+The COPPELIA KINEMATICS ROUTINES educational license applies only to
+EDUCATIONAL ENTITIES composed by following people and institutions:
+
+1. Hobbyists, students, teachers and professors
+2. Schools and universities
+
+EDUCATIONAL ENTITIES do NOT include companies, research institutions,
+non-profit organisations, foundations, etc.
+
+An EDUCATIONAL ENTITY may use, modify, compile and distribute the
+modified/unmodified COPPELIA KINEMATICS ROUTINES under following conditions:
+ 
+1. Distribution should be free of charge.
+2. Distribution should be to EDUCATIONAL ENTITIES only.
+3. Usage should be non-commercial.
+4. Altered source versions must be plainly marked as such and distributed
+   along with any compiled code.
+5. The origin of the COPPELIA KINEMATICS ROUTINES must not be misrepresented.
+   You must not claim that you wrote the original software.
+
+THE COPPELIA KINEMATICS ROUTINES ARE DISTRIBUTED "AS IS", WITHOUT ANY EXPRESS
+OR IMPLIED WARRANTY. THE USER WILL USE IT AT HIS/HER OWN RISK. THE ORIGINAL
+AUTHORS AND COPPELIA ROBOTICS GMBH WILL NOT BE LIABLE FOR INJURIES, 
+DEATHS, DATA LOSS, DAMAGES, LOSS OF PROFITS OR ANY OTHER KIND OF LOSS
+WHILE USING OR MISUSING THIS SOFTWARE.
+-------------------------------------------------------------------
