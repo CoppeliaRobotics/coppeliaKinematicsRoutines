@@ -52,7 +52,7 @@ class debugInfo
             _funcName=funcName;
             _lastErrorSaved=lastError;
             lastError.clear();
-            printf("Coppelia Kinematics Routines trace: --> %s\n",funcName);
+            printf("Coppelia Kinematics Routines: trace: --> %s\n",funcName);
         }
     }
     virtual ~debugInfo()
@@ -60,12 +60,12 @@ class debugInfo
         if (debugLevel>=1)
         {
             if (lastError.size()>0)
-                printf("Coppelia Kinematics Routines error: %s\n",lastError.c_str());
+                printf("Coppelia Kinematics Routines: error: %s\n",lastError.c_str());
             else
                 lastError=_lastErrorSaved;
         }
         if (debugLevel>=5)
-            printf("Coppelia Kinematics Routines trace: <-- %s\n",_funcName.c_str());
+            printf("Coppelia Kinematics Routines: trace: <-- %s\n",_funcName.c_str());
     }
     std::string _funcName;
     std::string _lastErrorSaved;
