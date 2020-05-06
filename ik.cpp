@@ -1,8 +1,75 @@
 #include "ik.h"
-#include "app.h"
-#include "simConst.h"
+#include "environment.h"
+#ifdef _WIN32
+    #include <Windows.h>
+    #pragma message("Adding library: Winmm.lib")
+    #pragma comment(lib,"Winmm.lib")
+#else
+    #include <sys/time.h>
+#endif
 
+static int debugLevel=0;
 static std::string lastError;
+
+int getTimeDiffInMs(int lastTime)
+{
+#ifdef _WIN32
+    int retVal=int(timeGetTime()&0x03ffffff);
+#else
+    struct timeval tv;
+    DWORD result=0;
+    if (gettimeofday(&tv,NULL)==0)
+        result=(tv.tv_sec*1000+tv.tv_usec/1000)&0x03ffffff;
+    int retVal=int(result);
+#endif
+    if (lastTime!=-1)
+    {
+        if (retVal<lastTime)
+            retVal+=0x03ffffff-lastTime;
+        else
+            retVal-=lastTime;
+    }
+    return(retVal);
+}
+
+void ikSetVerbosity(int level)
+{ // 0=none, 1=errors, 2=warnings, 3=info, 4=debug, 5=trace
+    debugLevel=level;
+}
+
+class debugInfo
+{
+    public:
+    debugInfo(const char* funcName)
+    {
+        if (debugLevel>=1)
+        {
+            _lastErrorSaved=lastError;
+            lastError.clear();
+        }
+        if (debugLevel>=5)
+        {
+            _funcName=funcName;
+            _lastErrorSaved=lastError;
+            lastError.clear();
+            printf("Coppelia Kinematics Routines trace: --> %s\n",funcName);
+        }
+    }
+    virtual ~debugInfo()
+    {
+        if (debugLevel>=1)
+        {
+            if (lastError.size()>0)
+                printf("Coppelia Kinematics Routines error: %s\n",lastError.c_str());
+            else
+                lastError=_lastErrorSaved;
+        }
+        if (debugLevel>=5)
+            printf("Coppelia Kinematics Routines trace: <-- %s\n",_funcName.c_str());
+    }
+    std::string _funcName;
+    std::string _lastErrorSaved;
+};
 
 std::string ikGetLastError()
 {
@@ -13,37 +80,37 @@ std::string ikGetLastError()
 
 bool hasLaunched()
 {
-    bool retVal=App::currentInstanceHandle>0;
+    bool retVal=CEnvironment::currentEnvironment!=nullptr;
     if (!retVal)
         lastError="Environment does not exist";
     return(retVal);
 }
 
-CikElement* getIkElementFromIndexOrTipFrame(const CikGroup* ikGroup,int ikElementIndex)
+CikElement* getIkElementFromHandleOrTipDummy(const CikGroup* ikGroup,int ikElementHandle)
 {
     CikElement* retVal=nullptr;
-    bool fromHandle=(ikElementIndex&ik_handleflag_tipframe)!=0;
+    bool fromHandle=(ikElementHandle&ik_handleflag_tipdummy)!=0;
     if (fromHandle)
     {
-        ikElementIndex-=ik_handleflag_tipframe;
-        retVal=ikGroup->getIkElementWithTooltipID(ikElementIndex);
+        ikElementHandle-=ik_handleflag_tipdummy;
+        retVal=ikGroup->getIkElementWithTooltipHandle(ikElementHandle);
         if (retVal==nullptr)
-            lastError="Invalid IK element tip frame handle";
+            lastError="Invalid IK element tip dummy handle";
     }
     else
     {
-        if ( (ikElementIndex>=0)&&(size_t(ikElementIndex)<ikGroup->ikElements.size()) )
-            retVal=ikGroup->ikElements[size_t(ikElementIndex)];
-        else
-            lastError="Invalid IK element index";
+        retVal=ikGroup->getIkElement(ikElementHandle);
+        if (retVal==nullptr)
+            lastError="Invalid IK element handle";
     }
     return(retVal);
 }
 
 bool ikCreateEnvironment(int* environmentHandle/*=nullptr*/,bool protectedEnvironment/*=false*/)
 {
-    App* newCt=new App(protectedEnvironment);
-    int eh=App::addInstance(newCt);
+    debugInfo inf(__FUNCTION__);
+    CEnvironment* newCt=new CEnvironment(protectedEnvironment);
+    int eh=CEnvironment::addEnvironment(newCt);
     if (environmentHandle!=nullptr)
         environmentHandle[0]=eh;
     return(true);
@@ -51,10 +118,11 @@ bool ikCreateEnvironment(int* environmentHandle/*=nullptr*/,bool protectedEnviro
 
 bool ikEraseEnvironment(int* switchedEnvironmentHandle/*=nullptr*/)
 {
+    debugInfo inf(__FUNCTION__);
     bool retVal=false;
     if (hasLaunched())
     {
-        int eh=App::killInstance(App::currentInstanceHandle);
+        int eh=CEnvironment::killEnvironment(CEnvironment::currentEnvironment->getHandle());
         if (switchedEnvironmentHandle!=nullptr)
             switchedEnvironmentHandle[0]=eh;
         retVal=true;
@@ -64,34 +132,42 @@ bool ikEraseEnvironment(int* switchedEnvironmentHandle/*=nullptr*/)
 
 void ikReleaseBuffer(void* buffer)
 {
+    debugInfo inf(__FUNCTION__);
     delete[] static_cast<simReal*>(buffer);
 }
 
 bool ikSwitchEnvironment(int handle,bool allowAlsoProtectedEnvironment/*=false*/)
 {
     bool retVal=false;
-    if (hasLaunched())
-    {
-        if (App::switchToInstance(handle,allowAlsoProtectedEnvironment))
-            retVal=true;
-        else
-            lastError="Invalid environment ID";
+    if ( (CEnvironment::currentEnvironment!=nullptr)&&(CEnvironment::currentEnvironment->getHandle()==handle) )
+        retVal=true;
+    else
+    { // no debug msg if we don't have to switch
+        debugInfo inf(__FUNCTION__);
+        if (hasLaunched())
+        {
+            if (CEnvironment::switchToEnvironment(handle,allowAlsoProtectedEnvironment))
+                retVal=true;
+            else
+                lastError="Invalid environment handle";
+        }
     }
     return(retVal);
 }
 
 bool ikLoad(const unsigned char* data,size_t dataLength)
 {
+    debugInfo inf(__FUNCTION__);
     bool retVal=false;
     if (hasLaunched())
     {
-        if ( (App::currentInstance->objectContainer->objectList.size()==0)&&(App::currentInstance->ikGroupContainer->ikGroups.size()==0) )
+        if ( (CEnvironment::currentEnvironment->objectContainer->objectList.size()==0)&&(CEnvironment::currentEnvironment->ikGroupContainer->ikGroups.size()==0) )
         {
             if ((data!=nullptr)&&(dataLength!=0))
             {
                 CSerialization ar(data,dataLength);
-                App::currentInstance->objectContainer->importKinematicsData(ar);
-                App::currentInstance->objectContainer->objectList.size();
+                CEnvironment::currentEnvironment->objectContainer->importKinematicsData(ar);
+                CEnvironment::currentEnvironment->objectContainer->objectList.size();
                 retVal=true;
             }
             else
@@ -103,12 +179,39 @@ bool ikLoad(const unsigned char* data,size_t dataLength)
     return(retVal);
 }
 
-bool ikGetObjectHandle(const char* objectName,int* objectHandle)
+bool ikGetObjects(size_t index,int* objectHandle/*=nullptr*/,std::string* objectName/*=nullptr*/,bool* isJoint/*=nullptr*/,int* jointType/*=nullptr*/)
 {
+    debugInfo inf(__FUNCTION__);
     bool retVal=false;
     if (hasLaunched())
     {
-        CSceneObject* it=App::currentInstance->objectContainer->getObject(objectName);
+        CSceneObject* it=CEnvironment::currentEnvironment->objectContainer->getObjectFromIndex(index);
+        if (it!=nullptr)
+        {
+            if (objectHandle!=nullptr)
+                objectHandle[0]=it->getObjectHandle();
+            if (objectName!=nullptr)
+                objectName[0]=it->getObjectName();
+            if (isJoint!=nullptr)
+                isJoint[0]=(it->getObjectType()==ik_objecttype_joint);
+            if (it->getObjectType()==ik_objecttype_joint)
+            {
+                if (jointType!=nullptr)
+                    jointType[0]=((CJoint*)it)->getJointType();
+            }
+            retVal=true;
+        }
+    }
+    return(retVal);
+}
+
+bool ikGetObjectHandle(const char* objectName,int* objectHandle)
+{
+    debugInfo inf(__FUNCTION__);
+    bool retVal=false;
+    if (hasLaunched())
+    {
+        CSceneObject* it=CEnvironment::currentEnvironment->objectContainer->getObject(objectName);
         if (it!=nullptr)
         {
             objectHandle[0]=it->getObjectHandle();
@@ -122,10 +225,11 @@ bool ikGetObjectHandle(const char* objectName,int* objectHandle)
 
 bool ikDoesObjectExist(const char* objectName)
 {
+    debugInfo inf(__FUNCTION__);
     bool retVal=false;
     if (hasLaunched())
     {
-        CSceneObject* it=App::currentInstance->objectContainer->getObject(objectName);
+        CSceneObject* it=CEnvironment::currentEnvironment->objectContainer->getObject(objectName);
         retVal=(it!=nullptr);
     }
     return(retVal);
@@ -133,20 +237,21 @@ bool ikDoesObjectExist(const char* objectName)
 
 bool ikGetObjectTransformation(int objectHandle,int relativeToObjectHandle,C7Vector* transf)
 {
+    debugInfo inf(__FUNCTION__);
     bool retVal=false;
     if (hasLaunched())
     {
-        CSceneObject* it=App::currentInstance->objectContainer->getObject(objectHandle);
+        CSceneObject* it=CEnvironment::currentEnvironment->objectContainer->getObject(objectHandle);
         if (it!=nullptr)
         {
-            if (relativeToObjectHandle==sim_handle_parent)
+            if (relativeToObjectHandle==ik_handle_parent)
             {
                 relativeToObjectHandle=-1;
                 CSceneObject* parent=it->getParentObject();
                 if (parent!=nullptr)
                     relativeToObjectHandle=parent->getObjectHandle();
             }
-            CSceneObject* relObj=App::currentInstance->objectContainer->getObject(relativeToObjectHandle);
+            CSceneObject* relObj=CEnvironment::currentEnvironment->objectContainer->getObject(relativeToObjectHandle);
             if ( (relativeToObjectHandle==-1)||(relObj!=nullptr) )
             {
                 if (relativeToObjectHandle==-1)
@@ -169,6 +274,7 @@ bool ikGetObjectTransformation(int objectHandle,int relativeToObjectHandle,C7Vec
 
 bool ikGetObjectMatrix(int objectHandle,int relativeToObjectHandle,C4X4Matrix* matrix)
 {
+    debugInfo inf(__FUNCTION__);
     C7Vector transf;
     bool retVal=ikGetObjectTransformation(objectHandle,relativeToObjectHandle,&transf);
     if (retVal)
@@ -178,29 +284,30 @@ bool ikGetObjectMatrix(int objectHandle,int relativeToObjectHandle,C4X4Matrix* m
 
 bool ikSetObjectTransformation(int objectHandle,int relativeToObjectHandle,const C7Vector* transf)
 {
+    debugInfo inf(__FUNCTION__);
     bool retVal=false;
     if (hasLaunched())
     {
-        CSceneObject* it=App::currentInstance->objectContainer->getObject(objectHandle);
+        CSceneObject* it=CEnvironment::currentEnvironment->objectContainer->getObject(objectHandle);
         if (it!=nullptr)
         {
-            if (relativeToObjectHandle==sim_handle_parent)
+            if (relativeToObjectHandle==ik_handle_parent)
             {
                 relativeToObjectHandle=-1;
                 CSceneObject* parent=it->getParentObject();
                 if (parent!=nullptr)
                     relativeToObjectHandle=parent->getObjectHandle();
             }
-            CSceneObject* relObj=App::currentInstance->objectContainer->getObject(relativeToObjectHandle);
+            CSceneObject* relObj=CEnvironment::currentEnvironment->objectContainer->getObject(relativeToObjectHandle);
             if ( (relativeToObjectHandle==-1)||(relObj!=nullptr) )
             {
                 if (relativeToObjectHandle==-1)
-                    App::currentInstance->objectContainer->setAbsoluteConfiguration(it->getObjectHandle(),transf[0],false);
+                    CEnvironment::currentEnvironment->objectContainer->setAbsoluteConfiguration(it->getObjectHandle(),transf[0],false);
                 else
                 {
                     C7Vector relTr(relObj->getCumulativeTransformationPart1());
                     C7Vector absTr(relTr*transf[0]);
-                    App::currentInstance->objectContainer->setAbsoluteConfiguration(it->getObjectHandle(),absTr,false);
+                    CEnvironment::currentEnvironment->objectContainer->setAbsoluteConfiguration(it->getObjectHandle(),absTr,false);
                 }
                 retVal=true;
             }
@@ -215,19 +322,21 @@ bool ikSetObjectTransformation(int objectHandle,int relativeToObjectHandle,const
 
 bool ikSetObjectMatrix(int objectHandle,int relativeToObjectHandle,const C4X4Matrix* matrix)
 {
+    debugInfo inf(__FUNCTION__);
     C7Vector transf(matrix->getTransformation());
     return(ikSetObjectTransformation(objectHandle,relativeToObjectHandle,&transf));
 }
 
 bool ikGetJointPosition(int jointHandle,simReal* position)
 {
+    debugInfo inf(__FUNCTION__);
     bool retVal=false;
     if (hasLaunched())
     {
-        CJoint* it=App::currentInstance->objectContainer->getJoint(jointHandle);
+        CJoint* it=CEnvironment::currentEnvironment->objectContainer->getJoint(jointHandle);
         if (it!=nullptr)
         {
-            if (it->getJointType()!=sim_joint_spherical_subtype)
+            if (it->getJointType()!=ik_jointtype_spherical)
             {
                 position[0]=it->getPosition();
                 retVal=true;
@@ -243,13 +352,14 @@ bool ikGetJointPosition(int jointHandle,simReal* position)
 
 bool ikSetJointPosition(int jointHandle,simReal position)
 {
+    debugInfo inf(__FUNCTION__);
     bool retVal=false;
     if (hasLaunched())
     {
-        CJoint* it=App::currentInstance->objectContainer->getJoint(jointHandle);
+        CJoint* it=CEnvironment::currentEnvironment->objectContainer->getJoint(jointHandle);
         if (it!=nullptr)
         {
-            if (it->getJointType()!=sim_joint_spherical_subtype)
+            if (it->getJointType()!=ik_jointtype_spherical)
             {
                 it->setPosition(position);
                 retVal=true;
@@ -265,10 +375,11 @@ bool ikSetJointPosition(int jointHandle,simReal position)
 
 bool ikDoesIkGroupExist(const char* ikGroupName)
 {
+    debugInfo inf(__FUNCTION__);
     bool retVal=false;
     if (hasLaunched())
     {
-        CikGroup* it=App::currentInstance->ikGroupContainer->getIkGroup(ikGroupName);
+        CikGroup* it=CEnvironment::currentEnvironment->ikGroupContainer->getIkGroup(ikGroupName);
         retVal=(it!=nullptr);
     }
     return(retVal);
@@ -276,13 +387,14 @@ bool ikDoesIkGroupExist(const char* ikGroupName)
 
 bool ikGetIkGroupHandle(const char* ikGroupName,int* ikGroupHandle)
 {
+    debugInfo inf(__FUNCTION__);
     bool retVal=false;
     if (hasLaunched())
     {
-        CikGroup* it=App::currentInstance->ikGroupContainer->getIkGroup(ikGroupName);
+        CikGroup* it=CEnvironment::currentEnvironment->ikGroupContainer->getIkGroup(ikGroupName);
         if (it!=nullptr)
         {
-            ikGroupHandle[0]=it->getObjectID();
+            ikGroupHandle[0]=it->getObjectHandle();
             retVal=true;
         }
         else
@@ -293,17 +405,18 @@ bool ikGetIkGroupHandle(const char* ikGroupName,int* ikGroupHandle)
 
 bool ikCreateIkGroup(const char* ikGroupName/*=nullptr*/,int* ikGroupHandle)
 {
+    debugInfo inf(__FUNCTION__);
     bool retVal=false;
     if (hasLaunched())
     {
-        if ( (ikGroupName==nullptr)||((strlen(ikGroupName)>0)&&(App::currentInstance->ikGroupContainer->getIkGroup(ikGroupName)==nullptr)) )
+        if ( (ikGroupName==nullptr)||((strlen(ikGroupName)>0)&&(CEnvironment::currentEnvironment->ikGroupContainer->getIkGroup(ikGroupName)==nullptr)) )
         {
             CikGroup* it=new CikGroup();
             if (ikGroupName!=nullptr)
                 it->setObjectName(ikGroupName);
             it->setExplicitHandling(true);
-            App::currentInstance->ikGroupContainer->addIkGroup(it);
-            ikGroupHandle[0]=it->getObjectID();
+            CEnvironment::currentEnvironment->ikGroupContainer->addIkGroup(it,false);
+            ikGroupHandle[0]=it->getObjectHandle();
             retVal=true;
         }
         else
@@ -312,24 +425,42 @@ bool ikCreateIkGroup(const char* ikGroupName/*=nullptr*/,int* ikGroupHandle)
     return(retVal);
 }
 
-bool ikAddIkElement(int ikGroupHandle,int tipHandle,int* ikElementIndex)
+bool ikEraseIkGroup(int ikGroupHandle)
 {
+    debugInfo inf(__FUNCTION__);
     bool retVal=false;
     if (hasLaunched())
     {
-        CikGroup* ikGroup=App::currentInstance->ikGroupContainer->getIkGroup(ikGroupHandle);
+        CikGroup* it=CEnvironment::currentEnvironment->ikGroupContainer->getIkGroup(ikGroupHandle);
+        if (it!=nullptr)
+        {
+            retVal=true;
+            CEnvironment::currentEnvironment->ikGroupContainer->removeIkGroup(ikGroupHandle);
+        }
+        else
+            lastError="Invalid IK group handle";
+    }
+    return(retVal);
+}
+
+bool ikAddIkElement(int ikGroupHandle,int tipHandle,int* ikElementHandle)
+{
+    debugInfo inf(__FUNCTION__);
+    bool retVal=false;
+    if (hasLaunched())
+    {
+        CikGroup* ikGroup=CEnvironment::currentEnvironment->ikGroupContainer->getIkGroup(ikGroupHandle);
         if (ikGroup!=nullptr)
         {
-            CDummy* dummy=App::currentInstance->objectContainer->getDummy(tipHandle);
+            CDummy* dummy=CEnvironment::currentEnvironment->objectContainer->getDummy(tipHandle);
             if (dummy!=nullptr)
             {
                 CikElement* ikElement=new CikElement(tipHandle);
-                ikGroup->ikElements.push_back(ikElement);
-                ikElementIndex[0]=int(ikGroup->ikElements.size())-1;
+                ikElementHandle[0]=ikGroup->addIkElement(ikElement);
                 retVal=true;
             }
             else
-                lastError="Invalid tip frame handle";
+                lastError="Invalid tip dummy handle";
         }
         else
             lastError="Invalid IK group handle";
@@ -337,18 +468,42 @@ bool ikAddIkElement(int ikGroupHandle,int tipHandle,int* ikElementIndex)
     return(retVal);
 }
 
-bool ikSetIkElementEnabled(int ikGroupHandle,int ikElementIndex,bool enabled)
+bool ikEraseIkElement(int ikGroupHandle,int ikElementHandle)
 {
+    debugInfo inf(__FUNCTION__);
     bool retVal=false;
     if (hasLaunched())
     {
-        CikGroup* ikGroup=App::currentInstance->ikGroupContainer->getIkGroup(ikGroupHandle);
+        CikGroup* ikGroup=CEnvironment::currentEnvironment->ikGroupContainer->getIkGroup(ikGroupHandle);
         if (ikGroup!=nullptr)
         {
-            CikElement* ikElement=getIkElementFromIndexOrTipFrame(ikGroup,ikElementIndex);
+            CikElement* ikElement=getIkElementFromHandleOrTipDummy(ikGroup,ikElementHandle);
             if (ikElement!=nullptr)
             {
-                ikElement->setIsActive(enabled);
+                retVal=true;
+                ikGroup->removeIkElement(ikElement->getIkElementHandle());
+            }
+        }
+        else
+            lastError="Invalid IK group handle";
+    }
+    return(retVal);
+}
+
+bool ikSetIkElementFlags(int ikGroupHandle,int ikElementHandle,int flags)
+{
+    debugInfo inf(__FUNCTION__);
+    bool retVal=false;
+    if (hasLaunched())
+    {
+        CikGroup* ikGroup=CEnvironment::currentEnvironment->ikGroupContainer->getIkGroup(ikGroupHandle);
+        if (ikGroup!=nullptr)
+        {
+            CikElement* ikElement=getIkElementFromHandleOrTipDummy(ikGroup,ikElementHandle);
+            if (ikElement!=nullptr)
+            {
+                if (ikElement->getIsActive()!=((flags&1)!=0))
+                    ikElement->setIsActive((flags&1)!=0);
                 retVal=true;
             }
         }
@@ -358,19 +513,22 @@ bool ikSetIkElementEnabled(int ikGroupHandle,int ikElementIndex,bool enabled)
     return(retVal);
 }
 
-bool ikGetIkElementEnabled(int ikGroupHandle,int ikElementIndex,bool* enabled)
+bool ikGetIkElementFlags(int ikGroupHandle,int ikElementHandle,int* flags)
 {
+    debugInfo inf(__FUNCTION__);
     bool retVal=false;
     if (hasLaunched())
     {
-        CikGroup* ikGroup=App::currentInstance->ikGroupContainer->getIkGroup(ikGroupHandle);
+        CikGroup* ikGroup=CEnvironment::currentEnvironment->ikGroupContainer->getIkGroup(ikGroupHandle);
         if (ikGroup!=nullptr)
         {
-            CikElement* ikElement=getIkElementFromIndexOrTipFrame(ikGroup,ikElementIndex);
+            CikElement* ikElement=getIkElementFromHandleOrTipDummy(ikGroup,ikElementHandle);
             if (ikElement!=nullptr)
             {
                 retVal=true;
-                enabled[0]=ikElement->getIsActive();
+                flags[0]=0;
+                if (ikElement->getIsActive())
+                    flags[0]|=1;
             }
         }
         else
@@ -379,21 +537,22 @@ bool ikGetIkElementEnabled(int ikGroupHandle,int ikElementIndex,bool* enabled)
     return(retVal);
 }
 
-bool ikSetIkElementBase(int ikGroupHandle,int ikElementIndex,int baseHandle,int constraintsBaseHandle/*=-1*/)
+bool ikSetIkElementBase(int ikGroupHandle,int ikElementHandle,int baseHandle,int constraintsBaseHandle/*=-1*/)
 {
+    debugInfo inf(__FUNCTION__);
     bool retVal=false;
     if (hasLaunched())
     {
-        CikGroup* ikGroup=App::currentInstance->ikGroupContainer->getIkGroup(ikGroupHandle);
+        CikGroup* ikGroup=CEnvironment::currentEnvironment->ikGroupContainer->getIkGroup(ikGroupHandle);
         if (ikGroup!=nullptr)
         {
-            CikElement* ikElement=getIkElementFromIndexOrTipFrame(ikGroup,ikElementIndex);
+            CikElement* ikElement=getIkElementFromHandleOrTipDummy(ikGroup,ikElementHandle);
             if (ikElement!=nullptr)
             {
-                CSceneObject* b1=App::currentInstance->objectContainer->getObject(baseHandle);
+                CSceneObject* b1=CEnvironment::currentEnvironment->objectContainer->getObject(baseHandle);
                 if ( (b1!=nullptr)||(baseHandle==-1) )
                 {
-                    CSceneObject* b2=App::currentInstance->objectContainer->getObject(constraintsBaseHandle);
+                    CSceneObject* b2=CEnvironment::currentEnvironment->objectContainer->getObject(constraintsBaseHandle);
                     if ( (b2!=nullptr)||(constraintsBaseHandle==-1) )
                     {
                         if (ikElement->getBaseHandle()!=baseHandle)
@@ -415,15 +574,16 @@ bool ikSetIkElementBase(int ikGroupHandle,int ikElementIndex,int baseHandle,int 
     return(retVal);
 }
 
-bool ikGetIkElementBase(int ikGroupHandle,int ikElementIndex,int* baseHandle,int* constraintsBaseHandle)
+bool ikGetIkElementBase(int ikGroupHandle,int ikElementHandle,int* baseHandle,int* constraintsBaseHandle)
 {
+    debugInfo inf(__FUNCTION__);
     bool retVal=false;
     if (hasLaunched())
     {
-        CikGroup* ikGroup=App::currentInstance->ikGroupContainer->getIkGroup(ikGroupHandle);
+        CikGroup* ikGroup=CEnvironment::currentEnvironment->ikGroupContainer->getIkGroup(ikGroupHandle);
         if (ikGroup!=nullptr)
         {
-            CikElement* ikElement=getIkElementFromIndexOrTipFrame(ikGroup,ikElementIndex);
+            CikElement* ikElement=getIkElementFromHandleOrTipDummy(ikGroup,ikElementHandle);
             if (ikElement!=nullptr)
             {
                 baseHandle[0]=ikElement->getBaseHandle();
@@ -437,15 +597,16 @@ bool ikGetIkElementBase(int ikGroupHandle,int ikElementIndex,int* baseHandle,int
     return(retVal);
 }
 
-bool ikSetIkElementConstraints(int ikGroupHandle,int ikElementIndex,int constraints)
+bool ikSetIkElementConstraints(int ikGroupHandle,int ikElementHandle,int constraints)
 {
+    debugInfo inf(__FUNCTION__);
     bool retVal=false;
     if (hasLaunched())
     {
-        CikGroup* ikGroup=App::currentInstance->ikGroupContainer->getIkGroup(ikGroupHandle);
+        CikGroup* ikGroup=CEnvironment::currentEnvironment->ikGroupContainer->getIkGroup(ikGroupHandle);
         if (ikGroup!=nullptr)
         {
-            CikElement* ikElement=getIkElementFromIndexOrTipFrame(ikGroup,ikElementIndex);
+            CikElement* ikElement=getIkElementFromHandleOrTipDummy(ikGroup,ikElementHandle);
             if (ikElement!=nullptr)
             {
                 if (ikElement->getConstraints()!=constraints)
@@ -459,15 +620,16 @@ bool ikSetIkElementConstraints(int ikGroupHandle,int ikElementIndex,int constrai
     return(retVal);
 }
 
-bool ikGetIkElementConstraints(int ikGroupHandle,int ikElementIndex,int* constraints)
+bool ikGetIkElementConstraints(int ikGroupHandle,int ikElementHandle,int* constraints)
 {
+    debugInfo inf(__FUNCTION__);
     bool retVal=false;
     if (hasLaunched())
     {
-        CikGroup* ikGroup=App::currentInstance->ikGroupContainer->getIkGroup(ikGroupHandle);
+        CikGroup* ikGroup=CEnvironment::currentEnvironment->ikGroupContainer->getIkGroup(ikGroupHandle);
         if (ikGroup!=nullptr)
         {
-            CikElement* ikElement=getIkElementFromIndexOrTipFrame(ikGroup,ikElementIndex);
+            CikElement* ikElement=getIkElementFromHandleOrTipDummy(ikGroup,ikElementHandle);
             if (ikElement!=nullptr)
             {
                 constraints[0]=ikElement->getConstraints();
@@ -480,15 +642,16 @@ bool ikGetIkElementConstraints(int ikGroupHandle,int ikElementIndex,int* constra
     return(retVal);
 }
 
-bool ikSetIkElementPrecision(int ikGroupHandle,int ikElementIndex,simReal linearPrecision,simReal angularPrecision)
+bool ikSetIkElementPrecision(int ikGroupHandle,int ikElementHandle,simReal linearPrecision,simReal angularPrecision)
 {
+    debugInfo inf(__FUNCTION__);
     bool retVal=false;
     if (hasLaunched())
     {
-        CikGroup* ikGroup=App::currentInstance->ikGroupContainer->getIkGroup(ikGroupHandle);
+        CikGroup* ikGroup=CEnvironment::currentEnvironment->ikGroupContainer->getIkGroup(ikGroupHandle);
         if (ikGroup!=nullptr)
         {
-            CikElement* ikElement=getIkElementFromIndexOrTipFrame(ikGroup,ikElementIndex);
+            CikElement* ikElement=getIkElementFromHandleOrTipDummy(ikGroup,ikElementHandle);
             if (ikElement!=nullptr)
             {
                 if ( fabs(ikElement->getMinLinearPrecision()-linearPrecision)>simReal(0.0001) )
@@ -504,15 +667,16 @@ bool ikSetIkElementPrecision(int ikGroupHandle,int ikElementIndex,simReal linear
     return(retVal);
 }
 
-bool ikGetIkElementPrecision(int ikGroupHandle,int ikElementIndex,simReal* linearPrecision,simReal* angularPrecision)
+bool ikGetIkElementPrecision(int ikGroupHandle,int ikElementHandle,simReal* linearPrecision,simReal* angularPrecision)
 {
+    debugInfo inf(__FUNCTION__);
     bool retVal=false;
     if (hasLaunched())
     {
-        CikGroup* ikGroup=App::currentInstance->ikGroupContainer->getIkGroup(ikGroupHandle);
+        CikGroup* ikGroup=CEnvironment::currentEnvironment->ikGroupContainer->getIkGroup(ikGroupHandle);
         if (ikGroup!=nullptr)
         {
-            CikElement* ikElement=getIkElementFromIndexOrTipFrame(ikGroup,ikElementIndex);
+            CikElement* ikElement=getIkElementFromHandleOrTipDummy(ikGroup,ikElementHandle);
             if (ikElement!=nullptr)
             {
                 linearPrecision[0]=ikElement->getMinLinearPrecision();
@@ -526,15 +690,16 @@ bool ikGetIkElementPrecision(int ikGroupHandle,int ikElementIndex,simReal* linea
     return(retVal);
 }
 
-bool ikSetIkElementWeights(int ikGroupHandle,int ikElementIndex,simReal linearWeight,simReal angularWeight)
+bool ikSetIkElementWeights(int ikGroupHandle,int ikElementHandle,simReal linearWeight,simReal angularWeight)
 {
+    debugInfo inf(__FUNCTION__);
     bool retVal=false;
     if (hasLaunched())
     {
-        CikGroup* ikGroup=App::currentInstance->ikGroupContainer->getIkGroup(ikGroupHandle);
+        CikGroup* ikGroup=CEnvironment::currentEnvironment->ikGroupContainer->getIkGroup(ikGroupHandle);
         if (ikGroup!=nullptr)
         {
-            CikElement* ikElement=getIkElementFromIndexOrTipFrame(ikGroup,ikElementIndex);
+            CikElement* ikElement=getIkElementFromHandleOrTipDummy(ikGroup,ikElementHandle);
             if (ikElement!=nullptr)
             {
                 if ( fabs(ikElement->getPositionWeight()-linearWeight)>simReal(0.001) )
@@ -550,15 +715,16 @@ bool ikSetIkElementWeights(int ikGroupHandle,int ikElementIndex,simReal linearWe
     return(retVal);
 }
 
-bool ikGetIkElementWeights(int ikGroupHandle,int ikElementIndex,simReal* linearWeight,simReal* angularWeight)
+bool ikGetIkElementWeights(int ikGroupHandle,int ikElementHandle,simReal* linearWeight,simReal* angularWeight)
 {
+    debugInfo inf(__FUNCTION__);
     bool retVal=false;
     if (hasLaunched())
     {
-        CikGroup* ikGroup=App::currentInstance->ikGroupContainer->getIkGroup(ikGroupHandle);
+        CikGroup* ikGroup=CEnvironment::currentEnvironment->ikGroupContainer->getIkGroup(ikGroupHandle);
         if (ikGroup!=nullptr)
         {
-            CikElement* ikElement=getIkElementFromIndexOrTipFrame(ikGroup,ikElementIndex);
+            CikElement* ikElement=getIkElementFromHandleOrTipDummy(ikGroup,ikElementHandle);
             if (ikElement!=nullptr)
             {
                 linearWeight[0]=ikElement->getPositionWeight();
@@ -574,10 +740,11 @@ bool ikGetIkElementWeights(int ikGroupHandle,int ikElementIndex,simReal* linearW
 
 bool ikComputeJacobian(int ikGroupHandle,int options,bool* success/*=nullptr*/)
 {
+    debugInfo inf(__FUNCTION__);
     bool retVal=false;
     if (hasLaunched())
     {
-        CikGroup* it=App::currentInstance->ikGroupContainer->getIkGroup(ikGroupHandle);
+        CikGroup* it=CEnvironment::currentEnvironment->ikGroupContainer->getIkGroup(ikGroupHandle);
         if (it!=nullptr)
         {
             bool succ=it->computeOnlyJacobian(options);
@@ -593,10 +760,11 @@ bool ikComputeJacobian(int ikGroupHandle,int options,bool* success/*=nullptr*/)
 
 simReal* ikGetJacobian(int ikGroupHandle,size_t* matrixSize)
 {
+    debugInfo inf(__FUNCTION__);
     simReal* retVal=nullptr;
     if (hasLaunched())
     {
-        CikGroup* it=App::currentInstance->ikGroupContainer->getIkGroup(ikGroupHandle);
+        CikGroup* it=CEnvironment::currentEnvironment->ikGroupContainer->getIkGroup(ikGroupHandle);
         if (it!=nullptr)
         {
             simReal* b=it->getLastJacobianData(matrixSize);
@@ -615,10 +783,11 @@ simReal* ikGetJacobian(int ikGroupHandle,size_t* matrixSize)
 
 bool ikGetManipulability(int ikGroupHandle,simReal* manip)
 {
+    debugInfo inf(__FUNCTION__);
     bool retVal=false;
     if (hasLaunched())
     {
-        CikGroup* it=App::currentInstance->ikGroupContainer->getIkGroup(ikGroupHandle);
+        CikGroup* it=CEnvironment::currentEnvironment->ikGroupContainer->getIkGroup(ikGroupHandle);
         if (it!=nullptr)
         {
             simReal b=it->getLastManipulabilityValue(retVal);
@@ -631,16 +800,17 @@ bool ikGetManipulability(int ikGroupHandle,simReal* manip)
     return(retVal);
 }
 
-bool ikHandleIkGroup(int ikGroupHandle,int* result/*=nullptr*/)
+bool ikHandleIkGroup(int ikGroupHandle/*=ik_handle_all*/,int* result/*=nullptr*/)
 {
+    debugInfo inf(__FUNCTION__);
     bool retVal=false;
     if (hasLaunched())
     {
-        CikGroup* it=App::currentInstance->ikGroupContainer->getIkGroup(ikGroupHandle);
-        if ( (ikGroupHandle==sim_handle_all)||(ikGroupHandle==sim_handle_all_except_explicit)||(it!=nullptr) )
+        CikGroup* it=CEnvironment::currentEnvironment->ikGroupContainer->getIkGroup(ikGroupHandle);
+        if ( (ikGroupHandle==ik_handle_all)||(it!=nullptr) )
         {
             if (ikGroupHandle<0)
-                retVal=App::currentInstance->ikGroupContainer->computeAllIkGroups(ikGroupHandle==sim_handle_all_except_explicit);
+                retVal=CEnvironment::currentEnvironment->ikGroupContainer->computeAllIkGroups(false);
             else
             { // explicit handling
                 if (it->getExplicitHandling())
@@ -662,10 +832,11 @@ bool ikHandleIkGroup(int ikGroupHandle,int* result/*=nullptr*/)
 
 bool ikGetJointTransformation(int jointHandle,C7Vector* transf)
 {
+    debugInfo inf(__FUNCTION__);
     bool retVal=false;
     if (hasLaunched())
     {
-        CJoint* it=App::currentInstance->objectContainer->getJoint(jointHandle);
+        CJoint* it=CEnvironment::currentEnvironment->objectContainer->getJoint(jointHandle);
         if (it!=nullptr)
         {
             C7Vector trFull(it->getLocalTransformation());
@@ -682,6 +853,7 @@ bool ikGetJointTransformation(int jointHandle,C7Vector* transf)
 
 bool ikGetJointMatrix(int jointHandle,C4X4Matrix* matrix)
 {
+    debugInfo inf(__FUNCTION__);
     C7Vector transf;
     bool retVal=ikGetJointTransformation(jointHandle,&transf);
     if (retVal)
@@ -691,13 +863,14 @@ bool ikGetJointMatrix(int jointHandle,C4X4Matrix* matrix)
 
 bool ikSetSphericalJointQuaternion(int jointHandle,const C4Vector* quaternion)
 {
+    debugInfo inf(__FUNCTION__);
     bool retVal=false;
     if (hasLaunched())
     {
-        CJoint* it=App::currentInstance->objectContainer->getJoint(jointHandle);
+        CJoint* it=CEnvironment::currentEnvironment->objectContainer->getJoint(jointHandle);
         if (it!=nullptr)
         {
-            if (it->getJointType()==sim_joint_spherical_subtype)
+            if (it->getJointType()==ik_jointtype_spherical)
             {
                 it->setSphericalTransformation(quaternion[0]);
                 retVal=true;
@@ -713,16 +886,18 @@ bool ikSetSphericalJointQuaternion(int jointHandle,const C4Vector* quaternion)
 
 bool ikSetSphericalJointMatrix(int jointHandle,const C3X3Matrix* rotMatrix)
 {
+    debugInfo inf(__FUNCTION__);
     C4Vector q(rotMatrix->getQuaternion());
     return(ikSetSphericalJointQuaternion(jointHandle,&q));
 }
 
 bool ikGetObjectParent(int objectHandle,int* parentObjectHandle)
 {
+    debugInfo inf(__FUNCTION__);
     bool retVal=false;
     if (hasLaunched())
     {
-        CSceneObject* it=App::currentInstance->objectContainer->getObject(objectHandle);
+        CSceneObject* it=CEnvironment::currentEnvironment->objectContainer->getObject(objectHandle);
         if (it!=nullptr)
         {
             parentObjectHandle[0]=-1;
@@ -738,17 +913,18 @@ bool ikGetObjectParent(int objectHandle,int* parentObjectHandle)
 
 bool ikSetObjectParent(int objectHandle,int parentObjectHandle,bool keepInPlace)
 {
+    debugInfo inf(__FUNCTION__);
     bool retVal=false;
     if (hasLaunched())
     {
-        CSceneObject* it=App::currentInstance->objectContainer->getObject(objectHandle);
-        CSceneObject* parentIt=App::currentInstance->objectContainer->getObject(parentObjectHandle);
+        CSceneObject* it=CEnvironment::currentEnvironment->objectContainer->getObject(objectHandle);
+        CSceneObject* parentIt=CEnvironment::currentEnvironment->objectContainer->getObject(parentObjectHandle);
         if (it!=nullptr)
         {
             if ( (parentIt!=nullptr)||(parentObjectHandle==-1) )
             {
                 if (keepInPlace)
-                    App::currentInstance->objectContainer->makeObjectChildOf(it,parentIt);
+                    CEnvironment::currentEnvironment->objectContainer->makeObjectChildOf(it,parentIt);
                 else
                     it->setParentObject(parentIt);
                 retVal=true;
@@ -762,14 +938,15 @@ bool ikSetObjectParent(int objectHandle,int parentObjectHandle,bool keepInPlace)
     return(retVal);
 }
 
-bool ikCreateFrame(const char* frameName/*=nullptr*/,int* frameHandle)
+bool ikCreateDummy(const char* dummyName/*=nullptr*/,int* dummyHandle)
 {
+    debugInfo inf(__FUNCTION__);
     bool retVal=false;
     if (hasLaunched())
     {
-        if ( (frameName==nullptr)||((strlen(frameName)!=0)&&(App::currentInstance->objectContainer->getObject(frameName)==nullptr)) )
+        if ( (dummyName==nullptr)||((strlen(dummyName)!=0)&&(CEnvironment::currentEnvironment->objectContainer->getObject(dummyName)==nullptr)) )
         {
-            frameHandle[0]=App::currentInstance->objectContainer->createDummy(frameName);
+            dummyHandle[0]=CEnvironment::currentEnvironment->objectContainer->createDummy(dummyName);
             retVal=true;
         }
         else
@@ -778,62 +955,65 @@ bool ikCreateFrame(const char* frameName/*=nullptr*/,int* frameHandle)
     return(retVal);
 }
 
-bool ikSetLinkedFrame(int frameHandle,int linkedFrameHandle)
+bool ikSetLinkedDummy(int dummyHandle,int linkedDummyHandle)
 {
+    debugInfo inf(__FUNCTION__);
     bool retVal=false;
     if (hasLaunched())
     {
-        CDummy* it=App::currentInstance->objectContainer->getDummy(frameHandle);
+        CDummy* it=CEnvironment::currentEnvironment->objectContainer->getDummy(dummyHandle);
         if (it!=nullptr)
         {
-            CDummy* it2=App::currentInstance->objectContainer->getDummy(linkedFrameHandle);
-            if ( (it2!=nullptr)||(linkedFrameHandle==-1) )
+            CDummy* it2=CEnvironment::currentEnvironment->objectContainer->getDummy(linkedDummyHandle);
+            if ( (it2!=nullptr)||(linkedDummyHandle==-1) )
             {
                 if (it2==nullptr)
                     it->setLinkedDummyHandle(-1,false);
                 else
                 {
-                    it->setLinkedDummyHandle(linkedFrameHandle,false);
-                    it->setLinkType(sim_dummy_linktype_ik_tip_target,false);
+                    it->setLinkedDummyHandle(linkedDummyHandle,false);
+                    it->setLinkType(ik_linktype_ik_tip_target,false);
                 }
                 retVal=true;
             }
             else
-                lastError="Invalid linked frame handle";
+                lastError="Invalid linked dummy handle";
         }
         else
-            lastError="Invalid frame handle";
+            lastError="Invalid dummy handle";
     }
     return(retVal);
 }
 
-bool ikGetLinkedFrame(int frameHandle,int* linkedFrameHandle)
+bool ikGetLinkedDummy(int dummyHandle,int* linkedDummyHandle)
 {
+    debugInfo inf(__FUNCTION__);
     bool retVal=false;
     if (hasLaunched())
     {
-        CDummy* it=App::currentInstance->objectContainer->getDummy(frameHandle);
+        CDummy* it=CEnvironment::currentEnvironment->objectContainer->getDummy(dummyHandle);
         if (it!=nullptr)
         {
-            linkedFrameHandle[0]=it->getLinkedDummyHandle();
-            if (it->getLinkType()!=sim_dummy_linktype_ik_tip_target)
-                linkedFrameHandle[0]=-1;
+            linkedDummyHandle[0]=it->getLinkedDummyHandle();
+            if (it->getLinkType()!=ik_linktype_ik_tip_target)
+                linkedDummyHandle[0]=-1;
             retVal=true;
         }
         else
-            lastError="Invalid frame handle";
+            lastError="Invalid dummy handle";
     }
     return(retVal);
 }
 
 bool ikCreateJoint(const char* jointName/*=nullptr*/,int jointType,int* jointHandle)
 {
+    debugInfo inf(__FUNCTION__);
     bool retVal=false;
     if (hasLaunched())
     {
-        if ( (jointName==nullptr)||((strlen(jointName)!=0)&&(App::currentInstance->objectContainer->getObject(jointName)==nullptr)) )
+        if ( (jointName==nullptr)||((strlen(jointName)!=0)&&(CEnvironment::currentEnvironment->objectContainer->getObject(jointName)==nullptr)) )
         {
-            jointHandle[0]=App::currentInstance->objectContainer->createJoint(jointName,jointType);
+            jointHandle[0]=CEnvironment::currentEnvironment->objectContainer->createJoint(jointName,jointType);
             retVal=true;
         }
         else
@@ -844,10 +1024,11 @@ bool ikCreateJoint(const char* jointName/*=nullptr*/,int jointType,int* jointHan
 
 bool ikSetJointMode(int jointHandle,int jointMode)
 {
+    debugInfo inf(__FUNCTION__);
     bool retVal=false;
     if (hasLaunched())
     {
-        CJoint* it=App::currentInstance->objectContainer->getJoint(jointHandle);
+        CJoint* it=CEnvironment::currentEnvironment->objectContainer->getJoint(jointHandle);
         if (it!=nullptr)
         {
             if (it->getJointMode()!=jointMode)
@@ -862,10 +1043,11 @@ bool ikSetJointMode(int jointHandle,int jointMode)
 
 bool ikGetJointMode(int jointHandle,int* mode)
 {
+    debugInfo inf(__FUNCTION__);
     bool retVal=false;
     if (hasLaunched())
     {
-        CJoint* it=App::currentInstance->objectContainer->getJoint(jointHandle);
+        CJoint* it=CEnvironment::currentEnvironment->objectContainer->getJoint(jointHandle);
         if (it!=nullptr)
         {
             mode[0]=it->getJointMode();
@@ -879,10 +1061,11 @@ bool ikGetJointMode(int jointHandle,int* mode)
 
 bool ikSetJointInterval(int jointHandle,bool cyclic,const simReal* intervalMinAndRange/*=nullptr*/)
 {
+    debugInfo inf(__FUNCTION__);
     bool retVal=false;
     if (hasLaunched())
     {
-        CJoint* it=App::currentInstance->objectContainer->getJoint(jointHandle);
+        CJoint* it=CEnvironment::currentEnvironment->objectContainer->getJoint(jointHandle);
         if (it!=nullptr)
         {
             simReal previousPos=it->getPosition();
@@ -906,10 +1089,11 @@ bool ikSetJointInterval(int jointHandle,bool cyclic,const simReal* intervalMinAn
 
 bool ikSetJointScrewPitch(int jointHandle,simReal pitch)
 {
+    debugInfo inf(__FUNCTION__);
     bool retVal=false;
     if (hasLaunched())
     {
-        CJoint* it=App::currentInstance->objectContainer->getJoint(jointHandle);
+        CJoint* it=CEnvironment::currentEnvironment->objectContainer->getJoint(jointHandle);
         if (it!=nullptr)
         {
             if ( fabs(it->getScrewPitch()-pitch)>simReal(0.000001) )
@@ -924,10 +1108,11 @@ bool ikSetJointScrewPitch(int jointHandle,simReal pitch)
 
 bool ikSetJointIkWeight(int jointHandle,simReal ikWeight)
 {
+    debugInfo inf(__FUNCTION__);
     bool retVal=false;
     if (hasLaunched())
     {
-        CJoint* it=App::currentInstance->objectContainer->getJoint(jointHandle);
+        CJoint* it=CEnvironment::currentEnvironment->objectContainer->getJoint(jointHandle);
         if (it!=nullptr)
         {
             if ( fabs(it->getIkWeight()-ikWeight)>simReal(0.0001) )
@@ -942,10 +1127,11 @@ bool ikSetJointIkWeight(int jointHandle,simReal ikWeight)
 
 bool ikGetJointIkWeight(int jointHandle,simReal* ikWeight)
 {
+    debugInfo inf(__FUNCTION__);
     bool retVal=false;
     if (hasLaunched())
     {
-        CJoint* it=App::currentInstance->objectContainer->getJoint(jointHandle);
+        CJoint* it=CEnvironment::currentEnvironment->objectContainer->getJoint(jointHandle);
         if (it!=nullptr)
         {
             ikWeight[0]=it->getIkWeight();
@@ -959,10 +1145,11 @@ bool ikGetJointIkWeight(int jointHandle,simReal* ikWeight)
 
 bool ikSetJointMaxStepSize(int jointHandle,simReal maxStepSize)
 {
+    debugInfo inf(__FUNCTION__);
     bool retVal=false;
     if (hasLaunched())
     {
-        CJoint* it=App::currentInstance->objectContainer->getJoint(jointHandle);
+        CJoint* it=CEnvironment::currentEnvironment->objectContainer->getJoint(jointHandle);
         if (it!=nullptr)
         {
             if ( fabs(it->getMaxStepSize()-maxStepSize)>simReal(0.00001) )
@@ -977,10 +1164,11 @@ bool ikSetJointMaxStepSize(int jointHandle,simReal maxStepSize)
 
 bool ikGetJointMaxStepSize(int jointHandle,simReal* maxStepSize)
 {
+    debugInfo inf(__FUNCTION__);
     bool retVal=false;
     if (hasLaunched())
     {
-        CJoint* it=App::currentInstance->objectContainer->getJoint(jointHandle);
+        CJoint* it=CEnvironment::currentEnvironment->objectContainer->getJoint(jointHandle);
         if (it!=nullptr)
         {
             maxStepSize[0]=it->getMaxStepSize();
@@ -994,13 +1182,14 @@ bool ikGetJointMaxStepSize(int jointHandle,simReal* maxStepSize)
 
 bool ikSetJointDependency(int jointHandle,int dependencyJointHandle,simReal offset/*=0.0*/,simReal mult/*=1.0*/)
 {
+    debugInfo inf(__FUNCTION__);
     bool retVal=false;
     if (hasLaunched())
     {
-        CJoint* it=App::currentInstance->objectContainer->getJoint(jointHandle);
+        CJoint* it=CEnvironment::currentEnvironment->objectContainer->getJoint(jointHandle);
         if (it!=nullptr)
         {
-            CJoint* it2=App::currentInstance->objectContainer->getJoint(dependencyJointHandle);
+            CJoint* it2=CEnvironment::currentEnvironment->objectContainer->getJoint(dependencyJointHandle);
             if ( (it2!=nullptr)||(dependencyJointHandle==-1) )
             {
                 bool ok=true;
@@ -1031,10 +1220,11 @@ bool ikSetJointDependency(int jointHandle,int dependencyJointHandle,simReal offs
 
 bool ikGetJointDependency(int jointHandle,int* dependencyJointHandle,simReal* offset,simReal* mult)
 {
+    debugInfo inf(__FUNCTION__);
     bool retVal=false;
     if (hasLaunched())
     {
-        CJoint* it=App::currentInstance->objectContainer->getJoint(jointHandle);
+        CJoint* it=CEnvironment::currentEnvironment->objectContainer->getJoint(jointHandle);
         if (it!=nullptr)
         {
             dependencyJointHandle[0]=it->getDependencyJointHandle();
@@ -1050,12 +1240,13 @@ bool ikGetJointDependency(int jointHandle,int* dependencyJointHandle,simReal* of
 
 bool ikEraseObject(int objectHandle)
 {
+    debugInfo inf(__FUNCTION__);
     bool retVal=false;
     if (hasLaunched())
     {
-        CSceneObject* obj=App::currentInstance->objectContainer->getObject(objectHandle);
+        CSceneObject* obj=CEnvironment::currentEnvironment->objectContainer->getObject(objectHandle);
         if (obj!=nullptr)
-            retVal=App::currentInstance->objectContainer->eraseObject(obj);
+            retVal=CEnvironment::currentEnvironment->objectContainer->eraseObject(obj);
         else
             lastError="Invalid object handle";
     }
@@ -1064,10 +1255,11 @@ bool ikEraseObject(int objectHandle)
 
 bool ikGetJointInterval(int jointHandle,bool* cyclic,simReal* intervalMinAndRange)
 {
+    debugInfo inf(__FUNCTION__);
     bool retVal=false;
     if (hasLaunched())
     {
-        CJoint* it=App::currentInstance->objectContainer->getJoint(jointHandle);
+        CJoint* it=CEnvironment::currentEnvironment->objectContainer->getJoint(jointHandle);
         if (it!=nullptr)
         {
             intervalMinAndRange[0]=it->getPositionIntervalMin();
@@ -1083,10 +1275,11 @@ bool ikGetJointInterval(int jointHandle,bool* cyclic,simReal* intervalMinAndRang
 
 bool ikGetJointScrewPitch(int jointHandle,simReal* pitch)
 {
+    debugInfo inf(__FUNCTION__);
     bool retVal=false;
     if (hasLaunched())
     {
-        CJoint* it=App::currentInstance->objectContainer->getJoint(jointHandle);
+        CJoint* it=CEnvironment::currentEnvironment->objectContainer->getJoint(jointHandle);
         if (it!=nullptr)
         {
             pitch[0]=it->getScrewPitch();
@@ -1100,10 +1293,11 @@ bool ikGetJointScrewPitch(int jointHandle,simReal* pitch)
 
 bool ikGetIkGroupCalculation(int ikGroupHandle,int* method,simReal* damping,int* maxIterations)
 {
+    debugInfo inf(__FUNCTION__);
     bool retVal=false;
     if (hasLaunched())
     {
-        CikGroup* it=App::currentInstance->ikGroupContainer->getIkGroup(ikGroupHandle);
+        CikGroup* it=CEnvironment::currentEnvironment->ikGroupContainer->getIkGroup(ikGroupHandle);
         if (it!=nullptr)
         {
             retVal=true;
@@ -1119,10 +1313,11 @@ bool ikGetIkGroupCalculation(int ikGroupHandle,int* method,simReal* damping,int*
 
 bool ikSetIkGroupCalculation(int ikGroupHandle,int method,simReal damping,int maxIterations)
 {
+    debugInfo inf(__FUNCTION__);
     bool retVal=false;
     if (hasLaunched())
     {
-        CikGroup* it=App::currentInstance->ikGroupContainer->getIkGroup(ikGroupHandle);
+        CikGroup* it=CEnvironment::currentEnvironment->ikGroupContainer->getIkGroup(ikGroupHandle);
         if (it!=nullptr)
         {
             if (it->getCalculationMethod()!=method)
@@ -1139,12 +1334,14 @@ bool ikSetIkGroupCalculation(int ikGroupHandle,int method,simReal damping,int ma
     return(retVal);
 }
 
+/*
 bool ikGetIkGroupLimitThresholds(int ikGroupHandle,simReal* linearAndAngularThresholds)
 {
+    debugInfo inf(__FUNCTION__);
     bool retVal=false;
     if (hasLaunched())
     {
-        CikGroup* it=App::currentInstance->ikGroupContainer->getIkGroup(ikGroupHandle);
+        CikGroup* it=CEnvironment::currentEnvironment->ikGroupContainer->getIkGroup(ikGroupHandle);
         if (it!=nullptr)
         {
             retVal=true;
@@ -1159,10 +1356,11 @@ bool ikGetIkGroupLimitThresholds(int ikGroupHandle,simReal* linearAndAngularThre
 
 bool ikSetIkGroupLimitThresholds(int ikGroupHandle,const simReal* linearAndAngularThresholds)
 {
+    debugInfo inf(__FUNCTION__);
     bool retVal=false;
     if (hasLaunched())
     {
-        CikGroup* it=App::currentInstance->ikGroupContainer->getIkGroup(ikGroupHandle);
+        CikGroup* it=CEnvironment::currentEnvironment->ikGroupContainer->getIkGroup(ikGroupHandle);
         if (it!=nullptr)
         {
             if ( fabs(it->getJointTreshholdLinear()-linearAndAngularThresholds[0])>simReal(0.0001) )
@@ -1176,23 +1374,28 @@ bool ikSetIkGroupLimitThresholds(int ikGroupHandle,const simReal* linearAndAngul
     }
     return(retVal);
 }
-
+*/
 
 bool ikSetIkGroupFlags(int ikGroupHandle,int flags)
 {
+    debugInfo inf(__FUNCTION__);
     bool retVal=false;
     if (hasLaunched())
     {
-        CikGroup* it=App::currentInstance->ikGroupContainer->getIkGroup(ikGroupHandle);
+        CikGroup* it=CEnvironment::currentEnvironment->ikGroupContainer->getIkGroup(ikGroupHandle);
         if (it!=nullptr)
         {
             if (it->getActive()!=((flags&1)!=0))
                 it->setActive((flags&1)!=0);
-            if (it->getCorrectJointLimits()!=((flags&2)!=0))
-                it->setCorrectJointLimits((flags&2)!=0);
-            if (it->getIgnoreMaxStepSizes()!=((flags&4)!=0))
-                it->setIgnoreMaxStepSizes((flags&4)!=0);
-            retVal=false;
+//            if (it->getCorrectJointLimits()!=((flags&2)!=0))
+//                it->setCorrectJointLimits((flags&2)!=0);
+            if (it->getIgnoreMaxStepSizes()!=((flags&2)!=0))
+                it->setIgnoreMaxStepSizes((flags&2)!=0);
+            if (it->getRestoreIfPositionNotReached()!=((flags&4)!=0))
+                it->setRestoreIfPositionNotReached((flags&4)!=0);
+            if (it->getRestoreIfOrientationNotReached()!=((flags&8)!=0))
+                it->setRestoreIfOrientationNotReached((flags&8)!=0);
+            retVal=true;
         }
         else
             lastError="Invalid IK group handle";
@@ -1202,20 +1405,25 @@ bool ikSetIkGroupFlags(int ikGroupHandle,int flags)
 
 bool ikGetIkGroupFlags(int ikGroupHandle,int* flags)
 {
+    debugInfo inf(__FUNCTION__);
     bool retVal=false;
     if (hasLaunched())
     {
-        CikGroup* it=App::currentInstance->ikGroupContainer->getIkGroup(ikGroupHandle);
+        CikGroup* it=CEnvironment::currentEnvironment->ikGroupContainer->getIkGroup(ikGroupHandle);
         if (it!=nullptr)
         {
             retVal=true;
             flags[0]=0;
             if (it->getActive())
-                flags[0]|=1;
-            if (it->getCorrectJointLimits())
-                flags[0]|=2;
+                flags[0]=flags[0]|1;
+//            if (it->getCorrectJointLimits())
+//                flags[0]=flags[0]|2;
             if (it->getIgnoreMaxStepSizes())
-                flags[0]|=4;
+                flags[0]=flags[0]|2;
+            if (it->getRestoreIfPositionNotReached())
+                flags[0]=flags[0]|4;
+            if (it->getRestoreIfOrientationNotReached())
+                flags[0]=flags[0]|8;
         }
         else
             lastError="Invalid IK group handle";
@@ -1225,11 +1433,12 @@ bool ikGetIkGroupFlags(int ikGroupHandle,int* flags)
 
 int ikGetConfigForTipPose(int ikGroupHandle,size_t jointCnt,const int* jointHandles,simReal thresholdDist,int maxIterations,simReal* retConfig,const simReal* metric/*=nullptr*/,bool(*validationCallback)(simReal*)/*=nullptr*/,const int* jointOptions/*=nullptr*/,const simReal* lowLimits/*=nullptr*/,const simReal* ranges/*=nullptr*/)
 {
+    debugInfo inf(__FUNCTION__);
     int retVal=-1;
     std::vector<simReal> conf(jointCnt);
     if (hasLaunched())
     {
-        CikGroup* ikGroup=App::currentInstance->ikGroupContainer->getIkGroup(ikGroupHandle);
+        CikGroup* ikGroup=CEnvironment::currentEnvironment->ikGroupContainer->getIkGroup(ikGroupHandle);
         if (ikGroup!=nullptr)
         {
             const simReal _defaultMetric[4]={simOne,simOne,simOne,simReal(0.1)};
@@ -1242,7 +1451,7 @@ int ikGetConfigForTipPose(int ikGroupHandle,size_t jointCnt,const int* jointHand
             int err=0;
             for (size_t i=0;i<jointCnt;i++)
             {
-                CJoint* aJoint=App::currentInstance->objectContainer->getJoint(jointHandles[i]);
+                CJoint* aJoint=CEnvironment::currentEnvironment->objectContainer->getJoint(jointHandles[i]);
                 if (aJoint==nullptr)
                     err=1;
                 else
@@ -1273,17 +1482,18 @@ int ikGetConfigForTipPose(int ikGroupHandle,size_t jointCnt,const int* jointHand
             std::vector<CSceneObject*> bases;
             if (ikGroup!=nullptr)
             {
-                if (ikGroup->ikElements.size()>0)
+                if (ikGroup->getIkElementCount()>0)
                 {
-                    for (size_t i=0;i<ikGroup->ikElements.size();i++)
+                    for (size_t i=0;i<ikGroup->getIkElementCount();i++)
                     {
-                        CDummy* tip=App::currentInstance->objectContainer->getDummy(ikGroup->ikElements[i]->getTipHandle());
-                        CDummy* target=App::currentInstance->objectContainer->getDummy(ikGroup->ikElements[i]->getTargetHandle());
+                        CikElement* ikEl=ikGroup->getIkElementFromIndex(i);
+                        CDummy* tip=CEnvironment::currentEnvironment->objectContainer->getDummy(ikEl->getTipHandle());
+                        CDummy* target=CEnvironment::currentEnvironment->objectContainer->getDummy(ikEl->getTargetHandle());
                         CSceneObject* base=nullptr;
-                        if (ikGroup->ikElements[i]->getAltBaseHandleForConstraints()!=-1)
-                            base=App::currentInstance->objectContainer->getObject(ikGroup->ikElements[i]->getAltBaseHandleForConstraints());
+                        if (ikEl->getAltBaseHandleForConstraints()!=-1)
+                            base=CEnvironment::currentEnvironment->objectContainer->getObject(ikEl->getAltBaseHandleForConstraints());
                         else
-                            base=App::currentInstance->objectContainer->getObject(ikGroup->ikElements[i]->getBaseHandle());
+                            base=CEnvironment::currentEnvironment->objectContainer->getObject(ikEl->getBaseHandle());
                         if ((tip==nullptr)||(target==nullptr))
                             err=2;
                         tips.push_back(tip);
@@ -1302,9 +1512,9 @@ int ikGetConfigForTipPose(int ikGroupHandle,size_t jointCnt,const int* jointHand
                 std::vector<CJoint*> sceneJoints;
                 std::vector<simReal> initSceneJointValues;
                 std::vector<int> initSceneJointModes;
-                for (size_t i=0;i<App::currentInstance->objectContainer->jointList.size();i++)
+                for (size_t i=0;i<CEnvironment::currentEnvironment->objectContainer->jointList.size();i++)
                 {
-                    CJoint* aj=App::currentInstance->objectContainer->getJoint(App::currentInstance->objectContainer->jointList[i]);
+                    CJoint* aj=CEnvironment::currentEnvironment->objectContainer->getJoint(CEnvironment::currentEnvironment->objectContainer->jointList[i]);
                     sceneJoints.push_back(aj);
                     initSceneJointValues.push_back(aj->getPosition());
                     initSceneJointModes.push_back(aj->getJointMode());
@@ -1318,20 +1528,26 @@ int ikGetConfigForTipPose(int ikGroupHandle,size_t jointCnt,const int* jointHand
 
                 // It can happen that some IK elements get deactivated when the user provided wrong handles, so save the activation state:
                 std::vector<bool> enabledElements;
-                for (size_t i=0;i<ikGroup->ikElements.size();i++)
-                    enabledElements.push_back(ikGroup->ikElements[i]->getIsActive());
+                for (size_t i=0;i<ikGroup->getIkElementCount();i++)
+                    enabledElements.push_back(ikGroup->getIkElementFromIndex(i)->getIsActive());
 
                 // Set the correct mode for the joints involved:
                 for (size_t i=0;i<jointCnt;i++)
                 {
                     if ( (jointOptions==nullptr)||((jointOptions[i]&1)==0) )
-                        joints[i]->setJointMode(sim_jointmode_ik);
+                        joints[i]->setJointMode(ik_jointmode_ik);
                     else
-                        joints[i]->setJointMode(sim_jointmode_dependent);
+                        joints[i]->setJointMode(ik_jointmode_dependent);
                 }
 
                 // do the calculation:
-                for (int iterationCnt=0;iterationCnt<maxIterations;iterationCnt++)
+                int startTime=0;
+                int mi=999999999;
+                if (maxIterations>=0)
+                    mi=maxIterations;
+                else
+                    startTime=getTimeDiffInMs(-1);
+                for (int iterationCnt=0;iterationCnt<mi;iterationCnt++)
                 {
                     // 1. Pick a random state:
                     for (size_t i=0;i<jointCnt;i++)
@@ -1339,7 +1555,7 @@ int ikGetConfigForTipPose(int ikGroupHandle,size_t jointCnt,const int* jointHand
 
                     // 2. Check distances between tip and target pairs (there might be several pairs!):
                     simReal cumulatedDist=simZero;
-                    for (size_t el=0;el<ikGroup->ikElements.size();el++)
+                    for (size_t el=0;el<ikGroup->getIkElementCount();el++)
                     {
                         C7Vector tipTr(tips[el]->getCumulativeTransformation());
                         C7Vector targetTr(targets[el]->getCumulativeTransformation());
@@ -1359,7 +1575,7 @@ int ikGetConfigForTipPose(int ikGroupHandle,size_t jointCnt,const int* jointHand
                     // 3. If distance<=threshold, try to perform IK:
                     if (cumulatedDist<=thresholdDist)
                     {
-                        if (sim_ikresult_success==ikGroup->computeGroupIk(true))
+                        if (ik_result_success==ikGroup->computeGroupIk(true))
                         { // 3.1 We found a configuration that works!
                             // 3.2 Check joint limits:
                             bool limitsOk=true;
@@ -1383,14 +1599,19 @@ int ikGetConfigForTipPose(int ikGroupHandle,size_t jointCnt,const int* jointHand
                             }
                         }
                     }
+                    if (maxIterations<0)
+                    {
+                        if (getTimeDiffInMs(startTime)>-maxIterations)
+                            break;
+                    }
                 }
 
                 if (!ikGroupWasActive)
                     ikGroup->setActive(false);
 
                 // Restore the IK element activation state:
-                for (size_t i=0;i<ikGroup->ikElements.size();i++)
-                    ikGroup->ikElements[i]->setIsActive(enabledElements[i]);
+                for (size_t i=0;i<ikGroup->getIkElementCount();i++)
+                    ikGroup->getIkElementFromIndex(i)->setIsActive(enabledElements[i]);
 
                 // Restore joint positions/modes:
                 for (size_t i=0;i<sceneJoints.size();i++)

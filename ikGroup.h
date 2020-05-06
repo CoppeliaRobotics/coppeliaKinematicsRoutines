@@ -17,15 +17,20 @@ public:
     void performObjectLoadingMapping(std::vector<int>* map);
     void serialize(CSerialization& ar);
 
-    CikElement* getIkElement(int ikElementID) const;
-    CikElement* getIkElementWithTooltipID(int tooltipID) const;
-    void removeIkElement(int elementID);
+    int addIkElement(CikElement* ikElement);
+    CikElement* getIkElement(int elementHandle) const;
+    CikElement* getIkElementWithTooltipHandle(int tooltipHandle) const;
+    void removeIkElement(int elementHandle);
+    size_t getIkElementCount() const;
+    CikElement* getIkElementFromIndex(size_t index) const;
+
 
     void setExplicitHandling(bool explicitHandl);
     bool getExplicitHandling() const;
     void setAllInvolvedJointsToPassiveMode();
 
-    int getObjectID() const;
+    int getObjectHandle() const;
+    void setObjectHandle(int handle);
     std::string getObjectName() const;
     void setObjectName(std::string newName);
     void setMaxIterations(int maxIter);
@@ -36,7 +41,9 @@ public:
     void setCalculationMethod(int theMethod);
     int getCalculationMethod() const;
     bool getRestoreIfPositionNotReached() const;
+    void setRestoreIfPositionNotReached(bool restore);
     bool getRestoreIfOrientationNotReached() const;
+    void setRestoreIfOrientationNotReached(bool restore);
 
     int getDoOnFailOrSuccessOf() const;
     bool getDoOnFail() const;
@@ -69,10 +76,12 @@ public:
     simReal getDeterminant(const CMatrix& m,const std::vector<size_t>* activeRows,const std::vector<size_t>* activeColumns) const;
     bool computeOnlyJacobian(int options);
 
-    // Variables which need to be serialized and copied:
-    std::vector<CikElement*> ikElements;
+
 
 private:
+    // Variables which need to be serialized and copied:
+    std::vector<CikElement*> _ikElements;
+
     void _resetTemporaryParameters();
     void _applyTemporaryParameters();
 
@@ -80,7 +89,7 @@ private:
     bool performOnePass_jacobianOnly(std::vector<CikElement*>* validElements,int options);
 
     // Variables which need to be serialized and copied:
-    int objectID;
+    int objectHandle;
     std::string objectName;
     int maxIterations;
     bool active;

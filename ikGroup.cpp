@@ -1,20 +1,19 @@
-#include "simConst.h"
 #include "ikGroup.h"
 #include "ikRoutines.h"
-#include "app.h"
+#include "environment.h"
 #include <algorithm>
 
 
 CikGroup::CikGroup()
 {
-    objectID=2030003;
+    objectHandle=2030003;
     maxIterations=3;
     active=true;
     ignoreMaxStepSizes=true;
     _lastJacobian=nullptr;
     _explicitHandling=false;
     dlsFactor=simReal(0.1);
-    calculationMethod=sim_ik_pseudo_inverse_method;
+    calculationMethod=ik_method_pseudo_inverse;
     restoreIfPositionNotReached=false;
     restoreIfOrientationNotReached=false;
     doOnFailOrSuccessOf=-1;
@@ -24,21 +23,21 @@ CikGroup::CikGroup()
     jointLimitWeight=1.0;
     jointTreshholdAngular=simReal(2.0)*degToRad;
     jointTreshholdLinear=simReal(0.001);
-    _calculationResult=sim_ikresult_not_performed;
+    _calculationResult=ik_result_not_performed;
     _correctJointLimits=false;
 }
 
 CikGroup::~CikGroup()
 {
-    while (ikElements.size()!=0)
-        removeIkElement(ikElements[0]->getIkElementHandle());
+    while (_ikElements.size()!=0)
+        removeIkElement(_ikElements[0]->getIkElementHandle());
     delete _lastJacobian;
 }
 
 void CikGroup::performObjectLoadingMapping(std::vector<int>* map)
 {
-    for (size_t i=0;i<ikElements.size();i++)
-        ikElements[i]->performSceneObjectLoadingMapping(map);
+    for (size_t i=0;i<_ikElements.size();i++)
+        _ikElements[i]->performSceneObjectLoadingMapping(map);
 }
 
 void CikGroup::setExplicitHandling(bool explicitHandl)
@@ -53,8 +52,8 @@ bool CikGroup::getExplicitHandling() const
 
 void CikGroup::setAllInvolvedJointsToPassiveMode()
 {
-    for (size_t i=0;i<ikElements.size();i++)
-        ikElements[i]->setRelatedJointsToPassiveMode();
+    for (size_t i=0;i<_ikElements.size();i++)
+        _ikElements[i]->setRelatedJointsToPassiveMode();
 }
 
 void CikGroup::setObjectName(std::string newName)
@@ -69,7 +68,7 @@ void CikGroup::setActive(bool isActive)
 
 void CikGroup::resetCalculationResult()
 {
-    _calculationResult=sim_ikresult_not_performed;
+    _calculationResult=ik_result_not_performed;
 }
 
 void CikGroup::setCorrectJointLimits(bool c)
@@ -153,8 +152,8 @@ simReal CikGroup::getDlsFactor() const
 }
 void CikGroup::setCalculationMethod(int theMethod)
 {
-    if ( (theMethod==sim_ik_pseudo_inverse_method)||(theMethod==sim_ik_damped_least_squares_method)||
-        (theMethod==sim_ik_jacobian_transpose_method) )
+    if ( (theMethod==ik_method_pseudo_inverse)||(theMethod==ik_method_damped_least_squares)||
+        (theMethod==ik_method_jacobian_transpose) )
     {
         calculationMethod=theMethod;
     }
@@ -168,10 +167,22 @@ bool CikGroup::getRestoreIfPositionNotReached() const
 {
     return(restoreIfPositionNotReached);
 }
+
+void CikGroup::setRestoreIfPositionNotReached(bool restore)
+{
+    restoreIfPositionNotReached=restore;
+}
+
 bool CikGroup::getRestoreIfOrientationNotReached() const
 {
     return(restoreIfOrientationNotReached);
 }
+
+void CikGroup::setRestoreIfOrientationNotReached(bool restore)
+{
+    restoreIfOrientationNotReached=restore;
+}
+
 int CikGroup::getDoOnFailOrSuccessOf() const
 {
     return(doOnFailOrSuccessOf);
@@ -184,44 +195,72 @@ bool CikGroup::getDoOnPerformed() const
 {
     return(doOnPerformed);
 }
-void CikGroup::removeIkElement(int elementID)
+void CikGroup::removeIkElement(int elementHandle)
 {
-    for (size_t i=0;i<ikElements.size();i++)
+    for (size_t i=0;i<_ikElements.size();i++)
     {
-        if (ikElements[i]->getIkElementHandle()==elementID)
+        if (_ikElements[i]->getIkElementHandle()==elementHandle)
         {
-            delete ikElements[i];
-            ikElements.erase(ikElements.begin()+i);
+            delete _ikElements[i];
+            _ikElements.erase(_ikElements.begin()+i);
             break;
         }
     }
 }
 
-CikElement* CikGroup::getIkElement(int ikElementID) const
+size_t CikGroup::getIkElementCount() const
 {
-    for (size_t i=0;i<ikElements.size();i++)
+    return(_ikElements.size());
+}
+
+CikElement* CikGroup::getIkElementFromIndex(size_t index) const
+{
+    CikElement* retVal=nullptr;
+    if (index<_ikElements.size())
+        retVal=_ikElements[index];
+    return(retVal);
+}
+
+int CikGroup::addIkElement(CikElement* ikElement)
+{
+    int retVal=0;
+    while (getIkElement(retVal)!=nullptr)
+        retVal++;
+    ikElement->setIkElementHandle(retVal);
+    _ikElements.push_back(ikElement);
+    return(retVal);
+}
+
+CikElement* CikGroup::getIkElement(int elementHandle) const
+{
+    for (size_t i=0;i<_ikElements.size();i++)
     {
-        if (ikElements[i]->getIkElementHandle()==ikElementID)
-            return(ikElements[i]);
+        if (_ikElements[i]->getIkElementHandle()==elementHandle)
+            return(_ikElements[i]);
     }
     return(nullptr);
 }
 
-CikElement* CikGroup::getIkElementWithTooltipID(int tooltipID) const
+CikElement* CikGroup::getIkElementWithTooltipHandle(int tooltipHandle) const
 { 
-    if (tooltipID==-1)
+    if (tooltipHandle==-1)
         return(nullptr);
-    for (size_t i=0;i<ikElements.size();i++)
+    for (size_t i=0;i<_ikElements.size();i++)
     {
-        if (ikElements[i]->getTipHandle()==tooltipID)
-            return(ikElements[i]);
+        if (_ikElements[i]->getTipHandle()==tooltipHandle)
+            return(_ikElements[i]);
     }
     return(nullptr);
 }
 
-int CikGroup::getObjectID() const
+int CikGroup::getObjectHandle() const
 {
-    return(objectID);
+    return(objectHandle);
+}
+
+void CikGroup::setObjectHandle(int handle)
+{
+    objectHandle=handle;
 }
 
 std::string CikGroup::getObjectName() const
@@ -232,17 +271,17 @@ std::string CikGroup::getObjectName() const
 bool CikGroup::announceSceneObjectWillBeErased(int objectHandle)
 { // Return value true means that this object should be destroyed
     size_t i=0;
-    while (i<ikElements.size())
+    while (i<_ikElements.size())
     {
-        if (ikElements[i]->announceSceneObjectWillBeErased(objectHandle))
+        if (_ikElements[i]->announceSceneObjectWillBeErased(objectHandle))
         {
-            removeIkElement(ikElements[i]->getIkElementHandle());
+            removeIkElement(_ikElements[i]->getIkElementHandle());
             i=0; // ordering may have changed
         }
         else
             i++;
     }
-    return(ikElements.size()==0);
+    return(_ikElements.size()==0);
 }
 
 bool CikGroup::announceIkGroupWillBeErased(int ikGroupHandle)
@@ -267,11 +306,11 @@ void CikGroup::setIgnoreMaxStepSizes(bool ignore)
 
 void CikGroup::getAllActiveJoints(std::vector<CJoint*>& jointList) const
 { // Retrieves all active joints in this group. Ordering is random!
-    for (size_t elNb=0;elNb<ikElements.size();elNb++)
+    for (size_t elNb=0;elNb<_ikElements.size();elNb++)
     {
-        CikElement* element=ikElements[elNb];
-        CDummy* tooltip=App::currentInstance->objectContainer->getDummy(element->getTipHandle());
-        CSceneObject* base=App::currentInstance->objectContainer->getObject(element->getBaseHandle());
+        CikElement* element=_ikElements[elNb];
+        CDummy* tooltip=CEnvironment::currentEnvironment->objectContainer->getDummy(element->getTipHandle());
+        CSceneObject* base=CEnvironment::currentEnvironment->objectContainer->getObject(element->getBaseHandle());
         bool valid=true;
         if (!element->getIsActive())
             valid=false;
@@ -293,7 +332,7 @@ void CikGroup::getAllActiveJoints(std::vector<CJoint*>& jointList) const
                     if (jointPresent)
                         valid=true;
                 }
-                if ( (iterat!=base)&&(iterat!=nullptr)&&(iterat->getObjectType()==sim_object_joint_type) )
+                if ( (iterat!=base)&&(iterat!=nullptr)&&(iterat->getObjectType()==ik_objecttype_joint) )
                     jointPresent=true;
             }
             if (!valid)
@@ -308,7 +347,7 @@ void CikGroup::getAllActiveJoints(std::vector<CJoint*>& jointList) const
             CSceneObject* iterat=tooltip;
             while ( (iterat!=base)&&(iterat!=nullptr) )
             {
-                if (iterat->getObjectType()==sim_object_joint_type)
+                if (iterat->getObjectType()==ik_objecttype_joint)
                 {
                     if (std::find(jointList.begin(),jointList.end(),iterat)==jointList.end())
                         jointList.push_back(static_cast<CJoint*>(iterat));
@@ -321,12 +360,12 @@ void CikGroup::getAllActiveJoints(std::vector<CJoint*>& jointList) const
 
 void CikGroup::getTipAndTargetLists(std::vector<CDummy*>& tipList,std::vector<CDummy*>& targetList) const
 {
-    for (size_t elNb=0;elNb<ikElements.size();elNb++)
+    for (size_t elNb=0;elNb<_ikElements.size();elNb++)
     {
-        CikElement* element=ikElements[elNb];
-        CDummy* tooltip=App::currentInstance->objectContainer->getDummy(element->getTipHandle());
-        CDummy* target=App::currentInstance->objectContainer->getDummy(element->getTargetHandle());
-        CSceneObject* base=App::currentInstance->objectContainer->getObject(element->getBaseHandle());
+        CikElement* element=_ikElements[elNb];
+        CDummy* tooltip=CEnvironment::currentEnvironment->objectContainer->getDummy(element->getTipHandle());
+        CDummy* target=CEnvironment::currentEnvironment->objectContainer->getDummy(element->getTargetHandle());
+        CSceneObject* base=CEnvironment::currentEnvironment->objectContainer->getObject(element->getBaseHandle());
         bool valid=true;
         if (!element->getIsActive())
             valid=false;
@@ -350,7 +389,7 @@ void CikGroup::getTipAndTargetLists(std::vector<CDummy*>& tipList,std::vector<CD
                     if (jointPresent)
                         valid=true;
                 }
-                if ( (iterat!=base)&&(iterat!=nullptr)&&(iterat->getObjectType()==sim_object_joint_type) )
+                if ( (iterat!=base)&&(iterat!=nullptr)&&(iterat->getObjectType()==ik_objecttype_joint) )
                     jointPresent=true;
             }
             if (!valid)
@@ -369,35 +408,35 @@ void CikGroup::getTipAndTargetLists(std::vector<CDummy*>& tipList,std::vector<CD
 }
 
 int CikGroup::computeGroupIk(bool forInternalFunctionality)
-{ // Return value is one of following: sim_ikresult_not_performed, sim_ikresult_success, sim_ikresult_fail
+{ // Return value is one of following: ik_result_not_performed, ik_result_success, ik_result_fail
     if (!active)
-        return(sim_ikresult_not_performed); // That group is not active!
+        return(ik_result_not_performed); // That group is not active!
     if (!forInternalFunctionality)
     {
         if (doOnFailOrSuccessOf!=-1)
         { // Conditional execution part:
-            CikGroup* it=App::currentInstance->ikGroupContainer->getIkGroup(doOnFailOrSuccessOf);
+            CikGroup* it=CEnvironment::currentEnvironment->ikGroupContainer->getIkGroup(doOnFailOrSuccessOf);
             if (it!=nullptr)
             {
                 if (doOnPerformed)
                 {
-                    if (it->getCalculationResult()==sim_ikresult_not_performed)
-                        return(sim_ikresult_not_performed);
-                    if (it->getCalculationResult()==sim_ikresult_success)
+                    if (it->getCalculationResult()==ik_result_not_performed)
+                        return(ik_result_not_performed);
+                    if (it->getCalculationResult()==ik_result_success)
                     {
                         if (doOnFail)
-                            return(sim_ikresult_not_performed);
+                            return(ik_result_not_performed);
                     }
                     else
                     {
                         if (!doOnFail)
-                            return(sim_ikresult_not_performed);
+                            return(ik_result_not_performed);
                     }
                 }
                 else
                 {
-                    if (it->getCalculationResult()!=sim_ikresult_not_performed)
-                        return(sim_ikresult_not_performed);
+                    if (it->getCalculationResult()!=ik_result_not_performed)
+                        return(ik_result_not_performed);
                 }
             }
         }
@@ -405,14 +444,14 @@ int CikGroup::computeGroupIk(bool forInternalFunctionality)
 
     // Now we prepare a vector with all valid and active elements:
     std::vector<CikElement*> validElements;
-    validElements.reserve(ikElements.size());
+    validElements.reserve(_ikElements.size());
     validElements.clear();
 
-    for (size_t elNb=0;elNb<ikElements.size();elNb++)
+    for (size_t elNb=0;elNb<_ikElements.size();elNb++)
     {
-        CikElement* element=ikElements[elNb];
-        CDummy* tooltip=App::currentInstance->objectContainer->getDummy(element->getTipHandle());
-        CSceneObject* base=App::currentInstance->objectContainer->getObject(element->getBaseHandle());
+        CikElement* element=_ikElements[elNb];
+        CDummy* tooltip=CEnvironment::currentEnvironment->objectContainer->getDummy(element->getTipHandle());
+        CSceneObject* base=CEnvironment::currentEnvironment->objectContainer->getObject(element->getBaseHandle());
         bool valid=true;
         if (!element->getIsActive())
             valid=false;
@@ -434,9 +473,9 @@ int CikGroup::computeGroupIk(bool forInternalFunctionality)
                     if (jointPresent)
                         valid=true;
                 }
-                if ( (iterat!=base)&&(iterat!=nullptr)&&(iterat->getObjectType()==sim_object_joint_type) )
+                if ( (iterat!=base)&&(iterat!=nullptr)&&(iterat->getObjectType()==ik_objecttype_joint) )
                 { 
-                    if ( ((static_cast<CJoint*>(iterat))->getJointMode()==sim_jointmode_ik)||((static_cast<CJoint*>(iterat))->getJointMode()==sim_jointmode_reserved_previously_ikdependent)||((static_cast<CJoint*>(iterat))->getJointMode()==sim_jointmode_dependent) )
+                    if ( ((static_cast<CJoint*>(iterat))->getJointMode()==ik_jointmode_ik)||((static_cast<CJoint*>(iterat))->getJointMode()==ik_jointmode_reserved_previously_ikdependent)||((static_cast<CJoint*>(iterat))->getJointMode()==ik_jointmode_dependent) )
                         jointPresent=true;
                 }
             }
@@ -453,7 +492,7 @@ int CikGroup::computeGroupIk(bool forInternalFunctionality)
     // Now validElements contains all valid elements we have to use in the following computation!
     if (validElements.size()==0)
     {
-        return(sim_ikresult_fail); // Error!
+        return(ik_result_fail); // Error!
     }
 
     _resetTemporaryParameters();
@@ -516,9 +555,9 @@ int CikGroup::computeGroupIk(bool forInternalFunctionality)
         if (leaveNow)
             break;
     }
-    int returnValue=sim_ikresult_success;
+    int returnValue=ik_result_success;
     if (errorOccured)
-        returnValue=sim_ikresult_fail;
+        returnValue=ik_result_fail;
     bool setNewValues=(!errorOccured);
     for (size_t elNb=0;elNb<validElements.size();elNb++)
     {
@@ -527,7 +566,7 @@ int CikGroup::computeGroupIk(bool forInternalFunctionality)
         element->isWithinTolerance(posit,orient,true);
         if ( (!posit)||(!orient) )
         {
-            returnValue=sim_ikresult_fail;
+            returnValue=ik_result_fail;
             if ( (restoreIfPositionNotReached&&(!posit))||
                 (restoreIfOrientationNotReached&&(!orient)) )
                 setNewValues=false;
@@ -543,9 +582,9 @@ int CikGroup::computeGroupIk(bool forInternalFunctionality)
 void CikGroup::_resetTemporaryParameters()
 {
     // We prepare all joint temporary parameters:
-    for (size_t jc=0;jc<App::currentInstance->objectContainer->jointList.size();jc++)
+    for (size_t jc=0;jc<CEnvironment::currentEnvironment->objectContainer->jointList.size();jc++)
     {
-        CJoint* it=App::currentInstance->objectContainer->getJoint(App::currentInstance->objectContainer->jointList[jc]);
+        CJoint* it=CEnvironment::currentEnvironment->objectContainer->getJoint(CEnvironment::currentEnvironment->objectContainer->jointList[jc]);
         it->setPosition(it->getPosition(),true);
         it->initializeParametersForIK(getJointTreshholdAngular());
     }
@@ -554,9 +593,9 @@ void CikGroup::_resetTemporaryParameters()
 void CikGroup::_applyTemporaryParameters()
 {
     // Joints:
-    for (size_t jc=0;jc<App::currentInstance->objectContainer->jointList.size();jc++)
+    for (size_t jc=0;jc<CEnvironment::currentEnvironment->objectContainer->jointList.size();jc++)
     {
-        CJoint* it=App::currentInstance->objectContainer->getJoint(App::currentInstance->objectContainer->jointList[jc]);
+        CJoint* it=CEnvironment::currentEnvironment->objectContainer->getJoint(CEnvironment::currentEnvironment->objectContainer->jointList[jc]);
         it->setPosition(it->getPosition(true),false);
         it->applyTempParametersEx();
     }
@@ -594,7 +633,7 @@ int CikGroup::performOnePass(std::vector<CikElement*>* validElements,bool& limit
             }
             if (!present)
             {
-                allJoints.push_back(App::currentInstance->objectContainer->getJoint(current));
+                allJoints.push_back(CEnvironment::currentEnvironment->objectContainer->getJoint(current));
                 allJointStages.push_back(currentStage);
             }
         }
@@ -615,7 +654,7 @@ int CikGroup::performOnePass(std::vector<CikElement*>* validElements,bool& limit
             simReal minVal=it->getPositionIntervalMin();
             simReal range=it->getPositionIntervalRange();
             simReal value=it->getPosition(true);
-            if (it->getJointType()==sim_joint_revolute_subtype)
+            if (it->getJointType()==ik_jointtype_revolute)
             { // We have to handle a revolute joint
                 if (!it->getPositionIsCyclic())
                 { // Limitation applies only if joint is not cyclic!
@@ -647,7 +686,7 @@ int CikGroup::performOnePass(std::vector<CikElement*>* validElements,bool& limit
                     }
                 }
             }
-            if (it->getJointType()==sim_joint_prismatic_subtype)
+            if (it->getJointType()==ik_jointtype_prismatic)
             { // We have to handle a prismatic joint:
                 simReal distFromMin=value-(minVal+jointTreshholdLinear);
                 simReal distFromMax=value-(minVal+range-jointTreshholdLinear);
@@ -676,7 +715,7 @@ int CikGroup::performOnePass(std::vector<CikElement*>* validElements,bool& limit
                     limitationValue.push_back(activate);
                 }
             }
-            if (it->getJointType()==sim_joint_spherical_subtype)
+            if (it->getJointType()==ik_jointtype_spherical)
             { // We have to handle a spherical joint
                 if ( (it->getTempSphericalJointLimitations()!=0)&&(stage==1) ) // Joint limitation configuration was activated!
                 {
@@ -712,9 +751,9 @@ int CikGroup::performOnePass(std::vector<CikElement*>* validElements,bool& limit
     //---------------------------------------------------------------------------
     for (size_t i=0;i<allJoints.size();i++)
     {
-        if (allJoints[i]->getJointType()!=sim_joint_spherical_subtype)
+        if (allJoints[i]->getJointType()!=ik_jointtype_spherical)
         {
-            if ( (allJoints[i]->getJointMode()==sim_jointmode_reserved_previously_ikdependent)||(allJoints[i]->getJointMode()==sim_jointmode_dependent) )
+            if ( (allJoints[i]->getJointMode()==ik_jointmode_reserved_previously_ikdependent)||(allJoints[i]->getJointMode()==ik_jointmode_dependent) )
                 numberOfRows++;
         }
     }
@@ -741,10 +780,10 @@ int CikGroup::performOnePass(std::vector<CikElement*>* validElements,bool& limit
             for (size_t j=0;j<element->matrix->cols;j++)
             { // We go through the columns:
                 // We search for the right entry
-                int jointID=element->rowJointHandles->at(j);
+                int jointHandle=element->rowJointHandles->at(j);
                 size_t stage=element->rowJointStages->at(j);
                 size_t index=0;
-                while ( (allJoints[index]->getObjectHandle()!=jointID)||(allJointStages[index]!=stage) )
+                while ( (allJoints[index]->getObjectHandle()!=jointHandle)||(allJointStages[index]!=stage) )
                     index++;
                 mainMatrix(currentRow,index)=(*element->matrix)(i,j);
                 mainMatrix_correctJacobian(currentRow,index)=(*element->matrix_correctJacobian)(i,j);
@@ -766,16 +805,16 @@ int CikGroup::performOnePass(std::vector<CikElement*>* validElements,bool& limit
     //---------------------------------------------------------------------------
     for (size_t i=0;i<allJoints.size();i++)
     {
-        if ( ((allJoints[i]->getJointMode()==sim_jointmode_dependent)||(allJoints[i]->getJointMode()==sim_jointmode_reserved_previously_ikdependent))&&(allJoints[i]->getJointType()!=sim_joint_spherical_subtype) )
+        if ( ((allJoints[i]->getJointMode()==ik_jointmode_dependent)||(allJoints[i]->getJointMode()==ik_jointmode_reserved_previously_ikdependent))&&(allJoints[i]->getJointType()!=ik_jointtype_spherical) )
         {
-            int dependenceID=allJoints[i]->getDependencyJointHandle();
-            if (dependenceID!=-1)
+            int dependenceHandle=allJoints[i]->getDependencyJointHandle();
+            if (dependenceHandle!=-1)
             {
                 bool found=false;
                 size_t depJointIndex;
                 for (depJointIndex=0;depJointIndex<allJoints.size();depJointIndex++)
                 {
-                    if (allJoints[depJointIndex]->getObjectHandle()==dependenceID)
+                    if (allJoints[depJointIndex]->getObjectHandle()==dependenceHandle)
                     {
                         found=true;
                         break;
@@ -793,9 +832,9 @@ int CikGroup::performOnePass(std::vector<CikElement*>* validElements,bool& limit
                     mainMatrix_correctJacobian(currentRow,depJointIndex)=coeff;
                 }
                 else
-                {   // joint of dependenceID is not part of this group calculation:
+                {   // joint of dependenceHandle is not part of this group calculation:
                     // therefore we take its current value --> WRONG! Since all temp params are initialized!
-                    CJoint* dependentJoint=App::currentInstance->objectContainer->getJoint(dependenceID);
+                    CJoint* dependentJoint=CEnvironment::currentEnvironment->objectContainer->getJoint(dependenceHandle);
                     if (dependentJoint!=nullptr)
                     {
                         simReal coeff=allJoints[i]->getDependencyJointMult();
@@ -844,7 +883,7 @@ int CikGroup::performOnePass(std::vector<CikElement*>* validElements,bool& limit
         _lastJacobian=new CMatrix(mainMatrix_correctJacobian);
     }
 
-    if (calculationMethod==sim_ik_pseudo_inverse_method)
+    if (calculationMethod==ik_method_pseudo_inverse)
     {
         CMatrix JT(mainMatrix);
         JT.transpose();
@@ -855,7 +894,7 @@ int CikGroup::performOnePass(std::vector<CikElement*>* validElements,bool& limit
         pseudoJ=JT*JJTInv;
         solution=pseudoJ*mainErrorVector;
     }
-    if (calculationMethod==sim_ik_damped_least_squares_method)
+    if (calculationMethod==ik_method_damped_least_squares)
     {
         CMatrix JT(mainMatrix);
         JT.transpose();
@@ -870,7 +909,7 @@ int CikGroup::performOnePass(std::vector<CikElement*>* validElements,bool& limit
         DLSJ=JT*JJTInv;
         solution=DLSJ*mainErrorVector;
     }
-    if (calculationMethod==sim_ik_jacobian_transpose_method)
+    if (calculationMethod==ik_method_jacobian_transpose)
     {
         CMatrix JT(mainMatrix);
         JT.transpose();
@@ -891,7 +930,7 @@ int CikGroup::performOnePass(std::vector<CikElement*>* validElements,bool& limit
         for (size_t i=0;i<doF;i++)
         {
             CJoint* it=allJoints[i];
-            if (it->getJointType()!=sim_joint_prismatic_subtype)
+            if (it->getJointType()!=ik_jointtype_prismatic)
                 solution(i,0)=atan2(sin(solution(i,0)),cos(solution(i,0)));
             if (fabs(solution(i,0))>it->getMaxStepSize())
                 return(0);
@@ -902,7 +941,7 @@ int CikGroup::performOnePass(std::vector<CikElement*>* validElements,bool& limit
     {
         CJoint* it=allJoints[i];
         size_t stage=allJointStages[i];
-        if (it->getJointType()!=sim_joint_spherical_subtype)
+        if (it->getJointType()!=ik_jointtype_spherical)
             it->setPosition(it->getPosition(true)+solution(i,0),true);
         else
             it->setTempParameterEx(it->getTempParameterEx(stage)+solution(i,0),stage);
@@ -915,11 +954,11 @@ bool CikGroup::computeOnlyJacobian(int options)
     // Now we prepare a vector with all valid and active elements:
     std::vector<CikElement*> validElements;
 
-    for (size_t elNb=0;elNb<ikElements.size();elNb++)
+    for (size_t elNb=0;elNb<_ikElements.size();elNb++)
     {
-        CikElement* element=ikElements[elNb];
-        CDummy* tooltip=App::currentInstance->objectContainer->getDummy(element->getTipHandle());
-        CSceneObject* base=App::currentInstance->objectContainer->getObject(element->getBaseHandle());
+        CikElement* element=_ikElements[elNb];
+        CDummy* tooltip=CEnvironment::currentEnvironment->objectContainer->getDummy(element->getTipHandle());
+        CSceneObject* base=CEnvironment::currentEnvironment->objectContainer->getObject(element->getBaseHandle());
         bool valid=true;
         if (!element->getIsActive())
             valid=false;
@@ -941,9 +980,9 @@ bool CikGroup::computeOnlyJacobian(int options)
                     if (jointPresent)
                         valid=true;
                 }
-                if ( (iterat!=base)&&(iterat!=nullptr)&&(iterat->getObjectType()==sim_object_joint_type) )
+                if ( (iterat!=base)&&(iterat!=nullptr)&&(iterat->getObjectType()==ik_objecttype_joint) )
                 {
-                    if ( ((static_cast<CJoint*>(iterat))->getJointMode()==sim_jointmode_ik)||((static_cast<CJoint*>(iterat))->getJointMode()==sim_jointmode_reserved_previously_ikdependent)||((static_cast<CJoint*>(iterat))->getJointMode()==sim_jointmode_dependent) )
+                    if ( ((static_cast<CJoint*>(iterat))->getJointMode()==ik_jointmode_ik)||((static_cast<CJoint*>(iterat))->getJointMode()==ik_jointmode_reserved_previously_ikdependent)||((static_cast<CJoint*>(iterat))->getJointMode()==ik_jointmode_dependent) )
                         jointPresent=true;
                 }
             }
@@ -993,7 +1032,7 @@ bool CikGroup::performOnePass_jacobianOnly(std::vector<CikElement*>* validElemen
             }
             if (!present)
             {
-                allJoints.push_back(App::currentInstance->objectContainer->getJoint(current));
+                allJoints.push_back(CEnvironment::currentEnvironment->objectContainer->getJoint(current));
                 allJointStages.push_back(currentStage);
             }
         }
@@ -1002,9 +1041,9 @@ bool CikGroup::performOnePass_jacobianOnly(std::vector<CikElement*>* validElemen
     // Now we prepare the individual joint constraints part:
     for (size_t i=0;i<allJoints.size();i++)
     {
-        if (allJoints[i]->getJointType()!=sim_joint_spherical_subtype)
+        if (allJoints[i]->getJointType()!=ik_jointtype_spherical)
         {
-            if ( (allJoints[i]->getJointMode()==sim_jointmode_reserved_previously_ikdependent)||(allJoints[i]->getJointMode()==sim_jointmode_dependent) )
+            if ( (allJoints[i]->getJointMode()==ik_jointmode_reserved_previously_ikdependent)||(allJoints[i]->getJointMode()==ik_jointmode_dependent) )
                 numberOfRows++;
         }
     }
@@ -1046,16 +1085,16 @@ bool CikGroup::performOnePass_jacobianOnly(std::vector<CikElement*>* validElemen
     //---------------------------------------------------------------------------
     for (size_t i=0;i<allJoints.size();i++)
     {
-        if ( ((allJoints[i]->getJointMode()==sim_jointmode_dependent)||(allJoints[i]->getJointMode()==sim_jointmode_reserved_previously_ikdependent))&&(allJoints[i]->getJointType()!=sim_joint_spherical_subtype) )
+        if ( ((allJoints[i]->getJointMode()==ik_jointmode_dependent)||(allJoints[i]->getJointMode()==ik_jointmode_reserved_previously_ikdependent))&&(allJoints[i]->getJointType()!=ik_jointtype_spherical) )
         {
-            int dependenceID=allJoints[i]->getDependencyJointHandle();
-            if (dependenceID!=-1)
+            int dependenceHandle=allJoints[i]->getDependencyJointHandle();
+            if (dependenceHandle!=-1)
             {
                 bool found=false;
                 size_t depJointIndex;
                 for (depJointIndex=0;depJointIndex<allJoints.size();depJointIndex++)
                 {
-                    if (allJoints[depJointIndex]->getObjectHandle()==dependenceID)
+                    if (allJoints[depJointIndex]->getObjectHandle()==dependenceHandle)
                     {
                         found=true;
                         break;
@@ -1073,9 +1112,9 @@ bool CikGroup::performOnePass_jacobianOnly(std::vector<CikElement*>* validElemen
                     mainMatrix_correctJacobian(currentRow,depJointIndex)=coeff;
                 }
                 else
-                {   // joint of dependenceID is not part of this group calculation:
+                {   // joint of dependenceHandle is not part of this group calculation:
                     // therefore we take its current value --> WRONG! Since all temp params are initialized!
-                    CJoint* dependentJoint=App::currentInstance->objectContainer->getJoint(dependenceID);
+                    CJoint* dependentJoint=CEnvironment::currentEnvironment->objectContainer->getJoint(dependenceHandle);
                     if (dependentJoint!=nullptr)
                     {
                         simReal coeff=allJoints[i]->getDependencyJointMult();
@@ -1204,10 +1243,10 @@ simReal CikGroup::getDeterminant(const CMatrix& m,const std::vector<size_t>* act
 
 void CikGroup::serialize(CSerialization &ar)
 {
-    while (ikElements.size()!=0)
-        removeIkElement(ikElements[0]->getIkElementHandle());
+    while (_ikElements.size()!=0)
+        removeIkElement(_ikElements[0]->getIkElementHandle());
 
-    objectID=ar.readInt();
+    objectHandle=ar.readInt();
 
     objectName=ar.readString();
 
@@ -1243,6 +1282,6 @@ void CikGroup::serialize(CSerialization &ar)
     {
         CikElement* it=new CikElement(-1);
         it->serialize(ar);
-        ikElements.push_back(it);
+        _ikElements.push_back(it);
     }
 }

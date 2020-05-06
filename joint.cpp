@@ -1,12 +1,10 @@
 #include "joint.h"
-#include "app.h"
-#include "simConst.h"
-
+#include "environment.h"
 
 CJoint::CJoint(int jointType)
 {
-    _objectType=sim_object_joint_type;
-    _jointMode=sim_jointmode_ik;
+    _objectType=ik_objecttype_joint;
+    _jointMode=ik_jointmode_ik;
     _objectName="joint";
     _jointPosition=simZero;
     _screwPitch=simZero;
@@ -16,21 +14,21 @@ CJoint::CJoint(int jointType)
     _dependencyJointMult=simOne;
     _dependencyJointAdd=simZero;
     _jointType=jointType;
-    if (jointType==sim_joint_revolute_subtype)
+    if (jointType==ik_jointtype_revolute)
     {
         _positionIsCyclic=true;
         _jointPositionRange=piValTimes2;
         _jointMinPosition=-piValue;
         _maxStepSize=simReal(10.0)*degToRad;
     }
-    if (jointType==sim_joint_prismatic_subtype)
+    if (jointType==ik_jointtype_prismatic)
     {
         _positionIsCyclic=false;
         _jointPositionRange=simOne;
         _jointMinPosition=simReal(-0.5);
         _maxStepSize=simReal(0.1);
     }
-    if (jointType==sim_joint_spherical_subtype)
+    if (jointType==ik_jointtype_spherical)
     {
         _positionIsCyclic=true;
         _jointPositionRange=piValue;
@@ -53,12 +51,12 @@ void CJoint::performSceneObjectLoadingMapping(const std::vector<int>* map)
 void CJoint::setJointMode(int theMode)
 {
     _jointMode=theMode;
-    if ( (theMode!=sim_jointmode_dependent)&&(theMode!=sim_jointmode_reserved_previously_ikdependent) )
+    if ( (theMode!=ik_jointmode_dependent)&&(theMode!=ik_jointmode_reserved_previously_ikdependent) )
     {
         bool d=(_dependencyJointHandle!=-1);
         _dependencyJointHandle=-1;
         if (d)
-            App::currentInstance->objectContainer->actualizeObjectInformation();
+            CEnvironment::currentEnvironment->objectContainer->actualizeObjectInformation();
     }
     setPosition(getPosition());
     setSphericalTransformation(getSphericalTransformation());
@@ -68,7 +66,7 @@ void CJoint::_rectifyDependentJoints()
 {
     for (size_t i=0;i<dependentJoints.size();i++)
     {
-        if (dependentJoints[i]->getJointMode()==sim_jointmode_dependent)
+        if (dependentJoints[i]->getJointMode()==ik_jointmode_dependent)
             dependentJoints[i]->setPosition(simZero,false);
     }
 }
@@ -96,13 +94,13 @@ simReal CJoint::getDependencyJointAdd() const
 bool CJoint::setDependencyJointHandle(int jointHandle)
 {
     bool retVal=false;
-    if ( (_jointType!=sim_joint_spherical_subtype)&&(getJointMode()==sim_jointmode_dependent) )
+    if ( (_jointType!=ik_jointtype_spherical)&&(getJointMode()==ik_jointmode_dependent) )
     {
         _dependencyJointHandle=jointHandle;
         if (jointHandle!=-1)
         {
             // Illegal loop check:
-            CJoint* it=App::currentInstance->objectContainer->getJoint(jointHandle);
+            CJoint* it=CEnvironment::currentEnvironment->objectContainer->getJoint(jointHandle);
             CJoint* iterat=it;
             while (iterat->getDependencyJointHandle()!=-1)
             {
@@ -114,15 +112,15 @@ bool CJoint::setDependencyJointHandle(int jointHandle)
                     iterat->setDependencyJointHandle(-1);
                     break;
                 }
-                iterat=App::currentInstance->objectContainer->getJoint(joint);
+                iterat=CEnvironment::currentEnvironment->objectContainer->getJoint(joint);
             }
-            App::currentInstance->objectContainer->actualizeObjectInformation();
+            CEnvironment::currentEnvironment->objectContainer->actualizeObjectInformation();
             setPosition(getPosition());
         }
         else
         {
             _dependencyJointHandle=-1;
-            App::currentInstance->objectContainer->actualizeObjectInformation();
+            CEnvironment::currentEnvironment->objectContainer->actualizeObjectInformation();
         }
         retVal=true;
     }
@@ -131,7 +129,7 @@ bool CJoint::setDependencyJointHandle(int jointHandle)
 
 void CJoint::setDependencyJointMult(simReal m)
 {
-    if (_jointType!=sim_joint_spherical_subtype)
+    if (_jointType!=ik_jointtype_spherical)
     {
         _dependencyJointMult=m;
         setPosition(getPosition());
@@ -140,7 +138,7 @@ void CJoint::setDependencyJointMult(simReal m)
 
 void CJoint::setDependencyJointAdd(simReal off)
 {
-    if (_jointType!=sim_joint_spherical_subtype)
+    if (_jointType!=ik_jointtype_spherical)
     {
         _dependencyJointAdd=off;
         setPosition(getPosition());
@@ -163,9 +161,9 @@ simReal CJoint::getScrewPitch() const
 
 void CJoint::setScrewPitch(simReal p)
 {
-    if (_jointType==sim_joint_revolute_subtype)
+    if (_jointType==ik_jointtype_revolute)
     {
-        if (_jointMode!=sim_jointmode_force)
+        if (_jointMode!=ik_jointmode_force)
             _screwPitch=p;
     }
 }
@@ -236,12 +234,12 @@ void CJoint::setPosition(simReal parameter,bool tempVals)
     else
         _jointPosition=parameter;
 
-    if (_jointMode==sim_jointmode_dependent)
+    if (_jointMode==ik_jointmode_dependent)
     {
         simReal linked=simZero;
         if (_dependencyJointHandle!=-1)
         {
-            CJoint* anAct=App::currentInstance->objectContainer->getJoint(_dependencyJointHandle);
+            CJoint* anAct=CEnvironment::currentEnvironment->objectContainer->getJoint(_dependencyJointHandle);
             if (anAct!=nullptr)
                 linked=_dependencyJointMult*anAct->getPosition(tempVals);
         }
@@ -279,7 +277,7 @@ void CJoint::setPositionIntervalRange(simReal r)
 
 bool CJoint::getPositionIsCyclic() const
 {
-    if (_jointType==sim_joint_prismatic_subtype)
+    if (_jointType==ik_jointtype_prismatic)
         return(false);
     return(_positionIsCyclic);
 }
@@ -290,7 +288,7 @@ void CJoint::setPositionIsCyclic(bool c)
         _positionIsCyclic=c;
     else
     {
-        if (getJointType()==sim_joint_revolute_subtype)
+        if (getJointType()==ik_jointtype_revolute)
         {
             _screwPitch=simZero;
             _jointMinPosition=-piValue;
@@ -302,7 +300,7 @@ void CJoint::setPositionIsCyclic(bool c)
 
 void CJoint::initializeParametersForIK(simReal angularJointLimitationThreshold)
 {
-    if (_jointType!=sim_joint_spherical_subtype)
+    if (_jointType!=ik_jointtype_spherical)
         _jointPosition_tempForIK=_jointPosition;
     else
     {
@@ -345,7 +343,7 @@ void CJoint::initializeParametersForIK(simReal angularJointLimitationThreshold)
 
 size_t CJoint::getDoFs() const
 {
-    if (_jointType!=sim_joint_spherical_subtype)
+    if (_jointType!=ik_jointtype_spherical)
         return(1);
     return(3);
 }
@@ -468,7 +466,7 @@ void CJoint::setTempParameterEx(simReal parameter,size_t index)
 
 void CJoint::applyTempParametersEx()
 {
-    if (_jointType==sim_joint_spherical_subtype)
+    if (_jointType==ik_jointtype_spherical)
     {
         C7Vector tr1(getLocalTransformationPart1(true));
         C7Vector tr2(getLocalTransformation(true));

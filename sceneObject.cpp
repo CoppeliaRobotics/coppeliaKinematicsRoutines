@@ -1,6 +1,5 @@
-#include "simConst.h"
 #include "sceneObject.h"
-#include "app.h"
+#include "environment.h"
 
 CSceneObject::CSceneObject()
 {
@@ -21,7 +20,7 @@ void CSceneObject::performSceneObjectLoadingMapping(const std::vector<int>* map)
 void CSceneObject::performSceneObjectLoadingMappingMain(const std::vector<int>* map)
 {
     int newParentHandle=_getLoadingMapping(map,_parentObjectHandle);
-    setParentObject(App::currentInstance->objectContainer->getObject(newParentHandle));
+    setParentObject(CEnvironment::currentEnvironment->objectContainer->getObject(newParentHandle));
 }
 
 std::string CSceneObject::getObjectName() const
@@ -48,7 +47,7 @@ void CSceneObject::announceSceneObjectWillBeErasedMain(int objectHandle)
     if (getParentObject()!=nullptr)
     {
         if (getParentObject()->getObjectHandle()==objectHandle)
-            App::currentInstance->objectContainer->makeObjectChildOf(this,getParentObject()->getParentObject());
+            CEnvironment::currentEnvironment->objectContainer->makeObjectChildOf(this,getParentObject()->getParentObject());
     }
 }
 
@@ -74,7 +73,7 @@ C7Vector CSceneObject::getCumulativeTransformation(bool tempVals) const
 
 C7Vector CSceneObject::getCumulativeTransformationPart1(bool tempVals) const
 {
-    if (getObjectType()==sim_object_joint_type)
+    if (getObjectType()==ik_objecttype_joint)
     {
         if (getParentObject()==nullptr)
             return(getLocalTransformationPart1(tempVals));
@@ -87,21 +86,21 @@ C7Vector CSceneObject::getCumulativeTransformationPart1(bool tempVals) const
 
 C7Vector CSceneObject::getLocalTransformation(bool tempVals) const
 {
-    if (getObjectType()==sim_object_joint_type)
+    if (getObjectType()==ik_objecttype_joint)
     {
         const CJoint* it=dynamic_cast<const CJoint*>(this);
         C7Vector jointTr;
         jointTr.setIdentity();
         simReal val;
         val=it->getPosition(tempVals);
-        if (it->getJointType()==sim_joint_revolute_subtype)
+        if (it->getJointType()==ik_jointtype_revolute)
         {
             jointTr.Q.setAngleAndAxis(val,C3Vector(simZero,simZero,simOne));
             jointTr.X(2)=val*it->getScrewPitch();
         }
-        if (it->getJointType()==sim_joint_prismatic_subtype)
+        if (it->getJointType()==ik_jointtype_prismatic)
             jointTr.X(2)=val;
-        if (it->getJointType()==sim_joint_spherical_subtype)
+        if (it->getJointType()==ik_jointtype_spherical)
         {
             if (tempVals)
             {
@@ -197,7 +196,7 @@ void CSceneObject::setParentObject(CSceneObject* newParentObject)
     if (newParentObject!=this)
     {
         _parentObject=newParentObject;
-        App::currentInstance->objectContainer->actualizeObjectInformation();
+        CEnvironment::currentEnvironment->objectContainer->actualizeObjectInformation();
     }
 }
 

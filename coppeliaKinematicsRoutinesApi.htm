@@ -18,14 +18,14 @@
 </tr>
 <tr class="apiTableTr">
 <td class="apiTableLeftCSyn">Synopsis</td>
-<td class="apiTableRightCSyn">bool ikAddIkElement(int ikGroupHandle,int tipHandle,int* ikElementIndex)</td>
+<td class="apiTableRightCSyn">bool ikAddIkElement(int ikGroupHandle,int tipHandle,int* ikElementHandle)</td>
 </tr>
 <tr class="apiTableTr">
 <td class="apiTableLeftCParam">Arguments</td>
 <td class="apiTableRightCParam">
 <div><strong>ikGroupHandle</strong>: the handle of the IK group.</div>
-<div><strong>tipHandle</strong>: the handle of the frame object that should act as the tip in the IK element.</div>
-<div><strong>ikElementIndex</strong>: the IK element index in the IK group, in return.</div>
+<div><strong>tipHandle</strong>: the handle of the dummy object that should act as the tip in the IK element.</div>
+<div><strong>ikElementHandle</strong>: the IK element handle in the IK group, in return.</div>
 </td>
 </tr>
 <tr class="apiTableTr">
@@ -99,21 +99,21 @@
 <br>
 
 <h3 class="subsectionBar">
-<a name="ikCreateFrame" id="ikCreateFrame"></a>ikCreateFrame</h3>
+<a name="ikCreateDummy" id="ikCreateDummy"></a>ikCreateDummy</h3>
 <table class="apiTable">
 <tr class="apiTableTr">
 <td class="apiTableLeftDescr">Description</td>
-<td class="apiTableRightDescr">Creates a frame object.</td>
+<td class="apiTableRightDescr">Creates a dummy object.</td>
 </tr>
 <tr class="apiTableTr">
 <td class="apiTableLeftCSyn">Synopsis</td>
-<td class="apiTableRightCSyn">bool ikCreateFrame(const char* frameName/*=nullptr*/,int* frameHandle)</td>
+<td class="apiTableRightCSyn">bool ikCreateDummy(const char* dummyName/*=nullptr*/,int* dummyHandle)</td>
 </tr>
 <tr class="apiTableTr">
 <td class="apiTableLeftCParam">Arguments</td>
 <td class="apiTableRightCParam">
-<div><strong>frameName</strong>: the name of the frame.</div>
-<div><strong>frameHandle</strong>: the handle of the frame, in return.</div>
+<div><strong>dummyName</strong>: the name of the dummy.</div>
+<div><strong>dummyHandle</strong>: the handle of the dummy, in return.</div>
 </td>
 </tr>
 <tr class="apiTableTr">
@@ -171,7 +171,7 @@
 <td class="apiTableLeftCParam">Arguments</td>
 <td class="apiTableRightCParam">
 <div><strong>jointName</strong>: the name of the joint.</div>
-<div><strong>jointType</strong>: the type of the joint. supported types are sim_joint_revolute_subtype, sim_joint_prismatic_subtype and sim_joint_spherical_subtype.</div>
+<div><strong>jointType</strong>: the type of the joint. supported types are ik_jointtype_revolute, ik_jointtype_prismatic and ik_jointtype_spherical.</div>
 <div><strong>jointHandle</strong>: the handle of the joint, in return.</div>
 </td>
 </tr>
@@ -181,7 +181,7 @@
 </tr>
 <tr class="apiTableTr">
 <td class="apiTableLeftDescr">See also</td>
-<td class="apiTableRightDescr"><a href="#ikDoesObjectExist">ikDoesObjectExist</a>, <a href="#ikCreateJoint">ikCreateFrame</a>, <a href="#ikEraseObject">ikEraseObject</a></td>
+<td class="apiTableRightDescr"><a href="#ikDoesObjectExist">ikDoesObjectExist</a>, <a href="#ikCreateJoint">ikCreateDummy</a>, <a href="#ikEraseObject">ikEraseObject</a></td>
 </tr>
 </table>
 <br>
@@ -251,7 +251,7 @@
 </tr>
 <tr class="apiTableTr">
 <td class="apiTableLeftCSyn">Synopsis</td>
-<td class="apiTableRightCSyn">bool ikEraseEnvironment(int* switchedEnvironmentHandle=nullptr</td>
+<td class="apiTableRightCSyn">bool ikEraseEnvironment(int* switchedEnvironmentHandle=nullptr)</td>
 </tr>
 <tr class="apiTableTr">
 <td class="apiTableLeftCParam">Arguments</td>
@@ -293,7 +293,7 @@
 </tr>
 <tr class="apiTableTr">
 <td class="apiTableLeftDescr">See also</td>
-<td class="apiTableRightDescr"><a href="#ikGetObjectHandle">ikGetObjectHandle</a>, <a href="#ikCreateFrame">ikCreateFrame</a>, <a href="#ikCreateJoint">ikCreateJoint</a></td>
+<td class="apiTableRightDescr"><a href="#ikGetObjectHandle">ikGetObjectHandle</a>, <a href="#ikCreateDummy">ikCreateDummy</a>, <a href="#ikCreateJoint">ikCreateJoint</a></td>
 </tr>
 </table>
 <br>
@@ -316,7 +316,7 @@
 <div><strong>jointCnt</strong>: the number of joint handles provided in the jointHandles array.</div>
 <div><strong>jointHandles</strong>: an array with jointCnt entries, that specifies the joint handles for the joints we wish to retrieve the values calculated by the IK.</div>
 <div><strong>thresholdDist</strong>: a distance indicating when IK should be computed in order to try to bring the tip onto the target: since the search algorithm proceeds by generating random configurations, many of them produce a tip pose that is too far from the target pose to run IK successfully. Choosing a large value will result in slow calculations, choosing a small value might produce a smaller subset of solutions. Distance between two poses is calculated using a metric (see metric argument below).</div>
-<div><strong>maxIterations</strong>: the maximum number of iterations before this function returns.</div>
+<div><strong>maxIterations</strong>: the maximum number of iterations before this function returns. Alternatively, one can specify an upper time limit, in milliseconds, after which the function returns with maxIterations=-timeLimitInMs.</div>
 <div><strong>retConfig</strong>: an array with jointCnt entries, that will receive the IK calculated joint values, as specified by the jointHandles array.</div>
 <div><strong>metric</strong>: an array to 4 values indicating a metric used to compute pose-pose distances: distance=sqrt((dx*metric[0])^2+(dy*metric[1])^2+(dz*metric[2])^2+(angle*metric[3])^2).</div>
 <div><strong>validationCallback</strong>: a callback function taking as input argument the proposed joint values (i.e. a configuration), and as return value whether the configuration is valid (e.g. is not colliding).</div>
@@ -345,13 +345,13 @@
 </tr>
 <tr class="apiTableTr">
 <td class="apiTableLeftCSyn">Synopsis</td>
-<td class="apiTableRightCSyn">bool ikGetIkElementBase(int ikGroupHandle,int ikElementIndex,int* baseHandle,int* constraintsBaseHandle)</td>
+<td class="apiTableRightCSyn">bool ikGetIkElementBase(int ikGroupHandle,int ikElementHandle,int* baseHandle,int* constraintsBaseHandle)</td>
 </tr>
 <tr class="apiTableTr">
 <td class="apiTableLeftCParam">Arguments</td>
 <td class="apiTableRightCParam">
 <div><strong>ikGroupHandle</strong>: the handle of the IK group.</div>
-<div><strong>ikElementIndex</strong>: the IK element index, or X, where X=handleOfTipFrame|ik_handleflag_tipframe (if several IK elements with the same tip frame exist, then the first encountered will be selected).</div>
+<div><strong>ikElementHandle</strong>: the IK element handle, or X, where X=handleOfTipDummy|ik_handleflag_tipdummy (if several IK elements with the same tip dummy exist, then the first encountered will be selected).</div>
 <div><strong>baseHandle</strong>: the handle of the base object, in return, or -1 if the world is the base.</div>
 <div><strong>constraintsBaseHandle</strong>: the handle of the constraints base object, in return, relative to which the constraints are specified. Returns -1 if the constraints are relative to the base object.</div>
 </td>
@@ -376,14 +376,14 @@
 </tr>
 <tr class="apiTableTr">
 <td class="apiTableLeftCSyn">Synopsis</td>
-<td class="apiTableRightCSyn">bool ikGetIkElementConstraints(int ikGroupHandle,int ikElementIndex,int* constraints)</td>
+<td class="apiTableRightCSyn">bool ikGetIkElementConstraints(int ikGroupHandle,int ikElementHandle,int* constraints)</td>
 </tr>
 <tr class="apiTableTr">
 <td class="apiTableLeftCParam">Arguments</td>
 <td class="apiTableRightCParam">
 <div><strong>ikGroupHandle</strong>: the handle of the IK group.</div>
-<div><strong>ikElementIndex</strong>: the IK element index, or X, where X=handleOfTipFrame|ik_handleflag_tipframe (if several IK elements with the same tip frame exist, then the first encountered will be selected).</div>
-<div><strong>constraints</strong>: the constraints, in return. A combination of following is possible: sim_ik_x_constraint, sim_ik_y_constraint, sim_ik_z_constraint, sim_ik_alpha_beta_constraint, sim_ik_gamma_constraint.</div>
+<div><strong>ikElementHandle</strong>: the IK element handle, or X, where X=handleOfTipDummy|ik_handleflag_tipdummy (if several IK elements with the same tip dummy exist, then the first encountered will be selected).</div>
+<div><strong>constraints</strong>: the constraints, in return. A combination of following is possible: ik_constraint_x, ik_constraint_y, ik_constraint_z, ik_constraint_alpha_beta, ik_constraint_gamma. For convenience we also have ik_constraint_position=ik_constraint_x|ik_constraint_y|ik_constraint_z, ik_constraint_orientation=ik_constraint_alpha_beta|ik_constraint_gamma, and ik_constraint_pose=ik_constraint_position|ik_constraint_orientation.</div>
 </td>
 </tr>
 <tr class="apiTableTr">
@@ -398,22 +398,22 @@
 <br>
 
 <h3 class="subsectionBar">
-<a name="ikGetIkElementEnabled" id="ikGetIkElementEnabled"></a>ikGetIkElementEnabled</h3>
+<a name="ikGetIkElementFlags" id="ikGetIkElementFlags"></a>ikGetIkElementFlags</h3>
 <table class="apiTable">
 <tr class="apiTableTr">
 <td class="apiTableLeftDescr">Description</td>
-<td class="apiTableRightDescr">Retrieves the enabled flag of an IK element.</td>
+<td class="apiTableRightDescr">Retrieves various flags of an IK element.</td>
 </tr>
 <tr class="apiTableTr">
 <td class="apiTableLeftCSyn">Synopsis</td>
-<td class="apiTableRightCSyn">bool ikGetIkElementEnabled(int ikGroupHandle,int ikElementIndex,bool* enabled)</td>
+<td class="apiTableRightCSyn">bool ikGetIkElementFlags(int ikGroupHandle,int ikElementHandle,int* flags)</td>
 </tr>
 <tr class="apiTableTr">
 <td class="apiTableLeftCParam">Arguments</td>
 <td class="apiTableRightCParam">
 <div><strong>ikGroupHandle</strong>: the handle of the IK group.</div>
-<div><strong>ikElementIndex</strong>: the IK element index, or X, where X=handleOfTipFrame|ik_handleflag_tipframe (if several IK elements with the same tip frame exist, then the first encountered will be selected).</div>
-<div><strong>enabled</strong>: the enabled flag, in return.</div>
+<div><strong>ikElementHandle</strong>: the IK element handle, or X, where X=handleOfTipDummy|ik_handleflag_tipdummy (if several IK elements with the same tip dummy exist, then the first encountered will be selected).</div>
+<div><strong>flags</strong>: bit-coded flags, in return: bit0 set (1): the enabled state of the ik element.</div>
 </td>
 </tr>
 <tr class="apiTableTr">
@@ -422,7 +422,7 @@
 </tr>
 <tr class="apiTableTr">
 <td class="apiTableLeftDescr">See also</td>
-<td class="apiTableRightDescr"><a href="#ikSetIkElementEnabled">ikSetIkElementEnabled</a>, <a href="#ikGetIkGroupHandle">ikGetIkGroupHandle</a>, <a href="#ikGetObjectHandle">ikGetObjectHandle</a></td>
+<td class="apiTableRightDescr"><a href="#ikSetIkElementFlags">ikSetIkElementFlags</a>, <a href="#ikGetIkGroupHandle">ikGetIkGroupHandle</a>, <a href="#ikGetObjectHandle">ikGetObjectHandle</a></td>
 </tr>
 </table>
 <br>
@@ -436,13 +436,13 @@
 </tr>
 <tr class="apiTableTr">
 <td class="apiTableLeftCSyn">Synopsis</td>
-<td class="apiTableRightCSyn">bool ikGetIkElementPrecision(int ikGroupHandle,int ikElementIndex,simReal* linearPrecision,simReal* angularPrecision)</td>
+<td class="apiTableRightCSyn">bool ikGetIkElementPrecision(int ikGroupHandle,int ikElementHandle,simReal* linearPrecision,simReal* angularPrecision)</td>
 </tr>
 <tr class="apiTableTr">
 <td class="apiTableLeftCParam">Arguments</td>
 <td class="apiTableRightCParam">
 <div><strong>ikGroupHandle</strong>: the handle of the IK group.</div>
-<div><strong>ikElementIndex</strong>: the IK element index, or X, where X=handleOfTipFrame|ik_handleflag_tipframe (if several IK elements with the same tip frame exist, then the first encountered will be selected).</div>
+<div><strong>ikElementHandle</strong>: the IK element handle, or X, where X=handleOfTipDummy|ik_handleflag_tipdummy (if several IK elements with the same tip dummy exist, then the first encountered will be selected).</div>
 <div><strong>linearPrecision</strong>: the required linear precision, in return.</div>
 <div><strong>angularPrecision</strong>: the required angular precision, in return.</div>
 </td>
@@ -467,13 +467,13 @@
 </tr>
 <tr class="apiTableTr">
 <td class="apiTableLeftCSyn">Synopsis</td>
-<td class="apiTableRightCSyn">bool ikGetIkElementWeights(int ikGroupHandle,int ikElementIndex,simReal* linearWeight,simReal* angularWeight)</td>
+<td class="apiTableRightCSyn">bool ikGetIkElementWeights(int ikGroupHandle,int ikElementHandle,simReal* linearWeight,simReal* angularWeight)</td>
 </tr>
 <tr class="apiTableTr">
 <td class="apiTableLeftCParam">Arguments</td>
 <td class="apiTableRightCParam">
 <div><strong>ikGroupHandle</strong>: the handle of the IK group.</div>
-<div><strong>ikElementIndex</strong>: the IK element index, or X, where X=handleOfTipFrame|ik_handleflag_tipframe (if several IK elements with the same tip frame exist, then the first encountered will be selected).</div>
+<div><strong>ikElementHandle</strong>: the IK element handle, or X, where X=handleOfTipDummy|ik_handleflag_tipdummy (if several IK elements with the same tip dummy exist, then the first encountered will be selected).</div>
 <div><strong>linearWeight</strong>: the linear resolution weight, in return.</div>
 <div><strong>angularWeight</strong>: the angular resolution weight, in return.</div>
 </td>
@@ -494,7 +494,7 @@
 <table class="apiTable">
 <tr class="apiTableTr">
 <td class="apiTableLeftDescr">Description</td>
-<td class="apiTableRightDescr">Sets calculation properties for an IK group.</td>
+<td class="apiTableRightDescr">Retrieves calculation properties for an IK group.</td>
 </tr>
 <tr class="apiTableTr">
 <td class="apiTableLeftCSyn">Synopsis</td>
@@ -504,8 +504,8 @@
 <td class="apiTableLeftCParam">Arguments</td>
 <td class="apiTableRightCParam">
 <div><strong>ikGroupHandle</strong>: the handle of the IK group.</div>
-<div><strong>method</strong>: the resolution method, in return. Possible values are sim_ik_pseudo_inverse_method and sim_ik_damped_least_squares_method.</div>
-<div><strong>damping</strong>: the damping, in case the resolution method is sim_ik_damped_least_squares_method, in return.</div>
+<div><strong>method</strong>: the resolution method, in return. Possible values are ik_method_pseudo_inverse and ik_method_damped_least_squares.</div>
+<div><strong>damping</strong>: the damping, in case the resolution method is ik_method_damped_least_squares, in return.</div>
 <div><strong>maxIterations</strong>: the maximum number of iterations, in return.</div>
 </td>
 </tr>
@@ -535,7 +535,7 @@
 <td class="apiTableLeftCParam">Arguments</td>
 <td class="apiTableRightCParam">
 <div><strong>ikGroupHandle</strong>: the handle of the IK group.</div>
-<div><strong>flags</strong>: the flags of the IK group, in return. bit0 set (i.e. 1)=group is enabled, bit1 set (i.e. 2)=joint limits are corrected, bit2 set (i.e. 4)=max. step sizes are ignored</div>
+<div><strong>flags</strong>: the flags of the IK group, in return. bit0 set (i.e. 1)=group is enabled, bit1 set (i.e. 2)=max. step sizes are ignored, bit2 set (i.e. 4)=restore joints if target position not reached, bit3 set (i.e. 8)=restore joints if target orientation not reached.</div>
 </td>
 </tr>
 <tr class="apiTableTr">
@@ -574,35 +574,6 @@
 <tr class="apiTableTr">
 <td class="apiTableLeftDescr">See also</td>
 <td class="apiTableRightDescr"><a href="#ikDoesIkGroupExist">ikDoesIkGroupExist</a>, <a href="#ikCreateIkGroup">ikCreateIkGroup</a></td>
-</tr>
-</table>
-<br>
-
-<h3 class="subsectionBar">
-<a name="ikGetIkGroupLimitThresholds" id="ikGetIkGroupLimitThresholds"></a>ikGetIkGroupLimitThresholds</h3>
-<table class="apiTable">
-<tr class="apiTableTr">
-<td class="apiTableLeftDescr">Description</td>
-<td class="apiTableRightDescr">Retrieves the joint limit thresholds for an IK group (can be used with redundant manipulators).</td>
-</tr>
-<tr class="apiTableTr">
-<td class="apiTableLeftCSyn">Synopsis</td>
-<td class="apiTableRightCSyn">bool ikGetIkGroupLimitThresholds(int ikGroupHandle,simReal* linearAndAngularThresholds)</td>
-</tr>
-<tr class="apiTableTr">
-<td class="apiTableLeftCParam">Arguments</td>
-<td class="apiTableRightCParam">
-<div><strong>ikGroupHandle</strong>: the handle of the IK group.</div>
-<div><strong>linearAndAngularThresholds</strong>: a pointer to two values receiving the linear and angular thresholds.</div>
-</td>
-</tr>
-<tr class="apiTableTr">
-<td class="apiTableLeftCRet">Return value</td>
-<td class="apiTableRightCRet">true in case of success.</td>
-</tr>
-<tr class="apiTableTr">
-<td class="apiTableLeftDescr">See also</td>
-<td class="apiTableRightDescr"><a href="#ikSetIkGroupLimitThresholds">ikSetIkGroupLimitThresholds</a>, <a href="#ikGetIkGroupHandle">ikGetIkGroupHandle</a></td>
 </tr>
 </table>
 <br>
@@ -799,7 +770,7 @@
 <td class="apiTableLeftCParam">Arguments</td>
 <td class="apiTableRightCParam">
 <div><strong>jointHandle</strong>: the handle of the joint.</div>
-<div><strong>mode</strong>: the joint mode, in return. Possible values are: sim_jointmode_passive, sim_jointmode_ik, sim_jointmode_dependent, sim_jointmode_force</div>
+<div><strong>mode</strong>: the joint mode, in return. Possible values are: ik_jointmode_passive, ik_jointmode_ik, ik_jointmode_dependent, ik_jointmode_force</div>
 </td>
 </tr>
 <tr class="apiTableTr">
@@ -807,6 +778,7 @@
 <td class="apiTableRightCRet">true in case of success.</td>
 </tr>
 <tr class="apiTableTr">
+
 <td class="apiTableLeftDescr">See also</td>
 <td class="apiTableRightDescr"><a href="#ikSetJointMode">ikSetJointMode</a>, <a href="#ikGetObjectHandle">ikGetObjectHandle</a></td>
 </tr>
@@ -928,21 +900,21 @@
 <br>
 
 <h3 class="subsectionBar">
-<a name="ikGetLinkedFrame" id="ikGetLinkedFrame"></a>ikGetLinkedFrame</h3>
+<a name="ikGetLinkedDummy" id="ikGetLinkedDummy"></a>ikGetLinkedDummy</h3>
 <table class="apiTable">
 <tr class="apiTableTr">
 <td class="apiTableLeftDescr">Description</td>
-<td class="apiTableRightDescr">Retrieves the handle of a frame linked to this one.</td>
+<td class="apiTableRightDescr">Retrieves the handle of a dummy linked to this one.</td>
 </tr>
 <tr class="apiTableTr">
 <td class="apiTableLeftCSyn">Synopsis</td>
-<td class="apiTableRightCSyn">bool ikGetLinkedFrame(int frameHandle,int* linkedFrameHandle)</td>
+<td class="apiTableRightCSyn">bool ikGetLinkedDummy(int dummyHandle,int* linkedDummyHandle)</td>
 </tr>
 <tr class="apiTableTr">
 <td class="apiTableLeftCParam">Arguments</td>
 <td class="apiTableRightCParam">
-<div><strong>frameHandle</strong>: the handle of the frame object.</div>
-<div><strong>linkedFrameHandle</strong>: the handle of the linked frame object, in return. Is -1 if no frame object is linked to this one.</div>
+<div><strong>dummyHandle</strong>: the handle of the dummy object.</div>
+<div><strong>linkedDummyHandle</strong>: the handle of the linked dummy object, in return. Is -1 if no dummy object is linked to this one.</div>
 </td>
 </tr>
 <tr class="apiTableTr">
@@ -951,7 +923,7 @@
 </tr>
 <tr class="apiTableTr">
 <td class="apiTableLeftDescr">See also</td>
-<td class="apiTableRightDescr"><a href="#ikSetLinkedFrame">ikSetLinkedFrame</a>, <a href="#ikGetObjectHandle">ikGetObjectHandle</a></td>
+<td class="apiTableRightDescr"><a href="#ikSetLinkedDummy">ikSetLinkedDummy</a>, <a href="#ikGetObjectHandle">ikGetObjectHandle</a></td>
 </tr>
 </table>
 <br>
@@ -1009,7 +981,7 @@
 </tr>
 <tr class="apiTableTr">
 <td class="apiTableLeftDescr">See also</td>
-<td class="apiTableRightDescr"><a href="#ikDoesObjectExist">ikDoesObjectExist</a>, <a href="#ikCreateFrame">ikCreateFrame</a>, <a href="#ikCreateJoint">ikCreateJoint</a></td>
+<td class="apiTableRightDescr"><a href="#ikDoesObjectExist">ikDoesObjectExist</a>, <a href="#ikCreateDummy">ikCreateDummy</a>, <a href="#ikCreateJoint">ikCreateJoint</a></td>
 </tr>
 </table>
 <br>
@@ -1029,7 +1001,8 @@
 <td class="apiTableLeftCParam">Arguments</td>
 <td class="apiTableRightCParam">
 <div><strong>objectHandle</strong>: the handle of the object.</div>
-<div><strong>relativeToObjectHandle</strong>: the handle of an object relative to which we want the matrix expressed. Otherwise, specify -1 if you want the absolute matrix, or sim_handle_parent if you want the matrix relative to the parent object.</div>
+<div><strong>relativeToObjectHandle</strong>: the handle of an object relative to which we want the matrix expressed. Otherwise, specify -1 if you want the absolute matrix, or ik_handle_parent if you want the matrix relative to the parent object.</div>
+<div><strong>matrix</strong>: a pointer to 12 values representing the transformation matrix (the last row of the 4x4 matrix (0,0,0,1) is omitted)</div>
 </td>
 </tr>
 <tr class="apiTableTr">
@@ -1058,7 +1031,7 @@
 <td class="apiTableLeftCParam">Arguments</td>
 <td class="apiTableRightCParam">
 <div><strong>objectHandle</strong>: the handle of the object.</div>
-<div><strong>parentObjectHandle</strong>: the returned handle of the parent.</div>
+<div><strong>parentObjectHandle</strong>: the returned handle of the parent, or -1 if the object has no parent.</div>
 </td>
 </tr>
 <tr class="apiTableTr">
@@ -1068,6 +1041,38 @@
 <tr class="apiTableTr">
 <td class="apiTableLeftDescr">See also</td>
 <td class="apiTableRightDescr"><a href="#ikSetObjectParent">ikSetObjectParent</a>, <a href="#ikGetObjectHandle">ikGetObjectHandle</a></td>
+</tr>
+</table>
+<br>
+
+<h3 class="subsectionBar">
+<a name="ikGetObjects" id="ikGetObjects"></a>ikGetObjects</h3>
+<table class="apiTable">
+<tr class="apiTableTr">
+<td class="apiTableLeftDescr">Description</td>
+<td class="apiTableRightDescr">Allows to loop through all objects in the environment.</td>
+</tr>
+<tr class="apiTableTr">
+<td class="apiTableLeftCSyn">Synopsis</td>
+<td class="apiTableRightCSyn">bool ikGetObjects(size_t index,int* objectHandle=nullptr,std::string* objectName=nullptr,bool* isJoint=nullptr,int* jointType=nullptr)</td>
+</tr>
+<tr class="apiTableTr">
+<td class="apiTableLeftCParam">Arguments</td>
+<td class="apiTableRightCParam">
+<div><strong>index</strong>: the zero-based index. Start at 0, and increment until the return value is false, in order to loop through all objects in the environment.</div>
+<div><strong>objectHandle</strong>: the handle of the object, in return.</div>
+<div><strong>objectName</strong>: the name of the object, in return.</div>
+<div><strong>isJoint</strong>: whether the object is a joint, in return.</div>
+<div><strong>jointType</strong>: the type of joint, in return, if the object at the specified index is a joint. Possible values are ik_jointtype_revolute, ik_jointtype_prismatic or ik_jointtype_spherical.</div>
+</td>
+</tr>
+<tr class="apiTableTr">
+<td class="apiTableLeftCRet">Return value</td>
+<td class="apiTableRightCRet">false in case of an error, or if no object exists at the specified index.</td>
+</tr>
+<tr class="apiTableTr">
+<td class="apiTableLeftDescr">See also</td>
+<td class="apiTableRightDescr"><a href="#ikGetObjectHandle">ikGetObjectHandle</a>, <a href="#ikDoesObjectExist">ikDoesObjectExist</a></td>
 </tr>
 </table>
 <br>
@@ -1087,7 +1092,8 @@
 <td class="apiTableLeftCParam">Arguments</td>
 <td class="apiTableRightCParam">
 <div><strong>objectHandle</strong>: the handle of the object.</div>
-<div><strong>relativeToObjectHandle</strong>: the handle of an object relative to which we want the transformation expressed. Otherwise, specify -1 if you want the absolute transformation, or sim_handle_parent if you want the transformation relative to the parent object.</div>
+<div><strong>relativeToObjectHandle</strong>: the handle of an object relative to which we want the transformation expressed. Otherwise, specify -1 if you want the absolute transformation, or ik_handle_parent if you want the transformation relative to the parent object.</div>
+<div><strong>transf</strong>: a pointer to the transformation that will be returned.</div>
 </td>
 </tr>
 <tr class="apiTableTr">
@@ -1110,13 +1116,13 @@
 </tr>
 <tr class="apiTableTr">
 <td class="apiTableLeftCSyn">Synopsis</td>
-<td class="apiTableRightCSyn">bool ikHandleIkGroup(int ikGroupHandle,int* result=nullptr)</td>
+<td class="apiTableRightCSyn">bool ikHandleIkGroup(int ikGroupHandle=ik_handle_all,int* result=nullptr)</td>
 </tr>
 <tr class="apiTableTr">
 <td class="apiTableLeftCParam">Arguments</td>
 <td class="apiTableRightCParam">
-<div><strong>ikGroupHandle</strong>: the handle of the IK group (in that case make sure the IK group is flagged as explicit handling (default when creating a new IK group)), or sim_handle_all_except_explicit to handle all IK groups that are not flagged as explicit handling (e.g. when importing an IK set-up from CoppeliaSim).</div>
-<div><strong>result</strong>: the resolution result, in return. Possible values are sim_ikresult_not_performed, sim_ikresult_success, sim_ikresult_fail</div>
+<div><strong>ikGroupHandle</strong>: the handle of the IK group (in that case make sure the IK group is flagged as explicit handling (default when creating a new IK group)), or ik_handle_all to handle all IK groups.</div>
+<div><strong>result</strong>: the resolution result, in return. Possible values are ik_result_not_performed, ik_result_success, ik_result_fail</div>
 </td>
 </tr>
 <tr class="apiTableTr">
@@ -1196,13 +1202,13 @@
 </tr>
 <tr class="apiTableTr">
 <td class="apiTableLeftCSyn">Synopsis</td>
-<td class="apiTableRightCSyn">bool ikSetIkElementBase(int ikGroupHandle,int ikElementIndex,int baseHandle,int constraintsBaseHandle=-1)</td>
+<td class="apiTableRightCSyn">bool ikSetIkElementBase(int ikGroupHandle,int ikElementHandle,int baseHandle,int constraintsBaseHandle=-1)</td>
 </tr>
 <tr class="apiTableTr">
 <td class="apiTableLeftCParam">Arguments</td>
 <td class="apiTableRightCParam">
 <div><strong>ikGroupHandle</strong>: the handle of the IK group.</div>
-<div><strong>ikElementIndex</strong>: the IK element index, or X, where X=handleOfTipFrame|ik_handleflag_tipframe (if several IK elements with the same tip frame exist, then the first encountered will be selected).</div>
+<div><strong>ikElementHandle</strong>: the IK element handle, or X, where X=handleOfTipDummy|ik_handleflag_tipdummy (if several IK elements with the same tip dummy exist, then the first encountered will be selected).</div>
 <div><strong>baseHandle</strong>: the handle of the base object, or -1 if the world is the base.</div>
 <div><strong>constraintsBaseHandle</strong>: the handle of the constraints base object, relative to which the constraints are specified. Set to -1 to have the constraints relative to the base object.</div>
 </td>
@@ -1227,14 +1233,14 @@
 </tr>
 <tr class="apiTableTr">
 <td class="apiTableLeftCSyn">Synopsis</td>
-<td class="apiTableRightCSyn">bool ikSetIkElementConstraints(int ikGroupHandle,int ikElementIndex,int constraints)</td>
+<td class="apiTableRightCSyn">bool ikSetIkElementConstraints(int ikGroupHandle,int ikElementHandle,int constraints)</td>
 </tr>
 <tr class="apiTableTr">
 <td class="apiTableLeftCParam">Arguments</td>
 <td class="apiTableRightCParam">
 <div><strong>ikGroupHandle</strong>: the handle of the IK group.</div>
-<div><strong>ikElementIndex</strong>: the IK element index, or X, where X=handleOfTipFrame|ik_handleflag_tipframe (if several IK elements with the same tip frame exist, then the first encountered will be selected).</div>
-<div><strong>constraints</strong>: the constraints. Combine following: sim_ik_x_constraint, sim_ik_y_constraint, sim_ik_z_constraint, sim_ik_alpha_beta_constraint, sim_ik_gamma_constraint (sim_ik_gamma_constraint should only be set if sim_ik_alpha_beta_constraint is also set).</div>
+<div><strong>ikElementHandle</strong>: the IK element handle, or X, where X=handleOfTipDummy|ik_handleflag_tipdummy (if several IK elements with the same tip dummy exist, then the first encountered will be selected).</div>
+<div><strong>constraints</strong>: the constraints. Combine following: ik_constraint_x, ik_constraint_y, ik_constraint_z, ik_constraint_alpha_beta, ik_constraint_gamma (ik_constraint_gamma should only be set if ik_constraint_alpha_beta is also set). For convenience we also have ik_constraint_position=ik_constraint_x|ik_constraint_y|ik_constraint_z, ik_constraint_orientation=ik_constraint_alpha_beta|ik_constraint_gamma, and ik_constraint_pose=ik_constraint_position|ik_constraint_orientation.</div>
 </td>
 </tr>
 <tr class="apiTableTr">
@@ -1249,22 +1255,22 @@
 <br>
 
 <h3 class="subsectionBar">
-<a name="ikSetIkElementEnabled" id="ikSetIkElementEnabled"></a>ikSetIkElementEnabled</h3>
+<a name="ikSetIkElementFlags" id="ikSetIkElementFlags"></a>ikSetIkElementFlags</h3>
 <table class="apiTable">
 <tr class="apiTableTr">
 <td class="apiTableLeftDescr">Description</td>
-<td class="apiTableRightDescr">Sets the enabled flag of an IK element.</td>
+<td class="apiTableRightDescr">Sets various flags for an IK element.</td>
 </tr>
 <tr class="apiTableTr">
 <td class="apiTableLeftCSyn">Synopsis</td>
-<td class="apiTableRightCSyn">bool ikSetIkElementEnabled(int ikGroupHandle,int ikElementIndex,bool enabled)</td>
+<td class="apiTableRightCSyn">bool ikSetIkElementFlags(int ikGroupHandle,int ikElementHandle,int flags)</td>
 </tr>
 <tr class="apiTableTr">
 <td class="apiTableLeftCParam">Arguments</td>
 <td class="apiTableRightCParam">
 <div><strong>ikGroupHandle</strong>: the handle of the IK group.</div>
-<div><strong>ikElementIndex</strong>: the IK element index, or X, where X=handleOfTipFrame|ik_handleflag_tipframe (if several IK elements with the same tip frame exist, then the first encountered will be selected).</div>
-<div><strong>enabled</strong>: the enabled flag.</div>
+<div><strong>ikElementHandle</strong>: the IK element handle, or X, where X=handleOfTipDummy|ik_handleflag_tipdummy (if several IK elements with the same tip dummy exist, then the first encountered will be selected).</div>
+<div><strong>flags</strong>: bit-coded flags: bit0 set (1): the enabled state of the ik element.</div>
 </td>
 </tr>
 <tr class="apiTableTr">
@@ -1273,7 +1279,7 @@
 </tr>
 <tr class="apiTableTr">
 <td class="apiTableLeftDescr">See also</td>
-<td class="apiTableRightDescr"><a href="#ikGetIkElementEnabled">ikGetIkElementEnabled</a>, <a href="#ikGetIkGroupHandle">ikGetIkGroupHandle</a>, <a href="#ikGetObjectHandle">ikGetObjectHandle</a></td>
+<td class="apiTableRightDescr"><a href="#ikGetIkElementFlags">ikGetIkElementFlags</a>, <a href="#ikGetIkGroupHandle">ikGetIkGroupHandle</a>, <a href="#ikGetObjectHandle">ikGetObjectHandle</a></td>
 </tr>
 </table>
 <br>
@@ -1287,13 +1293,13 @@
 </tr>
 <tr class="apiTableTr">
 <td class="apiTableLeftCSyn">Synopsis</td>
-<td class="apiTableRightCSyn">bool ikSetIkElementPrecision(int ikGroupHandle,int ikElementIndex,simReal linearPrecision,simReal angularPrecision)</td>
+<td class="apiTableRightCSyn">bool ikSetIkElementPrecision(int ikGroupHandle,int ikElementHandle,simReal linearPrecision,simReal angularPrecision)</td>
 </tr>
 <tr class="apiTableTr">
 <td class="apiTableLeftCParam">Arguments</td>
 <td class="apiTableRightCParam">
 <div><strong>ikGroupHandle</strong>: the handle of the IK group.</div>
-<div><strong>ikElementIndex</strong>: the IK element index, or X, where X=handleOfTipFrame|ik_handleflag_tipframe (if several IK elements with the same tip frame exist, then the first encountered will be selected).</div>
+<div><strong>ikElementHandle</strong>: the IK element handle, or X, where X=handleOfTipDummy|ik_handleflag_tipdummy (if several IK elements with the same tip dummy exist, then the first encountered will be selected).</div>
 <div><strong>linearPrecision</strong>: the required linear precision.</div>
 <div><strong>angularPrecision</strong>: the required angular precision.</div>
 </td>
@@ -1318,13 +1324,13 @@
 </tr>
 <tr class="apiTableTr">
 <td class="apiTableLeftCSyn">Synopsis</td>
-<td class="apiTableRightCSyn">bool ikSetIkElementWeights(int ikGroupHandle,int ikElementIndex,simReal linearWeight,simReal angularWeight)</td>
+<td class="apiTableRightCSyn">bool ikSetIkElementWeights(int ikGroupHandle,int ikElementHandle,simReal linearWeight,simReal angularWeight)</td>
 </tr>
 <tr class="apiTableTr">
 <td class="apiTableLeftCParam">Arguments</td>
 <td class="apiTableRightCParam">
 <div><strong>ikGroupHandle</strong>: the handle of the IK group.</div>
-<div><strong>ikElementIndex</strong>: the IK element index, or X, where X=handleOfTipFrame|ik_handleflag_tipframe (if several IK elements with the same tip frame exist, then the first encountered will be selected).</div>
+<div><strong>ikElementHandle</strong>: the IK element handle, or X, where X=handleOfTipDummy|ik_handleflag_tipdummy (if several IK elements with the same tip dummy exist, then the first encountered will be selected).</div>
 <div><strong>linearWeight</strong>: the desired linear resolution weight.</div>
 <div><strong>angularWeight</strong>: the desired angular resolution weight.</div>
 </td>
@@ -1355,8 +1361,8 @@
 <td class="apiTableLeftCParam">Arguments</td>
 <td class="apiTableRightCParam">
 <div><strong>ikGroupHandle</strong>: the handle of the IK group.</div>
-<div><strong>method</strong>: the resolution method. Possible values are sim_ik_pseudo_inverse_method and sim_ik_damped_least_squares_method.</div>
-<div><strong>damping</strong>: the damping, in case the resolution method is sim_ik_damped_least_squares_method.</div>
+<div><strong>method</strong>: the resolution method. Possible values are ik_method_pseudo_inverse and ik_method_damped_least_squares.</div>
+<div><strong>damping</strong>: the damping, in case the resolution method is ik_method_damped_least_squares.</div>
 <div><strong>maxIterations</strong>: the maximum number of iterations.</div>
 </td>
 </tr>
@@ -1386,7 +1392,7 @@
 <td class="apiTableLeftCParam">Arguments</td>
 <td class="apiTableRightCParam">
 <div><strong>ikGroupHandle</strong>: the handle of the IK group.</div>
-<div><strong>flags</strong>: the flags of the IK group. bit0 set (i.e. 1)=group is enabled, bit1 set (i.e. 2)=joint limits are corrected, bit2 set (i.e. 4)=max. step sizes are ignored</div>
+<div><strong>flags</strong>: the flags of the IK group. bit0 set (i.e. 1)=group is enabled, bit1 set (i.e. 2)=max. step sizes are ignored, bit2 set (i.e. 4)=restore joints if target position not reached, bit3 set (i.e. 8)=restore joints if target orientation not reached.</div>
 </td>
 </tr>
 <tr class="apiTableTr">
@@ -1396,35 +1402,6 @@
 <tr class="apiTableTr">
 <td class="apiTableLeftDescr">See also</td>
 <td class="apiTableRightDescr"><a href="#ikGetIkGroupFlags">ikGetIkGroupFlags</a>, <a href="#ikGetIkGroupHandle">ikGetIkGroupHandle</a></td>
-</tr>
-</table>
-<br>
-
-<h3 class="subsectionBar">
-<a name="ikSetIkGroupLimitThresholds" id="ikSetIkGroupLimitThresholds"></a>ikSetIkGroupLimitThresholds</h3>
-<table class="apiTable">
-<tr class="apiTableTr">
-<td class="apiTableLeftDescr">Description</td>
-<td class="apiTableRightDescr">Sets the joint limit thresholds for an IK group (can be used with redundant manipulators).</td>
-</tr>
-<tr class="apiTableTr">
-<td class="apiTableLeftCSyn">Synopsis</td>
-<td class="apiTableRightCSyn">bool ikSetIkGroupLimitThresholds(int ikGroupHandle,const simReal* linearAndAngularThresholds)</td>
-</tr>
-<tr class="apiTableTr">
-<td class="apiTableLeftCParam">Arguments</td>
-<td class="apiTableRightCParam">
-<div><strong>ikGroupHandle</strong>: the handle of the IK group.</div>
-<div><strong>linearAndAngularThresholds</strong>: a pointer to two values for the linear and angular thresholds.</div>
-</td>
-</tr>
-<tr class="apiTableTr">
-<td class="apiTableLeftCRet">Return value</td>
-<td class="apiTableRightCRet">true in case of success.</td>
-</tr>
-<tr class="apiTableTr">
-<td class="apiTableLeftDescr">See also</td>
-<td class="apiTableRightDescr"><a href="#ikGetIkGroupLimitThresholds">ikGetIkGroupLimitThresholds</a>, <a href="#ikGetIkGroupHandle">ikGetIkGroupHandle</a></td>
 </tr>
 </table>
 <br>
@@ -1563,7 +1540,7 @@
 <td class="apiTableLeftCParam">Arguments</td>
 <td class="apiTableRightCParam">
 <div><strong>jointHandle</strong>: the handle of the joint.</div>
-<div><strong>jointMode</strong>: the joint mode. Allowed values are: sim_jointmode_passive, sim_jointmode_ik, sim_jointmode_dependent</div>
+<div><strong>jointMode</strong>: the joint mode. Allowed values are: ik_jointmode_passive, ik_jointmode_ik, ik_jointmode_dependent</div>
 </td>
 </tr>
 <tr class="apiTableTr">
@@ -1636,21 +1613,21 @@
 <br>
 
 <h3 class="subsectionBar">
-<a name="ikSetLinkedFrame" id="ikSetLinkedFrame"></a>ikSetLinkedFrame</h3>
+<a name="ikSetLinkedDummy" id="ikSetLinkedDummy"></a>ikSetLinkedDummy</h3>
 <table class="apiTable">
 <tr class="apiTableTr">
 <td class="apiTableLeftDescr">Description</td>
-<td class="apiTableRightDescr">Links this frame object to another frame object, or detaches it from another frame object.</td>
+<td class="apiTableRightDescr">Links this dummy object to another dummy object, or detaches it from another dummy object.</td>
 </tr>
 <tr class="apiTableTr">
 <td class="apiTableLeftCSyn">Synopsis</td>
-<td class="apiTableRightCSyn">bool ikSetLinkedFrame(int frameHandle,int linkedFrameHandle)</td>
+<td class="apiTableRightCSyn">bool ikSetLinkedDummy(int dummyHandle,int linkedDummyHandle)</td>
 </tr>
 <tr class="apiTableTr">
 <td class="apiTableLeftCParam">Arguments</td>
 <td class="apiTableRightCParam">
-<div><strong>frameHandle</strong>: the handle of the frame object.</div>
-<div><strong>linkedFrameHandle</strong>: the handle of the frame object to be linked, or -1 to detach this frame object from a linked frame object.</div>
+<div><strong>dummyHandle</strong>: the handle of the dummy object.</div>
+<div><strong>linkedDummyHandle</strong>: the handle of the dummy object to be linked, or -1 to detach this dummy object from a linked dummy object.</div>
 </td>
 </tr>
 <tr class="apiTableTr">
@@ -1659,7 +1636,7 @@
 </tr>
 <tr class="apiTableTr">
 <td class="apiTableLeftDescr">See also</td>
-<td class="apiTableRightDescr"><a href="#ikGetLinkedFrame">ikGetLinkedFrame</a>, <a href="#ikGetObjectHandle">ikGetObjectHandle</a></td>
+<td class="apiTableRightDescr"><a href="#ikGetLinkedDummy">ikGetLinkedDummy</a>, <a href="#ikGetObjectHandle">ikGetObjectHandle</a></td>
 </tr>
 </table>
 <br>
@@ -1679,7 +1656,7 @@
 <td class="apiTableLeftCParam">Arguments</td>
 <td class="apiTableRightCParam">
 <div><strong>objectHandle</strong>: the handle of the object.</div>
-<div><strong>relativeToObjectHandle</strong>: the handle of an object relative to which the matrix is expressed. Otherwise, specify -1 if you specify the absolute matrix, or sim_handle_parent if you specify the matrix relative to the parent object.</div>
+<div><strong>relativeToObjectHandle</strong>: the handle of an object relative to which the matrix is expressed. Otherwise, specify -1 if you specify the absolute matrix, or ik_handle_parent if you specify the matrix relative to the parent object.</div>
 <div><strong>matrix</strong>: the transformation matrix</div>
 </td>
 </tr>
@@ -1739,7 +1716,7 @@
 <td class="apiTableLeftCParam">Arguments</td>
 <td class="apiTableRightCParam">
 <div><strong>objectHandle</strong>: the handle of the object.</div>
-<div><strong>relativeToObjectHandle</strong>: the handle of an object relative to which the transformation is expressed. Otherwise, specify -1 if you specify the absolute transformation, or sim_handle_parent if you specify the transformation relative to the parent object.</div>
+<div><strong>relativeToObjectHandle</strong>: the handle of an object relative to which the transformation is expressed. Otherwise, specify -1 if you specify the absolute transformation, or ik_handle_parent if you specify the transformation relative to the parent object.</div>
 <div><strong>transf</strong>: the transformation.</div>
 </td>
 </tr>

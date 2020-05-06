@@ -1,7 +1,6 @@
-#include "simConst.h"
 #include "ikElement.h"
 #include "ikRoutines.h"
-#include "app.h"
+#include "environment.h"
 
 CikElement::CikElement(int theTooltip)
 {
@@ -9,11 +8,12 @@ CikElement::CikElement(int theTooltip)
     _baseHandle=-1;
     _altBaseHandleForConstraints=-1;
     _isActive=true;
-    _constraints=(sim_ik_x_constraint|sim_ik_y_constraint|sim_ik_z_constraint);
+    _constraints=(ik_constraint_x|ik_constraint_y|ik_constraint_z);
     _minAngularPrecision=simReal(0.1)*degToRad;
     _minLinearPrecision=simReal(0.0005);
     _positionWeight=1.0;
     _orientationWeight=1.0;
+    _ikElementHandle=-1;
     matrix=nullptr;
     matrix_correctJacobian=nullptr;
     errorVector=nullptr;
@@ -58,6 +58,11 @@ int CikElement::getIkElementHandle() const
     return(_ikElementHandle);
 }
 
+void CikElement::setIkElementHandle(int handle)
+{
+    _ikElementHandle=handle;
+}
+
 int CikElement::getTipHandle() const
 {
     return(_tipHandle);
@@ -66,11 +71,11 @@ int CikElement::getTipHandle() const
 int CikElement::getTargetHandle() const
 {
     int retVal=-1;
-    CDummy* tip=App::currentInstance->objectContainer->getDummy(_tipHandle);
+    CDummy* tip=CEnvironment::currentEnvironment->objectContainer->getDummy(_tipHandle);
     if (tip!=nullptr)
     {
         int linkedDummyHandle=tip->getLinkedDummyHandle();
-        if (tip->getLinkType()==sim_dummy_linktype_ik_tip_target)
+        if (tip->getLinkType()==ik_linktype_ik_tip_target)
             retVal=linkedDummyHandle;
     }
     return(retVal);
@@ -98,15 +103,15 @@ void CikElement::setAltBaseHandleForConstraints(int newAltBaseHandle)
 
 void CikElement::setRelatedJointsToPassiveMode()
 {
-    CSceneObject* it=App::currentInstance->objectContainer->getDummy(_tipHandle);
+    CSceneObject* it=CEnvironment::currentEnvironment->objectContainer->getDummy(_tipHandle);
     if (it!=nullptr)
     {
-        CSceneObject* baseObj=App::currentInstance->objectContainer->getObject(_baseHandle);
+        CSceneObject* baseObj=CEnvironment::currentEnvironment->objectContainer->getObject(_baseHandle);
         it=it->getParentObject();
         while ( (it!=nullptr)&&(it!=baseObj) )
         {
-            if (it->getObjectType()==sim_object_joint_type)
-                (static_cast<CJoint*>(it))->setJointMode(sim_jointmode_passive);
+            if (it->getObjectType()==ik_objecttype_joint)
+                (static_cast<CJoint*>(it))->setJointMode(ik_jointmode_passive);
             it=it->getParentObject();
         }
     }
@@ -176,29 +181,29 @@ void CikElement::isWithinTolerance(bool& position,bool& orientation,bool useTemp
 {
     position=true;
     orientation=true;
-    CDummy* targetObject=App::currentInstance->objectContainer->getDummy(getTargetHandle());
+    CDummy* targetObject=CEnvironment::currentEnvironment->objectContainer->getDummy(getTargetHandle());
     if (targetObject!=nullptr)
     {
         C7Vector targetTr(targetObject->getCumulativeTransformationPart1(useTempValues));
-        CDummy* tooltipObject=App::currentInstance->objectContainer->getDummy(_tipHandle);
+        CDummy* tooltipObject=CEnvironment::currentEnvironment->objectContainer->getDummy(_tipHandle);
         C7Vector tooltipTr(tooltipObject->getCumulativeTransformationPart1(useTempValues));
         C7Vector baseTrInv(C7Vector::identityTransformation);
-        CDummy* baseObject=App::currentInstance->objectContainer->getDummy(_baseHandle);
+        CDummy* baseObject=CEnvironment::currentEnvironment->objectContainer->getDummy(_baseHandle);
         if (baseObject!=nullptr)
             baseTrInv=baseObject->getCumulativeTransformationPart1(useTempValues).getInverse();
-        CDummy* altBaseObject=App::currentInstance->objectContainer->getDummy(_altBaseHandleForConstraints);
+        CDummy* altBaseObject=CEnvironment::currentEnvironment->objectContainer->getDummy(_altBaseHandleForConstraints);
         if (altBaseObject!=nullptr)
             baseTrInv=altBaseObject->getCumulativeTransformationPart1(useTempValues).getInverse();
         tooltipTr=baseTrInv*tooltipTr;
         targetTr=baseTrInv*targetTr;
         simReal linAndAngErrors[2];
         _getMatrixError(targetTr.getMatrix(),tooltipTr.getMatrix(),linAndAngErrors);
-        if ( (_constraints&(sim_ik_x_constraint|sim_ik_y_constraint|sim_ik_z_constraint))!=0 )
+        if ( (_constraints&(ik_constraint_x|ik_constraint_y|ik_constraint_z))!=0 )
         {
             if (_minLinearPrecision<linAndAngErrors[0])
                 position=false;
         }
-        if ( (_constraints&(sim_ik_alpha_beta_constraint|sim_ik_gamma_constraint))!=0 )
+        if ( (_constraints&(ik_constraint_alpha_beta|ik_constraint_gamma))!=0 )
         {
             if (_minAngularPrecision<linAndAngErrors[1])
                 orientation=false;
@@ -208,7 +213,7 @@ void CikElement::isWithinTolerance(bool& position,bool& orientation,bool useTemp
 
 void CikElement::prepareEquations(simReal interpolationFactor)
 {
-    CDummy* targetObject=App::currentInstance->objectContainer->getDummy(getTargetHandle());
+    CDummy* targetObject=CEnvironment::currentEnvironment->objectContainer->getDummy(getTargetHandle());
     rowJointHandles=new std::vector<int>;
     rowJointStages=new std::vector<size_t>;
     C4X4Matrix m;
@@ -220,25 +225,25 @@ void CikElement::prepareEquations(simReal interpolationFactor)
     C7Vector currentFrame;
     if (targetObject!=nullptr)
     {
-        CSceneObject* baseObject=App::currentInstance->objectContainer->getObject(_baseHandle);
+        CSceneObject* baseObject=CEnvironment::currentEnvironment->objectContainer->getObject(_baseHandle);
         C7Vector baseTrInv(C7Vector::identityTransformation);
         if (baseObject!=nullptr)
             baseTrInv=baseObject->getCumulativeTransformation(true).getInverse();
-        CSceneObject* altBaseObject=App::currentInstance->objectContainer->getObject(_altBaseHandleForConstraints);
+        CSceneObject* altBaseObject=CEnvironment::currentEnvironment->objectContainer->getObject(_altBaseHandleForConstraints);
         if (altBaseObject!=nullptr)
             baseTrInv=altBaseObject->getCumulativeTransformation(true).getInverse();
         C7Vector targetTr=targetObject->getCumulativeTransformationPart1(true);
         targetTr=baseTrInv*targetTr;
         currentFrame.buildInterpolation(oldFrame,targetTr,interpolationFactor);
-        if ((_constraints&sim_ik_x_constraint)!=0)
+        if ((_constraints&ik_constraint_x)!=0)
             equationNumber++;
-        if ((_constraints&sim_ik_y_constraint)!=0)
+        if ((_constraints&ik_constraint_y)!=0)
             equationNumber++;
-        if ((_constraints&sim_ik_z_constraint)!=0)
+        if ((_constraints&ik_constraint_z)!=0)
             equationNumber++;
-        if ((_constraints&sim_ik_alpha_beta_constraint)!=0)
+        if ((_constraints&ik_constraint_alpha_beta)!=0)
             equationNumber+=2;
-        if ((_constraints&sim_ik_gamma_constraint)!=0)
+        if ((_constraints&ik_constraint_gamma)!=0)
             equationNumber++;
     }
     matrix=new CMatrix(equationNumber,doF);
@@ -247,7 +252,7 @@ void CikElement::prepareEquations(simReal interpolationFactor)
     if (targetObject!=nullptr)
     {
         size_t pos=0;
-        if ((_constraints&sim_ik_x_constraint)!=0)
+        if ((_constraints&ik_constraint_x)!=0)
         {
             for (size_t i=0;i<doF;i++)
             {
@@ -257,7 +262,7 @@ void CikElement::prepareEquations(simReal interpolationFactor)
             (*errorVector)(pos,0)=(currentFrame.X(0)-oldFrame.X(0))*_positionWeight;
             pos++;
         }
-        if ((_constraints&sim_ik_y_constraint)!=0)
+        if ((_constraints&ik_constraint_y)!=0)
         {
             for (size_t i=0;i<doF;i++)
             {
@@ -267,7 +272,7 @@ void CikElement::prepareEquations(simReal interpolationFactor)
             (*errorVector)(pos,0)=(currentFrame.X(1)-oldFrame.X(1))*_positionWeight;
             pos++;
         }
-        if ((_constraints&sim_ik_z_constraint)!=0)
+        if ((_constraints&ik_constraint_z)!=0)
         {
             for (size_t i=0;i<doF;i++)
             {
@@ -277,7 +282,7 @@ void CikElement::prepareEquations(simReal interpolationFactor)
             (*errorVector)(pos,0)=(currentFrame.X(2)-oldFrame.X(2))*_positionWeight;
             pos++;
         }
-        if ( ((_constraints&sim_ik_alpha_beta_constraint)!=0)&&((_constraints&sim_ik_gamma_constraint)!=0) )
+        if ( ((_constraints&ik_constraint_alpha_beta)!=0)&&((_constraints&ik_constraint_gamma)!=0) )
         { // full orientation constr.
             for (size_t i=0;i<doF;i++)
             {
@@ -295,7 +300,7 @@ void CikElement::prepareEquations(simReal interpolationFactor)
             (*errorVector)(pos+2,0)=euler(2)*_orientationWeight/IK_DIVISION_FACTOR;
             pos=pos+3;
         }
-        else if ((_constraints&sim_ik_alpha_beta_constraint)!=0)
+        else if ((_constraints&ik_constraint_alpha_beta)!=0)
         {
             for (size_t i=0;i<doF;i++)
             {
@@ -332,18 +337,18 @@ void CikElement::_getMatrixError(const C4X4Matrix& frame1,const C4X4Matrix& fram
 {
     // Linear:
     simReal constr[3]={simZero,simZero,simZero};
-    if ( (_constraints&sim_ik_x_constraint)!=0 )
+    if ( (_constraints&ik_constraint_x)!=0 )
         constr[0]=simOne;
-    if ( (_constraints&sim_ik_y_constraint)!=0 )
+    if ( (_constraints&ik_constraint_y)!=0 )
         constr[1]=simOne;
-    if ( (_constraints&sim_ik_z_constraint)!=0 )
+    if ( (_constraints&ik_constraint_z)!=0 )
         constr[2]=simOne;
     C3Vector displ(frame2.X-frame1.X);
     linAndAngErrors[0]=sqrt(displ(0)*displ(0)*constr[0]+displ(1)*displ(1)*constr[1]+displ(2)*displ(2)*constr[2]);
 
     // Angular:
-    if ( (_constraints&sim_ik_gamma_constraint)!=0 )
-    { // means implicitely also sim_ik_alpha_beta_constraint constraint
+    if ( (_constraints&ik_constraint_gamma)!=0 )
+    { // means implicitely also ik_constraint_alpha_beta constraint
         simReal x=frame1.M.axis[0]*frame2.M.axis[0];
         if (x<-simOne)
             x=-simOne;
@@ -359,7 +364,7 @@ void CikElement::_getMatrixError(const C4X4Matrix& frame1,const C4X4Matrix& fram
         if (v>linAndAngErrors[1])
             linAndAngErrors[1]=v;
     }
-    else if ( (_constraints&sim_ik_alpha_beta_constraint)!=0 )
+    else if ( (_constraints&ik_constraint_alpha_beta)!=0 )
     { // Free around Z
         simReal z=frame1.M.axis[2]*frame2.M.axis[2];
         if (z<-simOne)

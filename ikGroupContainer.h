@@ -10,9 +10,9 @@ public:
     CIkGroupContainer();
     virtual ~CIkGroupContainer();
 
-    CikGroup* getIkGroup(int groupID) const;
+    CikGroup* getIkGroup(int groupHandle) const;
     CikGroup* getIkGroup(std::string groupName) const;
-    void addIkGroup(CikGroup* anIkGroup);
+    void addIkGroup(CikGroup* anIkGroup,bool keepCurrentHandle);
     void removeIkGroup(int ikGroupHandle);
     void removeAllIkGroups();
     void announceSceneObjectWillBeErased(int objectHandle);

@@ -1,8 +1,6 @@
 #include "ikGroupContainer.h"
 #include "ikRoutines.h"
-#include "app.h"
-#include "simConst.h"
-
+#include "environment.h"
 
 CIkGroupContainer::CIkGroupContainer()
 {
@@ -13,11 +11,11 @@ CIkGroupContainer::~CIkGroupContainer()
     removeAllIkGroups();
 }
 
-CikGroup* CIkGroupContainer::getIkGroup(int groupID) const
+CikGroup* CIkGroupContainer::getIkGroup(int groupHandle) const
 {
      for (size_t i=0;i<ikGroups.size();i++)
      {
-        if (ikGroups[i]->getObjectID()==groupID)
+        if (ikGroups[i]->getObjectHandle()==groupHandle)
             return(ikGroups[i]);
      }
      return(nullptr);
@@ -35,10 +33,10 @@ CikGroup* CIkGroupContainer::getIkGroup(std::string groupName) const
 
 void CIkGroupContainer::removeIkGroup(int ikGroupHandle)
 {
-    App::currentInstance->objectContainer->announceIkGroupWillBeErased(ikGroupHandle);
+    CEnvironment::currentEnvironment->objectContainer->announceIkGroupWillBeErased(ikGroupHandle);
     for (size_t i=0;i<ikGroups.size();i++)
     {
-        if (ikGroups[i]->getObjectID()==ikGroupHandle)
+        if (ikGroups[i]->getObjectHandle()==ikGroupHandle)
         {
             delete ikGroups[i];
             ikGroups.erase(ikGroups.begin()+i);
@@ -50,7 +48,7 @@ void CIkGroupContainer::removeIkGroup(int ikGroupHandle)
 void CIkGroupContainer::removeAllIkGroups()
 {
     while (ikGroups.size()!=0)
-        removeIkGroup(ikGroups[0]->getObjectID());
+        removeIkGroup(ikGroups[0]->getObjectHandle());
 }
 
 void CIkGroupContainer::announceSceneObjectWillBeErased(int objectHandle)
@@ -60,7 +58,7 @@ void CIkGroupContainer::announceSceneObjectWillBeErased(int objectHandle)
     {
         if (ikGroups[i]->announceSceneObjectWillBeErased(objectHandle))
         { // This ik group has to be erased:
-            removeIkGroup(ikGroups[i]->getObjectID()); // This will call announceIkGroupWillBeErased!
+            removeIkGroup(ikGroups[i]->getObjectHandle()); // This will call announceIkGroupWillBeErased!
             i=0; // order may have changed!
         }
         else
@@ -81,7 +79,7 @@ void CIkGroupContainer::announceIkGroupWillBeErased(int ikGroupHandle)
     {
         if (ikGroups[i]->announceIkGroupWillBeErased(ikGroupHandle))
         { // This ik group has to be erased (normally never happens)
-            removeIkGroup(ikGroups[i]->getObjectID()); // This will call announceIkGroupWillBeErased!
+            removeIkGroup(ikGroups[i]->getObjectHandle()); // This will call announceIkGroupWillBeErased!
             i=0; // ordering may have changed!
         }
         else
@@ -100,7 +98,7 @@ int CIkGroupContainer::computeAllIkGroups(bool exceptExplicitHandling)
                 int res=0;
                 res=ikGroups[i]->computeGroupIk(false);
                 ikGroups[i]->setCalculationResult(res);
-                if (res!=sim_ikresult_not_performed)
+                if (res!=ik_result_not_performed)
                     performedCount++;
             }
         }
@@ -108,7 +106,14 @@ int CIkGroupContainer::computeAllIkGroups(bool exceptExplicitHandling)
     return(performedCount);
 }
 
-void CIkGroupContainer::addIkGroup(CikGroup* anIkGroup)
+void CIkGroupContainer::addIkGroup(CikGroup* anIkGroup,bool keepCurrentHandle)
 { // Be careful! We don't check if the group is valid!!
+    if (!keepCurrentHandle)
+    {
+        int newHandle=2030003;
+        while (getIkGroup(newHandle)!=nullptr)
+            newHandle++;
+        anIkGroup->setObjectHandle(newHandle);
+    }
     ikGroups.push_back(anIkGroup);
 }

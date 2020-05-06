@@ -16,6 +16,7 @@ public:
     void performSceneObjectLoadingMapping(const std::vector<int>* map);
     void serialize(CSerialization& ar);
 
+    void setIkElementHandle(int handle);
     int getIkElementHandle() const;
     int getTipHandle() const;
     int getTargetHandle() const;

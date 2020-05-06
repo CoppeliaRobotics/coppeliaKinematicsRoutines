@@ -1,7 +1,5 @@
-#include "simConst.h"
 #include "ikRoutines.h"
-#include "app.h"
-
+#include "environment.h"
 
 void CIkRoutines::multiply(const C4X4FullMatrix& d0,const C4X4FullMatrix& dp,size_t index,std::vector<C4X4FullMatrix*>& allMatrices)
 {
@@ -44,20 +42,20 @@ void CIkRoutines::buildDeltaZTranslation(C4X4FullMatrix& d0,C4X4FullMatrix& dp)
 }
 
 CMatrix* CIkRoutines::getJacobian(CikElement* ikElement,C4X4Matrix& tooltipTransf,std::vector<int>* rowJointHandles,std::vector<size_t>* rowJointStages)
-{   // rowJointHandles is nullptr by default. If not nullptr, it will contain the ids of the joints
+{   // rowJointHandles is nullptr by default. If not nullptr, it will contain the handles of the joints
     // corresponding to the rows of the jacobian.
     // Return value nullptr means that is ikElement is either inactive, either invalid
     // tooltipTransf is the cumulative transformation matrix of the tooltip,
     // computed relative to the base!
     // The temporary joint parameters need to be initialized before calling this function!
     // We check if the ikElement's base is in the chain and that tooltip is valid!
-    CDummy* tooltip=App::currentInstance->objectContainer->getDummy(ikElement->getTipHandle());
+    CDummy* tooltip=CEnvironment::currentEnvironment->objectContainer->getDummy(ikElement->getTipHandle());
     if (tooltip==nullptr)
     { // Should normally never happen!
         ikElement->setIsActive(false);
         return(nullptr);
     }
-    CSceneObject* base=App::currentInstance->objectContainer->getObject(ikElement->getBaseHandle());
+    CSceneObject* base=CEnvironment::currentEnvironment->objectContainer->getObject(ikElement->getBaseHandle());
     if ( (base!=nullptr)&&(!tooltip->isObjectAffiliatedWith(base)) )
     { // This case can happen (when the base's parenting was changed for instance)
         ikElement->setBaseHandle(-1);
@@ -73,9 +71,9 @@ CMatrix* CIkRoutines::getJacobian(CikElement* ikElement,C4X4Matrix& tooltipTrans
         iterat=iterat->getParentObject();
         if ( (iterat!=nullptr)&&(iterat!=base) )
         {
-            if (iterat->getObjectType()==sim_object_joint_type)
+            if (iterat->getObjectType()==ik_objecttype_joint)
             {
-                if ( ((static_cast<CJoint*>(iterat))->getJointMode()==sim_jointmode_ik)||((static_cast<CJoint*>(iterat))->getJointMode()==sim_jointmode_reserved_previously_ikdependent)||((static_cast<CJoint*>(iterat))->getJointMode()==sim_jointmode_dependent) )
+                if ( ((static_cast<CJoint*>(iterat))->getJointMode()==ik_jointmode_ik)||((static_cast<CJoint*>(iterat))->getJointMode()==ik_jointmode_reserved_previously_ikdependent)||((static_cast<CJoint*>(iterat))->getJointMode()==ik_jointmode_dependent) )
                 {
                     size_t d=(static_cast<CJoint*>(iterat))->getDoFs();
                     for (int i=int(d-1);i>=0;i--)
@@ -118,14 +116,14 @@ CMatrix* CIkRoutines::getJacobian(CikElement* ikElement,C4X4Matrix& tooltipTrans
     {
         CSceneObject* nextIterat=iterat->getParentObject();
         C7Vector local;
-        if (iterat->getObjectType()==sim_object_joint_type)
+        if (iterat->getObjectType()==ik_objecttype_joint)
         {
-            if ( ((static_cast<CJoint*>(iterat))->getJointMode()!=sim_jointmode_ik)&&((static_cast<CJoint*>(iterat))->getJointMode()!=sim_jointmode_reserved_previously_ikdependent)&&((static_cast<CJoint*>(iterat))->getJointMode()!=sim_jointmode_dependent) )
+            if ( ((static_cast<CJoint*>(iterat))->getJointMode()!=ik_jointmode_ik)&&((static_cast<CJoint*>(iterat))->getJointMode()!=ik_jointmode_reserved_previously_ikdependent)&&((static_cast<CJoint*>(iterat))->getJointMode()!=ik_jointmode_dependent) )
                 local=iterat->getLocalTransformation(true);
             else
             {
                 CJoint* it=static_cast<CJoint*>(iterat);
-                if (it->getJointType()==sim_joint_spherical_subtype)
+                if (it->getJointType()==ik_jointtype_spherical)
                 {
                     if (indexCnt==-1)
                         indexCnt=int(it->getDoFs())-1;
@@ -145,8 +143,8 @@ CMatrix* CIkRoutines::getJacobian(CikElement* ikElement,C4X4Matrix& tooltipTrans
         bool activeJoint=false;
         if (iterat!=nullptr) // Following lines recently changed!
         {
-            if (iterat->getObjectType()==sim_object_joint_type) 
-                activeJoint=( ((static_cast<CJoint*>(iterat))->getJointMode()==sim_jointmode_ik)||((static_cast<CJoint*>(iterat))->getJointMode()==sim_jointmode_reserved_previously_ikdependent)||((static_cast<CJoint*>(iterat))->getJointMode()==sim_jointmode_dependent) );
+            if (iterat->getObjectType()==ik_objecttype_joint)
+                activeJoint=( ((static_cast<CJoint*>(iterat))->getJointMode()==ik_jointmode_ik)||((static_cast<CJoint*>(iterat))->getJointMode()==ik_jointmode_reserved_previously_ikdependent)||((static_cast<CJoint*>(iterat))->getJointMode()==ik_jointmode_dependent) );
         }
         if ( (iterat==base)||activeJoint )
         {   // If base is nullptr then the second part is not evaluated (iterat->getObjectType())
@@ -158,13 +156,13 @@ CMatrix* CIkRoutines::getJacobian(CikElement* ikElement,C4X4Matrix& tooltipTrans
             }
             else
             {   // Here we have a joint:
-                if (lastJoint->getJointType()==sim_joint_revolute_subtype)
+                if (lastJoint->getJointType()==ik_jointtype_revolute)
                 {
                     buildDeltaZRotation(d0,dp,lastJoint->getScrewPitch());
                     multiply(d0,dp,positionCounter,jMatrices);
                     paramPart.buildZRotation(lastJoint->getPosition(true));
                 }
-                else if (lastJoint->getJointType()==sim_joint_prismatic_subtype)
+                else if (lastJoint->getJointType()==ik_jointtype_prismatic)
                 {
                     buildDeltaZTranslation(d0,dp);
                     multiply(d0,dp,positionCounter,jMatrices);
@@ -191,7 +189,7 @@ CMatrix* CIkRoutines::getJacobian(CikElement* ikElement,C4X4Matrix& tooltipTrans
     int alternativeBaseForConstraints=ikElement->getAltBaseHandleForConstraints();
     if (alternativeBaseForConstraints!=-1)
     {
-        CDummy* alb=App::currentInstance->objectContainer->getDummy(alternativeBaseForConstraints);
+        CDummy* alb=CEnvironment::currentEnvironment->objectContainer->getDummy(alternativeBaseForConstraints);
         if (alb!=nullptr)
         { // We want everything relative to the alternativeBaseForConstraints dummy orientation!
             C7Vector alternativeBase(alb->getCumulativeTransformationPart1(true));

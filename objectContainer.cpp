@@ -1,6 +1,5 @@
 #include "objectContainer.h"
-#include "app.h"
-#include "simConst.h"
+#include "environment.h"
 
 CObjectContainer::CObjectContainer()
 {
@@ -42,9 +41,6 @@ void CObjectContainer::removeAllObjects()
 
 bool CObjectContainer::makeObjectChildOf(CSceneObject* childObject,CSceneObject* parentObject)
 {   // This will trigger an actualization (important! orphanList needs also an update and other things too)
-    // Careful: this routine should be able to be used for objects in the object
-    // container, but also for objects in the copy buffer!!!! So don't make
-    // use of any 'getObject(id)' or similar function!!!!! <-- this is a very old comment. Is it still true??
     if (childObject==nullptr)
         return(false);
     // Check if the child has already his desired parent (so that we don't have to call the actualization (heavy and will also refresh all dialogs) (added on 2009/12/15)
@@ -112,9 +108,9 @@ void CObjectContainer::actualizeObjectInformation()
 
     for (size_t i=0;i<objectList.size();i++)
     {
-        if (_objectIndex[size_t(objectList[i])]->getObjectType()==sim_object_joint_type)
+        if (_objectIndex[size_t(objectList[i])]->getObjectType()==ik_objecttype_joint)
             jointList.push_back(objectList[i]);
-        if (_objectIndex[size_t(objectList[i])]->getObjectType()==sim_object_dummy_type)
+        if (_objectIndex[size_t(objectList[i])]->getObjectType()==ik_objecttype_dummy)
             dummyList.push_back(objectList[i]);
         if (_objectIndex[size_t(objectList[i])]->getParentObject()==nullptr)
             orphanList.push_back(objectList[i]);
@@ -126,10 +122,10 @@ void CObjectContainer::actualizeObjectInformation()
         it->dependentJoints.clear();
         for (size_t j=0;j<jointList.size();j++)
         {
-            CJoint* anAct=getJoint(App::currentInstance->objectContainer->jointList[j]);
+            CJoint* anAct=getJoint(CEnvironment::currentEnvironment->objectContainer->jointList[j]);
             if (anAct!=it)
             {
-                if (anAct->getJointMode()==sim_jointmode_dependent)
+                if (anAct->getJointMode()==ik_jointmode_dependent)
                 {
                     if (anAct->getDependencyJointHandle()==it->getObjectHandle())
                         it->dependentJoints.push_back(anAct);
@@ -172,7 +168,7 @@ CDummy* CObjectContainer::getDummy(int objectHandle) const
     CSceneObject* it=getObject(objectHandle);
     if (it!=nullptr)
     {
-        if (it->getObjectType()==sim_object_dummy_type)
+        if (it->getObjectType()==ik_objecttype_dummy)
             return(static_cast<CDummy*>(it));
     }
     return(nullptr);
@@ -183,7 +179,7 @@ CJoint* CObjectContainer::getJoint(int objectHandle) const
     CSceneObject* it=getObject(objectHandle);
     if (it!=nullptr)
     {
-        if (it->getObjectType()==sim_object_joint_type)
+        if (it->getObjectType()==ik_objecttype_joint)
             return(static_cast<CJoint*>(it));
     }
     return(nullptr);
@@ -192,6 +188,14 @@ CJoint* CObjectContainer::getJoint(int objectHandle) const
 CSceneObject* CObjectContainer::getObject(const std::string& name) const
 {
     return(getObject(getObjectHandle(name)));
+}
+
+CSceneObject* CObjectContainer::getObjectFromIndex(size_t index) const
+{
+    CSceneObject* retVal=nullptr;
+    if (index<objectList.size())
+        retVal=_objectIndex[objectList[index]];
+    return(retVal);
 }
 
 int CObjectContainer::createDummy(const char* objectName)
@@ -250,20 +254,20 @@ void CObjectContainer::announceObjectWillBeErased(int objectHandle)
             }
         }
     }
-    App::currentInstance->ikGroupContainer->announceSceneObjectWillBeErased(objectHandle);
+    CEnvironment::currentEnvironment->ikGroupContainer->announceSceneObjectWillBeErased(objectHandle);
 }
 
 void CObjectContainer::announceIkGroupWillBeErased(int ikGroupHandle)
 {
     for (size_t i=0;i<objectList.size();i++)
         getObject(objectList[i])->announceIkGroupWillBeErased(ikGroupHandle); // this never triggers 3DObject destruction!
-    App::currentInstance->ikGroupContainer->announceIkGroupWillBeErased(ikGroupHandle); // This will never trigger an Ik group destruction
+    CEnvironment::currentEnvironment->ikGroupContainer->announceIkGroupWillBeErased(ikGroupHandle); // This will never trigger an Ik group destruction
 }
 
 void CObjectContainer::importKinematicsData(CSerialization& ar)
 {
     removeAllObjects();
-    App::currentInstance->ikGroupContainer->removeAllIkGroups(); // just in case
+    CEnvironment::currentEnvironment->ikGroupContainer->removeAllIkGroups(); // just in case
 
     int versionNumber=ar.readInt(); // this is the ext IK serialization version. Not forward nor backward compatible!
 
@@ -276,9 +280,9 @@ void CObjectContainer::importKinematicsData(CSerialization& ar)
 
         CSceneObject* it;
 
-        if (objType==sim_object_joint_type)
+        if (objType==ik_objecttype_joint)
         {
-            CJoint* joint=new CJoint(sim_joint_revolute_subtype);
+            CJoint* joint=new CJoint(ik_jointtype_revolute);
             joint->serialize(ar);
             it=joint;
         }
@@ -308,12 +312,12 @@ void CObjectContainer::importKinematicsData(CSerialization& ar)
     {
         CikGroup* it=new CikGroup();
         it->serialize(ar);
-        App::currentInstance->ikGroupContainer->addIkGroup(it);
+        CEnvironment::currentEnvironment->ikGroupContainer->addIkGroup(it,true);
     }
 
-    for (size_t i=0;i<App::currentInstance->ikGroupContainer->ikGroups.size();i++)
+    for (size_t i=0;i<CEnvironment::currentEnvironment->ikGroupContainer->ikGroups.size();i++)
     {
-        CikGroup* it=App::currentInstance->ikGroupContainer->ikGroups[i];
+        CikGroup* it=CEnvironment::currentEnvironment->ikGroupContainer->ikGroups[i];
         it->performObjectLoadingMapping(&objectMapping);
     }
 }
@@ -345,26 +349,26 @@ void CObjectContainer::addObjectToScene(CSceneObject* newObject)
             newObjName=newObjName+std::to_string(atoi(oldNumber.c_str())+1);
     }
 
-    // Give the object a new identifier
-    int id=-1;
+    // Give the object a new handle
+    int handle=-1;
     for (size_t i=0;i<_objectIndex.size();i++)
     {
         if (_objectIndex[i]==nullptr)
         {
             _objectIndex[i]=newObject;
-            id=int(i);
+            handle=int(i);
             break;
         }
     }
-    if (id==-1)
+    if (handle==-1)
     {
-        id=int(_objectIndex.size());
+        handle=int(_objectIndex.size());
         _objectIndex.push_back(newObject);
     }
 
     // set the new handle to the object:
-    newObject->setObjectHandle(id);
-    objectList.push_back(id);
+    newObject->setObjectHandle(handle);
+    objectList.push_back(handle);
 
     // Actualize the object information
     actualizeObjectInformation();

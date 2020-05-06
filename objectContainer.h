@@ -20,6 +20,7 @@ public:
     CDummy* getDummy(int objectHandle) const;
     CJoint* getJoint(int objectHandle) const;
     CSceneObject* getObject(const std::string& name) const;
+    CSceneObject* getObjectFromIndex(size_t index) const;
 
     int createDummy(const char* objectName);
     int createJoint(const char* objectName,int jointType);
