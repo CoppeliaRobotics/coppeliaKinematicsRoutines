@@ -1,5 +1,7 @@
 #include "ik.h"
 #include "environment.h"
+#include <stdio.h>
+#include <string.h>
 #ifdef _WIN32
     #include <Windows.h>
     #pragma message("Adding library: Winmm.lib")
@@ -17,7 +19,7 @@ int getTimeDiffInMs(int lastTime)
     int retVal=int(timeGetTime()&0x03ffffff);
 #else
     struct timeval tv;
-    DWORD result=0;
+    int result=0;
     if (gettimeofday(&tv,NULL)==0)
         result=(tv.tv_sec*1000+tv.tv_usec/1000)&0x03ffffff;
     int retVal=int(result);

@@ -3,6 +3,7 @@
 #include <vector>
 #include "mathDefines.h"
 #include "7Vector.h"
+#include <string>
 #ifdef SIM_MATH_DOUBLE
     typedef double simReal;
 #else
