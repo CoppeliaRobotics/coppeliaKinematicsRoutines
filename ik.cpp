@@ -10,8 +10,31 @@
     #include <sys/time.h>
 #endif
 
-static int debugLevel=0;
-static std::string lastError;
+static int _verbosityLevel=0;
+static std::string _lastError;
+static void(*_logCallback)(int,const char*)=nullptr;
+
+void _setLastError(const char* errStr,const char* substr1/*=nullptr*/,const char* substr2/*=nullptr*/)
+{
+    char buff[500];
+    if (substr1!=nullptr)
+    {
+        if (substr2!=nullptr)
+            snprintf(buff,sizeof(buff),errStr,substr1,substr2);
+        else
+            snprintf(buff,sizeof(buff),errStr,substr1);
+    }
+    else
+        strcpy(buff,errStr);
+   _lastError=buff;
+}
+
+void _setLastError(const char* errStr,int intVal1,int intVal2/*=-1*/)
+{
+    char buff[500];
+    snprintf(buff,sizeof(buff),errStr,intVal1,intVal2);
+    _lastError=buff;
+}
 
 int getTimeDiffInMs(int lastTime)
 {
@@ -34,49 +57,124 @@ int getTimeDiffInMs(int lastTime)
     return(retVal);
 }
 
+void ikSetLogCallback(void(*logCallback)(int,const char*))
+{
+    _logCallback=logCallback;
+}
+
 void ikSetVerbosity(int level)
-{ // 0=none, 1=errors, 2=warnings, 3=info, 4=debug, 5=trace
-    debugLevel=level;
+{ // verbosity is: 0=none, 1=errors, 2=warnings, 3=infos, 4=debug, 5=trace
+    _verbosityLevel=level;
 }
 
 class debugInfo
 {
     public:
-    debugInfo(const char* funcName)
+    debugInfo(const char* funcName,const char* strArg=nullptr)
     {
-        if (debugLevel>=1)
+        if (_verbosityLevel>=1)
         {
-            _lastErrorSaved=lastError;
-            lastError.clear();
+            _lastErrorSaved=_lastError;
+            _lastError.clear();
         }
-        if (debugLevel>=5)
+        if (_verbosityLevel>=5)
         {
             _funcName=funcName;
-            _lastErrorSaved=lastError;
-            lastError.clear();
-            printf("CoppeliaKinematicsRoutines: trace: --> %s\n",funcName);
+            std::string msg("--> ");
+            msg+=funcName;
+
+            if (strArg!=nullptr)
+            {
+                msg+=" (strArg: ";
+                msg+=strArg;
+                msg+=")";
+            }
+            if (_logCallback==nullptr)
+                printf("CoppeliaKinematicsRoutines: trace: %s\n",msg.c_str());
+            else
+                _logCallback(5,msg.c_str());
+        }
+    }
+    debugInfo(const char* funcName,int intArg1,int intArg2=-123456789,int intArg3=-123456789,int intArg4=-123456789)
+    {
+        if (_verbosityLevel>=1)
+        {
+            _lastErrorSaved=_lastError;
+            _lastError.clear();
+        }
+        if (_verbosityLevel>=5)
+        {
+            _funcName=funcName;
+            std::string msg("--> ");
+            msg+=funcName;
+            msg+=" (intArgs: ";
+            msg+=std::to_string(intArg1);
+
+            if (intArg2!=-123456789)
+            {
+                msg+=", ";
+                msg+=std::to_string(intArg2);
+                if (intArg3!=-123456789)
+                {
+                    msg+=", ";
+                    msg+=std::to_string(intArg3);
+                    if (intArg4!=-123456789)
+                    {
+                        msg+=", ";
+                        msg+=std::to_string(intArg4);
+                    }
+                }
+            }
+            msg+=")";
+            if (_logCallback==nullptr)
+                printf("CoppeliaKinematicsRoutines: trace: %s\n",msg.c_str());
+            else
+                _logCallback(5,msg.c_str());
         }
     }
     virtual ~debugInfo()
     {
-        if (debugLevel>=1)
+        if (_verbosityLevel>=1)
         {
-            if (lastError.size()>0)
-                printf("CoppeliaKinematicsRoutines: error: %s\n",lastError.c_str());
-            else
-                lastError=_lastErrorSaved;
+            if (_lastError.size()>0)
+            {
+                if (_logCallback==nullptr)
+                    printf("CoppeliaKinematicsRoutines: error: %s\n",_lastError.c_str());
+                else
+                    _logCallback(1,_lastError.c_str());
+            }
+            _lastError=_lastErrorSaved;
         }
-        if (debugLevel>=5)
-            printf("CoppeliaKinematicsRoutines: trace: <-- %s\n",_funcName.c_str());
+        if (_verbosityLevel>=5)
+        {
+            std::string msg("<-- ");
+            msg+=_funcName;
+            if (_logCallback==nullptr)
+                printf("CoppeliaKinematicsRoutines: trace: %s\n",msg.c_str());
+            else
+                _logCallback(5,msg.c_str());
+        }
     }
+    void debugMsg(const char* msg,int intArg1=-123456789)
+    {
+        std::string mm(msg);
+        if (intArg1!=-123456789)
+            mm+=std::to_string(intArg1);
+        if (_logCallback==nullptr)
+            printf("CoppeliaKinematicsRoutines: debug: %s\n",mm.c_str());
+        else
+            _logCallback(4,mm.c_str());
+    }
+
+
     std::string _funcName;
     std::string _lastErrorSaved;
 };
 
 std::string ikGetLastError()
 {
-    std::string le(lastError);
-    lastError.clear();
+    std::string le(_lastError);
+    _lastError.clear();
     return(le);
 }
 
@@ -84,7 +182,7 @@ bool hasLaunched()
 {
     bool retVal=CEnvironment::currentEnvironment!=nullptr;
     if (!retVal)
-        lastError="Environment does not exist";
+        _setLastError("Environment does not exist");
     return(retVal);
 }
 
@@ -97,13 +195,13 @@ CikElement* getIkElementFromHandleOrTipDummy(const CikGroup* ikGroup,int ikEleme
         ikElementHandle-=ik_handleflag_tipdummy;
         retVal=ikGroup->getIkElementWithTooltipHandle(ikElementHandle);
         if (retVal==nullptr)
-            lastError="Invalid IK element tip dummy handle";
+            _setLastError("Invalid IK element tip dummy handle: %i",ikElementHandle);
     }
     else
     {
         retVal=ikGroup->getIkElement(ikElementHandle);
         if (retVal==nullptr)
-            lastError="Invalid IK element handle";
+            _setLastError("Invalid IK element handle: %i",ikElementHandle);
     }
     return(retVal);
 }
@@ -145,13 +243,13 @@ bool ikSwitchEnvironment(int handle,bool allowAlsoProtectedEnvironment/*=false*/
         retVal=true;
     else
     { // no debug msg if we don't have to switch
-        debugInfo inf(__FUNCTION__);
+        debugInfo inf(__FUNCTION__,handle);
         if (hasLaunched())
         {
             if (CEnvironment::switchToEnvironment(handle,allowAlsoProtectedEnvironment))
                 retVal=true;
             else
-                lastError="Invalid environment handle";
+                _setLastError("Invalid environment handle: %i",handle);
         }
     }
     return(retVal);
@@ -173,10 +271,10 @@ bool ikLoad(const unsigned char* data,size_t dataLength)
                 retVal=true;
             }
             else
-                lastError="Invalid arguments";
+                _setLastError("Invalid arguments");
         }
         else
-            lastError="Environment must be empty";
+            _setLastError("Environment must be empty");
     }
     return(retVal);
 }
@@ -209,7 +307,7 @@ bool ikGetObjects(size_t index,int* objectHandle/*=nullptr*/,std::string* object
 
 bool ikGetObjectHandle(const char* objectName,int* objectHandle)
 {
-    debugInfo inf(__FUNCTION__);
+    debugInfo inf(__FUNCTION__,objectName);
     bool retVal=false;
     if (hasLaunched())
     {
@@ -220,14 +318,14 @@ bool ikGetObjectHandle(const char* objectName,int* objectHandle)
             retVal=true;
         }
         else
-            lastError="Object does not exist";
+            _setLastError("Object does not exist: %s",objectName);
     }
     return(retVal);
 }
 
 bool ikDoesObjectExist(const char* objectName)
 {
-    debugInfo inf(__FUNCTION__);
+    debugInfo inf(__FUNCTION__,objectName);
     bool retVal=false;
     if (hasLaunched())
     {
@@ -239,7 +337,7 @@ bool ikDoesObjectExist(const char* objectName)
 
 bool ikGetObjectTransformation(int objectHandle,int relativeToObjectHandle,C7Vector* transf)
 {
-    debugInfo inf(__FUNCTION__);
+    debugInfo inf(__FUNCTION__,objectHandle,relativeToObjectHandle);
     bool retVal=false;
     if (hasLaunched())
     {
@@ -266,17 +364,17 @@ bool ikGetObjectTransformation(int objectHandle,int relativeToObjectHandle,C7Vec
                 retVal=true;
             }
             else
-                lastError="Invalid arguments";
+                _setLastError("Invalid arguments");
         }
         else
-            lastError="Invalid object handle";
+            _setLastError("Invalid object handle: %i",objectHandle);
     }
     return(retVal);
 }
 
 bool ikGetObjectMatrix(int objectHandle,int relativeToObjectHandle,C4X4Matrix* matrix)
 {
-    debugInfo inf(__FUNCTION__);
+    debugInfo inf(__FUNCTION__,objectHandle,relativeToObjectHandle);
     C7Vector transf;
     bool retVal=ikGetObjectTransformation(objectHandle,relativeToObjectHandle,&transf);
     if (retVal)
@@ -286,7 +384,7 @@ bool ikGetObjectMatrix(int objectHandle,int relativeToObjectHandle,C4X4Matrix* m
 
 bool ikSetObjectTransformation(int objectHandle,int relativeToObjectHandle,const C7Vector* transf)
 {
-    debugInfo inf(__FUNCTION__);
+    debugInfo inf(__FUNCTION__,objectHandle,relativeToObjectHandle);
     bool retVal=false;
     if (hasLaunched())
     {
@@ -314,24 +412,24 @@ bool ikSetObjectTransformation(int objectHandle,int relativeToObjectHandle,const
                 retVal=true;
             }
             else
-                lastError="Invalid arguments";
+                _setLastError("Invalid arguments");
         }
         else
-            lastError="Invalid object handle";
+            _setLastError("Invalid object handle: %i",objectHandle);
     }
     return(retVal);
 }
 
 bool ikSetObjectMatrix(int objectHandle,int relativeToObjectHandle,const C4X4Matrix* matrix)
 {
-    debugInfo inf(__FUNCTION__);
+    debugInfo inf(__FUNCTION__,objectHandle,relativeToObjectHandle);
     C7Vector transf(matrix->getTransformation());
     return(ikSetObjectTransformation(objectHandle,relativeToObjectHandle,&transf));
 }
 
 bool ikGetJointPosition(int jointHandle,simReal* position)
 {
-    debugInfo inf(__FUNCTION__);
+    debugInfo inf(__FUNCTION__,jointHandle);
     bool retVal=false;
     if (hasLaunched())
     {
@@ -344,17 +442,17 @@ bool ikGetJointPosition(int jointHandle,simReal* position)
                 retVal=true;
             }
             else
-                lastError="Invalid call with spherical joint";
+                _setLastError("Invalid call with spherical joint");
         }
         else
-            lastError="Invalid joint handle";
+            _setLastError("Invalid joint handle: %i",jointHandle);
     }
     return(retVal);
 }
 
 bool ikSetJointPosition(int jointHandle,simReal position)
 {
-    debugInfo inf(__FUNCTION__);
+    debugInfo inf(__FUNCTION__,jointHandle);
     bool retVal=false;
     if (hasLaunched())
     {
@@ -367,17 +465,17 @@ bool ikSetJointPosition(int jointHandle,simReal position)
                 retVal=true;
             }
             else
-                lastError="Invalid call with spherical joint";
+                _setLastError("Invalid call with spherical joint");
         }
         else
-            lastError="Invalid joint handle";
+            _setLastError("Invalid joint handle: %i",jointHandle);
     }
     return(retVal);
 }
 
 bool ikDoesIkGroupExist(const char* ikGroupName)
 {
-    debugInfo inf(__FUNCTION__);
+    debugInfo inf(__FUNCTION__,ikGroupName);
     bool retVal=false;
     if (hasLaunched())
     {
@@ -389,7 +487,7 @@ bool ikDoesIkGroupExist(const char* ikGroupName)
 
 bool ikGetIkGroupHandle(const char* ikGroupName,int* ikGroupHandle)
 {
-    debugInfo inf(__FUNCTION__);
+    debugInfo inf(__FUNCTION__,ikGroupName);
     bool retVal=false;
     if (hasLaunched())
     {
@@ -400,14 +498,14 @@ bool ikGetIkGroupHandle(const char* ikGroupName,int* ikGroupHandle)
             retVal=true;
         }
         else
-            lastError="IK group does not exist";
+            _setLastError("IK group does not exist: %s",ikGroupName);
     }
     return(retVal);
 }
 
 bool ikCreateIkGroup(const char* ikGroupName/*=nullptr*/,int* ikGroupHandle)
 {
-    debugInfo inf(__FUNCTION__);
+    debugInfo inf(__FUNCTION__,ikGroupName);
     bool retVal=false;
     if (hasLaunched())
     {
@@ -422,14 +520,15 @@ bool ikCreateIkGroup(const char* ikGroupName/*=nullptr*/,int* ikGroupHandle)
             retVal=true;
         }
         else
-            lastError="Invalid IK group name";
+            _setLastError("Invalid IK group name: %s",ikGroupName);
     }
+    inf.debugMsg("handle: ",ikGroupHandle[0]);
     return(retVal);
 }
 
 bool ikEraseIkGroup(int ikGroupHandle)
 {
-    debugInfo inf(__FUNCTION__);
+    debugInfo inf(__FUNCTION__,ikGroupHandle);
     bool retVal=false;
     if (hasLaunched())
     {
@@ -440,14 +539,14 @@ bool ikEraseIkGroup(int ikGroupHandle)
             CEnvironment::currentEnvironment->ikGroupContainer->removeIkGroup(ikGroupHandle);
         }
         else
-            lastError="Invalid IK group handle";
+            _setLastError("Invalid IK group handle: %i",ikGroupHandle);
     }
     return(retVal);
 }
 
 bool ikAddIkElement(int ikGroupHandle,int tipHandle,int* ikElementHandle)
 {
-    debugInfo inf(__FUNCTION__);
+    debugInfo inf(__FUNCTION__,ikGroupHandle,tipHandle);
     bool retVal=false;
     if (hasLaunched())
     {
@@ -462,17 +561,18 @@ bool ikAddIkElement(int ikGroupHandle,int tipHandle,int* ikElementHandle)
                 retVal=true;
             }
             else
-                lastError="Invalid tip dummy handle";
+                _setLastError("Invalid tip dummy handle: %i",tipHandle);
         }
         else
-            lastError="Invalid IK group handle";
+            _setLastError("Invalid IK group handle: %i",ikGroupHandle);
     }
+    inf.debugMsg("handle: ",ikElementHandle[0]);
     return(retVal);
 }
 
 bool ikEraseIkElement(int ikGroupHandle,int ikElementHandle)
 {
-    debugInfo inf(__FUNCTION__);
+    debugInfo inf(__FUNCTION__,ikGroupHandle,ikElementHandle);
     bool retVal=false;
     if (hasLaunched())
     {
@@ -487,14 +587,14 @@ bool ikEraseIkElement(int ikGroupHandle,int ikElementHandle)
             }
         }
         else
-            lastError="Invalid IK group handle";
+            _setLastError("Invalid IK group handle: %i",ikGroupHandle);
     }
     return(retVal);
 }
 
 bool ikSetIkElementFlags(int ikGroupHandle,int ikElementHandle,int flags)
 {
-    debugInfo inf(__FUNCTION__);
+    debugInfo inf(__FUNCTION__,ikGroupHandle,ikElementHandle);
     bool retVal=false;
     if (hasLaunched())
     {
@@ -510,14 +610,14 @@ bool ikSetIkElementFlags(int ikGroupHandle,int ikElementHandle,int flags)
             }
         }
         else
-            lastError="Invalid IK group handle";
+            _setLastError("Invalid IK group handle: %i",ikGroupHandle);
     }
     return(retVal);
 }
 
 bool ikGetIkElementFlags(int ikGroupHandle,int ikElementHandle,int* flags)
 {
-    debugInfo inf(__FUNCTION__);
+    debugInfo inf(__FUNCTION__,ikGroupHandle,ikElementHandle);
     bool retVal=false;
     if (hasLaunched())
     {
@@ -534,14 +634,14 @@ bool ikGetIkElementFlags(int ikGroupHandle,int ikElementHandle,int* flags)
             }
         }
         else
-            lastError="Invalid IK group handle";
+            _setLastError("Invalid IK group handle: %i",ikGroupHandle);
     }
     return(retVal);
 }
 
 bool ikSetIkElementBase(int ikGroupHandle,int ikElementHandle,int baseHandle,int constraintsBaseHandle/*=-1*/)
 {
-    debugInfo inf(__FUNCTION__);
+    debugInfo inf(__FUNCTION__,ikGroupHandle,ikElementHandle,baseHandle,constraintsBaseHandle);
     bool retVal=false;
     if (hasLaunched())
     {
@@ -564,21 +664,21 @@ bool ikSetIkElementBase(int ikGroupHandle,int ikElementHandle,int baseHandle,int
                         retVal=true;
                     }
                     else
-                        lastError="Invalid constraints base handle";
+                        _setLastError("Invalid constraints base handle: %i",constraintsBaseHandle);
                 }
                 else
-                    lastError="Invalid base handle";
+                    _setLastError("Invalid base handle: %i",baseHandle);
             }
         }
         else
-            lastError="Invalid IK group handle";
+            _setLastError("Invalid IK group handle: %i",ikGroupHandle);
     }
     return(retVal);
 }
 
 bool ikGetIkElementBase(int ikGroupHandle,int ikElementHandle,int* baseHandle,int* constraintsBaseHandle)
 {
-    debugInfo inf(__FUNCTION__);
+    debugInfo inf(__FUNCTION__,ikGroupHandle,ikElementHandle);
     bool retVal=false;
     if (hasLaunched())
     {
@@ -594,14 +694,14 @@ bool ikGetIkElementBase(int ikGroupHandle,int ikElementHandle,int* baseHandle,in
             }
         }
         else
-            lastError="Invalid IK group handle";
+            _setLastError("Invalid IK group handle: %i",ikGroupHandle);
     }
     return(retVal);
 }
 
 bool ikSetIkElementConstraints(int ikGroupHandle,int ikElementHandle,int constraints)
 {
-    debugInfo inf(__FUNCTION__);
+    debugInfo inf(__FUNCTION__,ikGroupHandle,ikElementHandle,constraints);
     bool retVal=false;
     if (hasLaunched())
     {
@@ -617,14 +717,14 @@ bool ikSetIkElementConstraints(int ikGroupHandle,int ikElementHandle,int constra
             }
         }
         else
-            lastError="Invalid IK group handle";
+            _setLastError("Invalid IK group handle: %i",ikGroupHandle);
     }
     return(retVal);
 }
 
 bool ikGetIkElementConstraints(int ikGroupHandle,int ikElementHandle,int* constraints)
 {
-    debugInfo inf(__FUNCTION__);
+    debugInfo inf(__FUNCTION__,ikGroupHandle,ikElementHandle);
     bool retVal=false;
     if (hasLaunched())
     {
@@ -639,14 +739,14 @@ bool ikGetIkElementConstraints(int ikGroupHandle,int ikElementHandle,int* constr
             }
         }
         else
-            lastError="Invalid IK group handle";
+            _setLastError("Invalid IK group handle: %i",ikGroupHandle);
     }
     return(retVal);
 }
 
 bool ikSetIkElementPrecision(int ikGroupHandle,int ikElementHandle,simReal linearPrecision,simReal angularPrecision)
 {
-    debugInfo inf(__FUNCTION__);
+    debugInfo inf(__FUNCTION__,ikGroupHandle,ikElementHandle);
     bool retVal=false;
     if (hasLaunched())
     {
@@ -664,14 +764,14 @@ bool ikSetIkElementPrecision(int ikGroupHandle,int ikElementHandle,simReal linea
             }
         }
         else
-            lastError="Invalid IK group handle";
+            _setLastError("Invalid IK group handle: %i",ikGroupHandle);
     }
     return(retVal);
 }
 
 bool ikGetIkElementPrecision(int ikGroupHandle,int ikElementHandle,simReal* linearPrecision,simReal* angularPrecision)
 {
-    debugInfo inf(__FUNCTION__);
+    debugInfo inf(__FUNCTION__,ikGroupHandle,ikElementHandle);
     bool retVal=false;
     if (hasLaunched())
     {
@@ -687,14 +787,14 @@ bool ikGetIkElementPrecision(int ikGroupHandle,int ikElementHandle,simReal* line
             }
         }
         else
-            lastError="Invalid IK group handle";
+            _setLastError("Invalid IK group handle: %i",ikGroupHandle);
     }
     return(retVal);
 }
 
 bool ikSetIkElementWeights(int ikGroupHandle,int ikElementHandle,simReal linearWeight,simReal angularWeight)
 {
-    debugInfo inf(__FUNCTION__);
+    debugInfo inf(__FUNCTION__,ikGroupHandle,ikElementHandle);
     bool retVal=false;
     if (hasLaunched())
     {
@@ -712,14 +812,14 @@ bool ikSetIkElementWeights(int ikGroupHandle,int ikElementHandle,simReal linearW
             }
         }
         else
-            lastError="Invalid IK group handle";
+            _setLastError("Invalid IK group handle: %i",ikGroupHandle);
     }
     return(retVal);
 }
 
 bool ikGetIkElementWeights(int ikGroupHandle,int ikElementHandle,simReal* linearWeight,simReal* angularWeight)
 {
-    debugInfo inf(__FUNCTION__);
+    debugInfo inf(__FUNCTION__,ikGroupHandle,ikElementHandle);
     bool retVal=false;
     if (hasLaunched())
     {
@@ -735,14 +835,14 @@ bool ikGetIkElementWeights(int ikGroupHandle,int ikElementHandle,simReal* linear
             }
         }
         else
-            lastError="Invalid IK group handle";
+            _setLastError("Invalid IK group handle: %i",ikGroupHandle);
     }
     return(retVal);
 }
 
 bool ikComputeJacobian(int ikGroupHandle,int options,bool* success/*=nullptr*/)
 {
-    debugInfo inf(__FUNCTION__);
+    debugInfo inf(__FUNCTION__,ikGroupHandle,options);
     bool retVal=false;
     if (hasLaunched())
     {
@@ -755,14 +855,14 @@ bool ikComputeJacobian(int ikGroupHandle,int options,bool* success/*=nullptr*/)
                 success[0]=succ;
         }
         else
-            lastError="Invalid IK group handle";
+            _setLastError("Invalid IK group handle: %i",ikGroupHandle);
     }
     return(retVal);
 }
 
 simReal* ikGetJacobian(int ikGroupHandle,size_t* matrixSize)
 {
-    debugInfo inf(__FUNCTION__);
+    debugInfo inf(__FUNCTION__,ikGroupHandle);
     simReal* retVal=nullptr;
     if (hasLaunched())
     {
@@ -778,14 +878,14 @@ simReal* ikGetJacobian(int ikGroupHandle,size_t* matrixSize)
             }
         }
         else
-            lastError="Invalid IK group handle";
+            _setLastError("Invalid IK group handle: %i",ikGroupHandle);
     }
     return(retVal);
 }
 
 bool ikGetManipulability(int ikGroupHandle,simReal* manip)
 {
-    debugInfo inf(__FUNCTION__);
+    debugInfo inf(__FUNCTION__,ikGroupHandle);
     bool retVal=false;
     if (hasLaunched())
     {
@@ -797,14 +897,14 @@ bool ikGetManipulability(int ikGroupHandle,simReal* manip)
                 manip[0]=b;
         }
         else
-            lastError="Invalid IK group handle";
+            _setLastError("Invalid IK group handle: %i",ikGroupHandle);
     }
     return(retVal);
 }
 
 bool ikHandleIkGroup(int ikGroupHandle/*=ik_handle_all*/,int* result/*=nullptr*/)
 {
-    debugInfo inf(__FUNCTION__);
+    debugInfo inf(__FUNCTION__,ikGroupHandle);
     bool retVal=false;
     if (hasLaunched())
     {
@@ -823,18 +923,18 @@ bool ikHandleIkGroup(int ikGroupHandle/*=ik_handle_all*/,int* result/*=nullptr*/
                     retVal=true;
                 }
                 else
-                    lastError="IK group cannot explicitely be handled";
+                    _setLastError("IK group cannot explicitely be handled");
             }
         }
         else
-            lastError="Invalid IK group handle";
+            _setLastError("Invalid IK group handle: %i",ikGroupHandle);
     }
     return(retVal);
 }
 
 bool ikGetJointTransformation(int jointHandle,C7Vector* transf)
 {
-    debugInfo inf(__FUNCTION__);
+    debugInfo inf(__FUNCTION__,jointHandle);
     bool retVal=false;
     if (hasLaunched())
     {
@@ -848,14 +948,14 @@ bool ikGetJointTransformation(int jointHandle,C7Vector* transf)
             retVal=true;
         }
         else
-            lastError="Invalid joint handle";
+            _setLastError("Invalid joint handle: %i",jointHandle);
     }
     return(retVal);
 }
 
 bool ikGetJointMatrix(int jointHandle,C4X4Matrix* matrix)
 {
-    debugInfo inf(__FUNCTION__);
+    debugInfo inf(__FUNCTION__,jointHandle);
     C7Vector transf;
     bool retVal=ikGetJointTransformation(jointHandle,&transf);
     if (retVal)
@@ -865,7 +965,7 @@ bool ikGetJointMatrix(int jointHandle,C4X4Matrix* matrix)
 
 bool ikSetSphericalJointQuaternion(int jointHandle,const C4Vector* quaternion)
 {
-    debugInfo inf(__FUNCTION__);
+    debugInfo inf(__FUNCTION__,jointHandle);
     bool retVal=false;
     if (hasLaunched())
     {
@@ -878,24 +978,24 @@ bool ikSetSphericalJointQuaternion(int jointHandle,const C4Vector* quaternion)
                 retVal=true;
             }
             else
-                lastError="Joint is not spherical";
+                _setLastError("Joint is not spherical");
         }
         else
-            lastError="Invalid joint handle";
+            _setLastError("Invalid joint handle: %i",jointHandle);
     }
     return(retVal);
 }
 
 bool ikSetSphericalJointMatrix(int jointHandle,const C3X3Matrix* rotMatrix)
 {
-    debugInfo inf(__FUNCTION__);
+    debugInfo inf(__FUNCTION__,jointHandle);
     C4Vector q(rotMatrix->getQuaternion());
     return(ikSetSphericalJointQuaternion(jointHandle,&q));
 }
 
 bool ikGetObjectParent(int objectHandle,int* parentObjectHandle)
 {
-    debugInfo inf(__FUNCTION__);
+    debugInfo inf(__FUNCTION__,objectHandle);
     bool retVal=false;
     if (hasLaunched())
     {
@@ -908,14 +1008,14 @@ bool ikGetObjectParent(int objectHandle,int* parentObjectHandle)
             retVal=true;
         }
         else
-            lastError="Invalid object handle";
+            _setLastError("Invalid object handle: %i",objectHandle);
     }
     return(retVal);
 }
 
 bool ikSetObjectParent(int objectHandle,int parentObjectHandle,bool keepInPlace)
 {
-    debugInfo inf(__FUNCTION__);
+    debugInfo inf(__FUNCTION__,objectHandle,parentObjectHandle);
     bool retVal=false;
     if (hasLaunched())
     {
@@ -932,17 +1032,17 @@ bool ikSetObjectParent(int objectHandle,int parentObjectHandle,bool keepInPlace)
                 retVal=true;
             }
             else
-                lastError="Invalid parent object handle";
+                _setLastError("Invalid parent object handle: %i",parentObjectHandle);
         }
         else
-            lastError="Invalid object handle";
+            _setLastError("Invalid object handle: %i",objectHandle);
     }
     return(retVal);
 }
 
 bool ikCreateDummy(const char* dummyName/*=nullptr*/,int* dummyHandle)
 {
-    debugInfo inf(__FUNCTION__);
+    debugInfo inf(__FUNCTION__,dummyName);
     bool retVal=false;
     if (hasLaunched())
     {
@@ -952,14 +1052,15 @@ bool ikCreateDummy(const char* dummyName/*=nullptr*/,int* dummyHandle)
             retVal=true;
         }
         else
-            lastError="Invalid object name";
+            _setLastError("Invalid object name: %s",dummyName);
     }
+    inf.debugMsg("handle: ",dummyHandle[0]);
     return(retVal);
 }
 
 bool ikSetLinkedDummy(int dummyHandle,int linkedDummyHandle)
 {
-    debugInfo inf(__FUNCTION__);
+    debugInfo inf(__FUNCTION__,dummyHandle,linkedDummyHandle);
     bool retVal=false;
     if (hasLaunched())
     {
@@ -979,17 +1080,17 @@ bool ikSetLinkedDummy(int dummyHandle,int linkedDummyHandle)
                 retVal=true;
             }
             else
-                lastError="Invalid linked dummy handle";
+                _setLastError("Invalid linked dummy handle: %i",linkedDummyHandle);
         }
         else
-            lastError="Invalid dummy handle";
+            _setLastError("Invalid dummy handle: %i",dummyHandle);
     }
     return(retVal);
 }
 
 bool ikGetLinkedDummy(int dummyHandle,int* linkedDummyHandle)
 {
-    debugInfo inf(__FUNCTION__);
+    debugInfo inf(__FUNCTION__,dummyHandle);
     bool retVal=false;
     if (hasLaunched())
     {
@@ -1002,14 +1103,14 @@ bool ikGetLinkedDummy(int dummyHandle,int* linkedDummyHandle)
             retVal=true;
         }
         else
-            lastError="Invalid dummy handle";
+            _setLastError("Invalid dummy handle: %i",dummyHandle);
     }
     return(retVal);
 }
 
 bool ikCreateJoint(const char* jointName/*=nullptr*/,int jointType,int* jointHandle)
 {
-    debugInfo inf(__FUNCTION__);
+    debugInfo inf(__FUNCTION__,jointName);
     bool retVal=false;
     if (hasLaunched())
     {
@@ -1019,14 +1120,15 @@ bool ikCreateJoint(const char* jointName/*=nullptr*/,int jointType,int* jointHan
             retVal=true;
         }
         else
-            lastError="Invalid joint handle";
+            _setLastError("Invalid joint name: %s",jointName);
     }
+    inf.debugMsg("handle: ",jointHandle[0]);
     return(retVal);
 }
 
 bool ikSetJointMode(int jointHandle,int jointMode)
 {
-    debugInfo inf(__FUNCTION__);
+    debugInfo inf(__FUNCTION__,jointHandle,jointMode);
     bool retVal=false;
     if (hasLaunched())
     {
@@ -1038,14 +1140,14 @@ bool ikSetJointMode(int jointHandle,int jointMode)
             retVal=true;
         }
         else
-            lastError="Invalid joint handle";
+            _setLastError("Invalid joint handle: %i",jointHandle);
     }
     return(retVal);
 }
 
 bool ikGetJointMode(int jointHandle,int* mode)
 {
-    debugInfo inf(__FUNCTION__);
+    debugInfo inf(__FUNCTION__,jointHandle);
     bool retVal=false;
     if (hasLaunched())
     {
@@ -1056,14 +1158,14 @@ bool ikGetJointMode(int jointHandle,int* mode)
             retVal=true;
         }
         else
-            lastError="Invalid joint handle";
+            _setLastError("Invalid joint handle: %i",jointHandle);
     }
     return(retVal);
 }
 
 bool ikSetJointInterval(int jointHandle,bool cyclic,const simReal* intervalMinAndRange/*=nullptr*/)
 {
-    debugInfo inf(__FUNCTION__);
+    debugInfo inf(__FUNCTION__,jointHandle);
     bool retVal=false;
     if (hasLaunched())
     {
@@ -1084,14 +1186,14 @@ bool ikSetJointInterval(int jointHandle,bool cyclic,const simReal* intervalMinAn
             retVal=true;
         }
         else
-            lastError="Invalid joint handle";
+            _setLastError("Invalid joint handle: %i",jointHandle);
     }
     return(retVal);
 }
 
 bool ikSetJointScrewPitch(int jointHandle,simReal pitch)
 {
-    debugInfo inf(__FUNCTION__);
+    debugInfo inf(__FUNCTION__,jointHandle);
     bool retVal=false;
     if (hasLaunched())
     {
@@ -1103,14 +1205,14 @@ bool ikSetJointScrewPitch(int jointHandle,simReal pitch)
             retVal=true;
         }
         else
-            lastError="Invalid joint handle";
+            _setLastError("Invalid joint handle: %i",jointHandle);
     }
     return(retVal);
 }
 
 bool ikSetJointIkWeight(int jointHandle,simReal ikWeight)
 {
-    debugInfo inf(__FUNCTION__);
+    debugInfo inf(__FUNCTION__,jointHandle);
     bool retVal=false;
     if (hasLaunched())
     {
@@ -1122,14 +1224,14 @@ bool ikSetJointIkWeight(int jointHandle,simReal ikWeight)
             retVal=true;
         }
         else
-            lastError="Invalid joint handle";
+            _setLastError("Invalid joint handle: %i",jointHandle);
     }
     return(retVal);
 }
 
 bool ikGetJointIkWeight(int jointHandle,simReal* ikWeight)
 {
-    debugInfo inf(__FUNCTION__);
+    debugInfo inf(__FUNCTION__,jointHandle);
     bool retVal=false;
     if (hasLaunched())
     {
@@ -1140,14 +1242,14 @@ bool ikGetJointIkWeight(int jointHandle,simReal* ikWeight)
             retVal=true;
         }
         else
-            lastError="Invalid joint handle";
+            _setLastError("Invalid joint handle: %i",jointHandle);
     }
     return(retVal);
 }
 
 bool ikSetJointMaxStepSize(int jointHandle,simReal maxStepSize)
 {
-    debugInfo inf(__FUNCTION__);
+    debugInfo inf(__FUNCTION__,jointHandle);
     bool retVal=false;
     if (hasLaunched())
     {
@@ -1159,14 +1261,14 @@ bool ikSetJointMaxStepSize(int jointHandle,simReal maxStepSize)
             retVal=true;
         }
         else
-            lastError="Invalid joint handle";
+            _setLastError("Invalid joint handle: %i",jointHandle);
     }
     return(retVal);
 }
 
 bool ikGetJointMaxStepSize(int jointHandle,simReal* maxStepSize)
 {
-    debugInfo inf(__FUNCTION__);
+    debugInfo inf(__FUNCTION__,jointHandle);
     bool retVal=false;
     if (hasLaunched())
     {
@@ -1177,14 +1279,14 @@ bool ikGetJointMaxStepSize(int jointHandle,simReal* maxStepSize)
             retVal=true;
         }
         else
-            lastError="Invalid joint handle";
+            _setLastError("Invalid joint handle: %i",jointHandle);
     }
     return(retVal);
 }
 
 bool ikSetJointDependency(int jointHandle,int dependencyJointHandle,simReal offset/*=0.0*/,simReal mult/*=1.0*/)
 {
-    debugInfo inf(__FUNCTION__);
+    debugInfo inf(__FUNCTION__,jointHandle,dependencyJointHandle);
     bool retVal=false;
     if (hasLaunched())
     {
@@ -1209,20 +1311,20 @@ bool ikSetJointDependency(int jointHandle,int dependencyJointHandle,simReal offs
                     retVal=true;
                 }
                 else
-                    lastError="Failed setting dependency joint";
+                    _setLastError("Failed setting dependency joint");
             }
             else
-                lastError="Invalid dependency joint handle";
+                _setLastError("Invalid dependency joint handle: %i",dependencyJointHandle);
         }
         else
-            lastError="Invalid joint handle";
+            _setLastError("Invalid joint handle: %i",jointHandle);
     }
     return(retVal);
 }
 
 bool ikGetJointDependency(int jointHandle,int* dependencyJointHandle,simReal* offset,simReal* mult)
 {
-    debugInfo inf(__FUNCTION__);
+    debugInfo inf(__FUNCTION__,jointHandle);
     bool retVal=false;
     if (hasLaunched())
     {
@@ -1235,14 +1337,14 @@ bool ikGetJointDependency(int jointHandle,int* dependencyJointHandle,simReal* of
             retVal=true;
         }
         else
-            lastError="Invalid joint handle";
+            _setLastError("Invalid joint handle: %i",jointHandle);
     }
     return(retVal);
 }
 
 bool ikEraseObject(int objectHandle)
 {
-    debugInfo inf(__FUNCTION__);
+    debugInfo inf(__FUNCTION__,objectHandle);
     bool retVal=false;
     if (hasLaunched())
     {
@@ -1250,14 +1352,14 @@ bool ikEraseObject(int objectHandle)
         if (obj!=nullptr)
             retVal=CEnvironment::currentEnvironment->objectContainer->eraseObject(obj);
         else
-            lastError="Invalid object handle";
+            _setLastError("Invalid object handle: %i",objectHandle);
     }
     return(retVal);
 }
 
 bool ikGetJointInterval(int jointHandle,bool* cyclic,simReal* intervalMinAndRange)
 {
-    debugInfo inf(__FUNCTION__);
+    debugInfo inf(__FUNCTION__,jointHandle);
     bool retVal=false;
     if (hasLaunched())
     {
@@ -1270,14 +1372,14 @@ bool ikGetJointInterval(int jointHandle,bool* cyclic,simReal* intervalMinAndRang
             cyclic[0]=it->getPositionIsCyclic();
         }
         else
-            lastError="Joint does not exist";
+            _setLastError("Joint does not exist: %i",jointHandle);
     }
     return(retVal);
 }
 
 bool ikGetJointScrewPitch(int jointHandle,simReal* pitch)
 {
-    debugInfo inf(__FUNCTION__);
+    debugInfo inf(__FUNCTION__,jointHandle);
     bool retVal=false;
     if (hasLaunched())
     {
@@ -1288,14 +1390,14 @@ bool ikGetJointScrewPitch(int jointHandle,simReal* pitch)
             retVal=true;
         }
         else
-            lastError="Joint does not exist";
+            _setLastError("Joint does not exist: %i",jointHandle);
     }
     return(retVal);
 }
 
 bool ikGetIkGroupCalculation(int ikGroupHandle,int* method,simReal* damping,int* maxIterations)
 {
-    debugInfo inf(__FUNCTION__);
+    debugInfo inf(__FUNCTION__,ikGroupHandle);
     bool retVal=false;
     if (hasLaunched())
     {
@@ -1308,14 +1410,14 @@ bool ikGetIkGroupCalculation(int ikGroupHandle,int* method,simReal* damping,int*
             maxIterations[0]=it->getMaxIterations();
         }
         else
-            lastError="Invalid IK group handle";
+            _setLastError("Invalid IK group handle: %i",ikGroupHandle);
     }
     return(retVal);
 }
 
 bool ikSetIkGroupCalculation(int ikGroupHandle,int method,simReal damping,int maxIterations)
 {
-    debugInfo inf(__FUNCTION__);
+    debugInfo inf(__FUNCTION__,ikGroupHandle,method);
     bool retVal=false;
     if (hasLaunched())
     {
@@ -1331,7 +1433,7 @@ bool ikSetIkGroupCalculation(int ikGroupHandle,int method,simReal damping,int ma
             retVal=true;
         }
         else
-            lastError="Invalid IK group handle";
+            _setLastError("Invalid IK group handle: %i",ikGroupHandle);
     }
     return(retVal);
 }
@@ -1351,7 +1453,7 @@ bool ikGetIkGroupLimitThresholds(int ikGroupHandle,simReal* linearAndAngularThre
             linearAndAngularThresholds[1]=it->getJointTreshholdAngular();
         }
         else
-            lastError="Invalid IK group handle";
+            _setLastError("Invalid IK group handle: %i",ikGroupHandle);
     }
     return(retVal);
 }
@@ -1372,7 +1474,7 @@ bool ikSetIkGroupLimitThresholds(int ikGroupHandle,const simReal* linearAndAngul
             retVal=true;
         }
         else
-            lastError="Invalid IK group handle";
+            _setLastError("Invalid IK group handle: %i",ikGroupHandle);
     }
     return(retVal);
 }
@@ -1380,7 +1482,7 @@ bool ikSetIkGroupLimitThresholds(int ikGroupHandle,const simReal* linearAndAngul
 
 bool ikSetIkGroupFlags(int ikGroupHandle,int flags)
 {
-    debugInfo inf(__FUNCTION__);
+    debugInfo inf(__FUNCTION__,ikGroupHandle,flags);
     bool retVal=false;
     if (hasLaunched())
     {
@@ -1400,14 +1502,14 @@ bool ikSetIkGroupFlags(int ikGroupHandle,int flags)
             retVal=true;
         }
         else
-            lastError="Invalid IK group handle";
+            _setLastError("Invalid IK group handle: %i",ikGroupHandle);
     }
     return(retVal);
 }
 
 bool ikGetIkGroupFlags(int ikGroupHandle,int* flags)
 {
-    debugInfo inf(__FUNCTION__);
+    debugInfo inf(__FUNCTION__,ikGroupHandle);
     bool retVal=false;
     if (hasLaunched())
     {
@@ -1428,14 +1530,14 @@ bool ikGetIkGroupFlags(int ikGroupHandle,int* flags)
                 flags[0]=flags[0]|8;
         }
         else
-            lastError="Invalid IK group handle";
+            _setLastError("Invalid IK group handle: %i",ikGroupHandle);
     }
     return(retVal);
 }
 
 int ikGetConfigForTipPose(int ikGroupHandle,size_t jointCnt,const int* jointHandles,simReal thresholdDist,int maxIterations,simReal* retConfig,const simReal* metric/*=nullptr*/,bool(*validationCallback)(simReal*)/*=nullptr*/,const int* jointOptions/*=nullptr*/,const simReal* lowLimits/*=nullptr*/,const simReal* ranges/*=nullptr*/)
 {
-    debugInfo inf(__FUNCTION__);
+    debugInfo inf(__FUNCTION__,ikGroupHandle);
     int retVal=-1;
     std::vector<simReal> conf(jointCnt);
     if (hasLaunched())
@@ -1627,15 +1729,15 @@ int ikGetConfigForTipPose(int ikGroupHandle,size_t jointCnt,const int* jointHand
             else
             {
                 if (err==1)
-                    lastError="Found invalid joint handle(s)";
+                    _setLastError("Found invalid joint handle(s)");
                 if (err==2)
-                    lastError="Found ill-defined IK element(s)";
+                    _setLastError("Found ill-defined IK element(s)");
                 if (err==3)
-                    lastError="Ill-defined IK group";
+                    _setLastError("Ill-defined IK group");
             }
         }
         else
-            lastError="Invalid IK group handle";
+            _setLastError("Invalid IK group handle: %i",ikGroupHandle);
     }
     return(retVal);
 }

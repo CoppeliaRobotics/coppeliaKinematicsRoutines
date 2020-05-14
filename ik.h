@@ -56,9 +56,13 @@ const simReal IK_DIVISION_FACTOR=simReal(100.0);
 #define ik_result_success 1
 #define ik_result_fail 2
 
+
+void _setLastError(const char* errStr,const char* substr1=nullptr,const char* substr2=nullptr);
+void _setLastError(const char* errStr,int intVal1,int intVal2=-1);
 int _getLoadingMapping(const std::vector<int>* map,int oldVal);
 
 std::string ikGetLastError();
+void ikSetLogCallback(void(*logCallback)(int,const char*));
 void ikSetVerbosity(int level);
 bool ikCreateEnvironment(int* environmentHandle=nullptr,bool protectedEnvironment=false);
 bool ikLoad(const unsigned char* data,size_t dataLength);
