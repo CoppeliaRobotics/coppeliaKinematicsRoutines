@@ -358,8 +358,8 @@ bool ikGetObjectTransformation(int objectHandle,int relativeToObjectHandle,C7Vec
                     transf[0]=it->getCumulativeTransformationPart1();
                 else
                 {
-                    C7Vector relTr(relObj->getCumulativeTransformationPart1()); // added ..Part1 on 2010/06/14
-                    transf[0]=relTr.getInverse()*it->getCumulativeTransformationPart1(); // Corrected bug on 2011/01/22: was getLocalTransformationPart1 before!!!
+                    C7Vector relTr(relObj->getCumulativeTransformation());
+                    transf[0]=relTr.getInverse()*it->getCumulativeTransformationPart1();
                 }
                 retVal=true;
             }
@@ -405,7 +405,7 @@ bool ikSetObjectTransformation(int objectHandle,int relativeToObjectHandle,const
                     CEnvironment::currentEnvironment->objectContainer->setAbsoluteConfiguration(it->getObjectHandle(),transf[0],false);
                 else
                 {
-                    C7Vector relTr(relObj->getCumulativeTransformationPart1());
+                    C7Vector relTr(relObj->getCumulativeTransformation());
                     C7Vector absTr(relTr*transf[0]);
                     CEnvironment::currentEnvironment->objectContainer->setAbsoluteConfiguration(it->getObjectHandle(),absTr,false);
                 }
@@ -511,9 +511,24 @@ bool ikCreateIkGroup(const char* ikGroupName/*=nullptr*/,int* ikGroupHandle)
     {
         if ( (ikGroupName==nullptr)||((strlen(ikGroupName)>0)&&(CEnvironment::currentEnvironment->ikGroupContainer->getIkGroup(ikGroupName)==nullptr)) )
         {
+            std::string dn;
+            if (ikGroupName==nullptr)
+            {
+                int nb=0;
+                while (true)
+                {
+                    dn="ikGroup";
+                    dn+=std::to_string(nb);
+                    if (CEnvironment::currentEnvironment->ikGroupContainer->getIkGroup(dn.c_str())==nullptr)
+                        break;
+                    nb++;
+                }
+            }
+            else
+                dn=ikGroupName;
+
             CikGroup* it=new CikGroup();
-            if (ikGroupName!=nullptr)
-                it->setObjectName(ikGroupName);
+            it->setObjectName(dn.c_str());
             it->setExplicitHandling(true);
             CEnvironment::currentEnvironment->ikGroupContainer->addIkGroup(it,false);
             ikGroupHandle[0]=it->getObjectHandle();
@@ -1048,7 +1063,22 @@ bool ikCreateDummy(const char* dummyName/*=nullptr*/,int* dummyHandle)
     {
         if ( (dummyName==nullptr)||((strlen(dummyName)!=0)&&(CEnvironment::currentEnvironment->objectContainer->getObject(dummyName)==nullptr)) )
         {
-            dummyHandle[0]=CEnvironment::currentEnvironment->objectContainer->createDummy(dummyName);
+            std::string dn;
+            if (dummyName==nullptr)
+            {
+                int nb=0;
+                while (true)
+                {
+                    dn="dummy";
+                    dn+=std::to_string(nb);
+                    if (CEnvironment::currentEnvironment->objectContainer->getObject(dn.c_str())==nullptr)
+                        break;
+                    nb++;
+                }
+            }
+            else
+                dn=dummyName;
+            dummyHandle[0]=CEnvironment::currentEnvironment->objectContainer->createDummy(dn.c_str());
             retVal=true;
         }
         else
@@ -1116,7 +1146,22 @@ bool ikCreateJoint(const char* jointName/*=nullptr*/,int jointType,int* jointHan
     {
         if ( (jointName==nullptr)||((strlen(jointName)!=0)&&(CEnvironment::currentEnvironment->objectContainer->getObject(jointName)==nullptr)) )
         {
-            jointHandle[0]=CEnvironment::currentEnvironment->objectContainer->createJoint(jointName,jointType);
+            std::string dn;
+            if (jointName==nullptr)
+            {
+                int nb=0;
+                while (true)
+                {
+                    dn="joint";
+                    dn+=std::to_string(nb);
+                    if (CEnvironment::currentEnvironment->objectContainer->getObject(dn.c_str())==nullptr)
+                        break;
+                    nb++;
+                }
+            }
+            else
+                dn=jointName;
+            jointHandle[0]=CEnvironment::currentEnvironment->objectContainer->createJoint(dn.c_str(),jointType);
             retVal=true;
         }
         else

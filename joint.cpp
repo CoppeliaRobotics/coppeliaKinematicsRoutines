@@ -205,7 +205,7 @@ simReal CJoint::getPosition(bool tempVals) const
 {
     if (tempVals)
         return(_jointPosition_tempForIK); 
-    return(_jointPosition); 
+    return(_jointPosition);
 }
 
 simReal CJoint::getIkWeight() const

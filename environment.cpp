@@ -41,24 +41,38 @@ int CEnvironment::addEnvironment(CEnvironment* env)
 bool CEnvironment::switchToEnvironment(int handle,bool alsoProtectedEnv)
 {
     bool retVal=false;
-    if ( (handle>=0)&&(currentEnvironment!=nullptr) )
-    {
-        if (currentEnvironment->_handle!=handle)
+    if (handle==-1)
+    { // tries to switch to the first protected environment, for debug purposes
+        for (size_t i=0;i<_allEnvironments.size();i++)
         {
-            for (size_t i=0;i<_allEnvironments.size();i++)
+            if (_allEnvironments[i]->_protected)
             {
-                if (_allEnvironments[i]->_handle==handle)
+                currentEnvironment=_allEnvironments[i];
+                return(true);
+            }
+        }
+    }
+    else
+    {
+        if ( (handle>=0)&&(currentEnvironment!=nullptr) )
+        {
+            if (currentEnvironment->_handle!=handle)
+            {
+                for (size_t i=0;i<_allEnvironments.size();i++)
                 {
-                    if ( alsoProtectedEnv||(!_allEnvironments[i]->_protected) )
+                    if (_allEnvironments[i]->_handle==handle)
                     {
-                        currentEnvironment=_allEnvironments[i];
-                        return(true);
+                        if ( alsoProtectedEnv||(!_allEnvironments[i]->_protected) )
+                        {
+                            currentEnvironment=_allEnvironments[i];
+                            return(true);
+                        }
                     }
                 }
+                return(false);
             }
-            return(false);
+            retVal=(alsoProtectedEnv||(!currentEnvironment->_protected));
         }
-        retVal=(alsoProtectedEnv||(!currentEnvironment->_protected));
     }
     return(retVal);
 }

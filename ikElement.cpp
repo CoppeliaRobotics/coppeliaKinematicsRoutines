@@ -300,20 +300,35 @@ void CikElement::prepareEquations(simReal interpolationFactor)
             (*errorVector)(pos+2,0)=euler(2)*_orientationWeight/IK_DIVISION_FACTOR;
             pos=pos+3;
         }
-        else if ((_constraints&ik_constraint_alpha_beta)!=0)
+        else
         {
-            for (size_t i=0;i<doF;i++)
+            if ((_constraints&ik_constraint_alpha_beta)!=0)
             {
-                (*matrix)(pos,i)=(*jacobian)(3,i);
-                (*matrix)(pos+1,i)=(*jacobian)(4,i);
-                (*matrix_correctJacobian)(pos,i)=(*jacobian)(3,i)*IK_DIVISION_FACTOR;
-                (*matrix_correctJacobian)(pos+1,i)=(*jacobian)(4,i)*IK_DIVISION_FACTOR;
+                for (size_t i=0;i<doF;i++)
+                {
+                    (*matrix)(pos,i)=(*jacobian)(3,i);
+                    (*matrix)(pos+1,i)=(*jacobian)(4,i);
+                    (*matrix_correctJacobian)(pos,i)=(*jacobian)(3,i)*IK_DIVISION_FACTOR;
+                    (*matrix_correctJacobian)(pos+1,i)=(*jacobian)(4,i)*IK_DIVISION_FACTOR;
+                }
+                C4X4Matrix diff(oldFrameInv*currentFrame);
+                C3Vector euler(diff.M.getEulerAngles());
+                (*errorVector)(pos,0)=euler(0)*_orientationWeight/IK_DIVISION_FACTOR;
+                (*errorVector)(pos+1,0)=euler(1)*_orientationWeight/IK_DIVISION_FACTOR;
+                pos=pos+2;
             }
-            C4X4Matrix diff(oldFrameInv*currentFrame);
-            C3Vector euler(diff.M.getEulerAngles());
-            (*errorVector)(pos,0)=euler(0)*_orientationWeight/IK_DIVISION_FACTOR;
-            (*errorVector)(pos+1,0)=euler(1)*_orientationWeight/IK_DIVISION_FACTOR;
-            pos=pos+2;
+            if ((_constraints&ik_constraint_gamma)!=0)
+            { // sim_gamma_constraint can also exist without ik_constraint_alpha_beta
+                for (size_t i=0;i<doF;i++)
+                {
+                    (*matrix)(pos,i)=(*jacobian)(5,i);
+                    (*matrix_correctJacobian)(pos,i)=(*jacobian)(5,i)*IK_DIVISION_FACTOR;
+                }
+                C4X4Matrix diff(oldFrameInv*currentFrame);
+                C3Vector euler(diff.M.getEulerAngles());
+                (*errorVector)(pos,0)=euler(2)*_orientationWeight/IK_DIVISION_FACTOR;
+                pos++;
+            }
         }
     }
     delete jacobian;
