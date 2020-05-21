@@ -86,8 +86,6 @@ void CObjectContainer::setAbsoluteConfiguration(int objectHandle,const C7Vector&
 
 void CObjectContainer::actualizeObjectInformation()
 {
-    // Actualize each object's child list
-    // Following rewritten on 2009/03/15 to make it faster:
     for (size_t i=0;i<objectList.size();i++)
     {
         CSceneObject* it=_objectIndex[size_t(objectList[i])];
@@ -101,7 +99,6 @@ void CObjectContainer::actualizeObjectInformation()
             parent->childList.push_back(it);
     }
 
-    // Actualize the light, graph, sensor & joint list
     jointList.clear();
     dummyList.clear();
     orphanList.clear();
@@ -115,7 +112,7 @@ void CObjectContainer::actualizeObjectInformation()
         if (_objectIndex[size_t(objectList[i])]->getParentObject()==nullptr)
             orphanList.push_back(objectList[i]);
     }
-    // We actualize the direct linked joint list of each joint: (2009-01-27)
+
     for (size_t i=0;i<jointList.size();i++)
     {
         CJoint* it=getJoint(jointList[i]);

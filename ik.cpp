@@ -1341,22 +1341,16 @@ bool ikSetJointDependency(int jointHandle,int dependencyJointHandle,simReal offs
             CJoint* it2=CEnvironment::currentEnvironment->objectContainer->getJoint(dependencyJointHandle);
             if ( (it2!=nullptr)||(dependencyJointHandle==-1) )
             {
-                bool ok=true;
                 if (it->getDependencyJointHandle()!=dependencyJointHandle)
-                    ok=it->setDependencyJointHandle(dependencyJointHandle);
-                if (ok)
+                    it->setDependencyJointHandle(dependencyJointHandle);
+                if (dependencyJointHandle!=-1)
                 {
-                    if (dependencyJointHandle!=-1)
-                    {
-                        if ( fabs(it->getDependencyJointMult()-mult)>simReal(0.00001) )
-                            it->setDependencyJointMult(mult);
-                        if ( fabs(it->getDependencyJointAdd()-offset)>simReal(0.00001) )
-                            it->setDependencyJointAdd(offset);
-                    }
-                    retVal=true;
+                    if ( fabs(it->getDependencyJointMult()-mult)>simReal(0.00001) )
+                        it->setDependencyJointMult(mult);
+                    if ( fabs(it->getDependencyJointAdd()-offset)>simReal(0.00001) )
+                        it->setDependencyJointAdd(offset);
                 }
-                else
-                    _setLastError("Failed setting dependency joint");
+                retVal=true;
             }
             else
                 _setLastError("Invalid dependency joint handle: %i",dependencyJointHandle);

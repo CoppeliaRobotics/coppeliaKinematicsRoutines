@@ -91,40 +91,34 @@ simReal CJoint::getDependencyJointAdd() const
     return(_dependencyJointAdd);
 }
 
-bool CJoint::setDependencyJointHandle(int jointHandle)
+void CJoint::setDependencyJointHandle(int jointHandle)
 {
-    bool retVal=false;
-    if ( (_jointType!=ik_jointtype_spherical)&&(getJointMode()==ik_jointmode_dependent) )
+    _dependencyJointHandle=jointHandle;
+    if (jointHandle!=-1)
     {
-        _dependencyJointHandle=jointHandle;
-        if (jointHandle!=-1)
+        // Illegal loop check:
+        CJoint* it=CEnvironment::currentEnvironment->objectContainer->getJoint(jointHandle);
+        CJoint* iterat=it;
+        while (iterat->getDependencyJointHandle()!=-1)
         {
-            // Illegal loop check:
-            CJoint* it=CEnvironment::currentEnvironment->objectContainer->getJoint(jointHandle);
-            CJoint* iterat=it;
-            while (iterat->getDependencyJointHandle()!=-1)
+            if (iterat->getJointMode()!=_jointMode)
+                break;
+            int joint=iterat->getDependencyJointHandle();
+            if (joint==getObjectHandle())
             {
-                if (iterat->getJointMode()!=_jointMode)
-                    break;
-                int joint=iterat->getDependencyJointHandle();
-                if (joint==getObjectHandle())
-                {
-                    iterat->setDependencyJointHandle(-1);
-                    break;
-                }
-                iterat=CEnvironment::currentEnvironment->objectContainer->getJoint(joint);
+                iterat->setDependencyJointHandle(-1);
+                break;
             }
-            CEnvironment::currentEnvironment->objectContainer->actualizeObjectInformation();
-            setPosition(getPosition());
+            iterat=CEnvironment::currentEnvironment->objectContainer->getJoint(joint);
         }
-        else
-        {
-            _dependencyJointHandle=-1;
-            CEnvironment::currentEnvironment->objectContainer->actualizeObjectInformation();
-        }
-        retVal=true;
+        CEnvironment::currentEnvironment->objectContainer->actualizeObjectInformation();
+        setPosition(getPosition());
     }
-    return(retVal);
+    else
+    {
+        _dependencyJointHandle=-1;
+        CEnvironment::currentEnvironment->objectContainer->actualizeObjectInformation();
+    }
 }
 
 void CJoint::setDependencyJointMult(simReal m)

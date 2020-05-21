@@ -53,7 +53,7 @@ public:
     int getDependencyJointHandle() const;
     simReal getDependencyJointMult() const;
     simReal getDependencyJointAdd() const;
-    bool setDependencyJointHandle(int jointHandle);
+    void setDependencyJointHandle(int jointHandle);
     void setDependencyJointMult(simReal m);
     void setDependencyJointAdd(simReal off);
 
