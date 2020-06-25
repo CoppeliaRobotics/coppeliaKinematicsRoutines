@@ -14,8 +14,8 @@ CEnvironment::CEnvironment(bool protectedEnv)
 CEnvironment::~CEnvironment()
 {
     ikGroupContainer->removeAllIkGroups();
-    delete ikGroupContainer;
     objectContainer->removeAllObjects();
+    delete ikGroupContainer;
     delete objectContainer;
 }
 
