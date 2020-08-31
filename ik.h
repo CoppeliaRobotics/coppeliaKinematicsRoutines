@@ -82,6 +82,7 @@ bool ikGetLinkedDummy(int dummyHandle,int* linkedDummyHandle);
 bool ikSetLinkedDummy(int dummyHandle,int linkedDummyHandle);
 
 bool ikCreateJoint(const char* jointName/*=nullptr*/,int jointType,int* jointHandle);
+bool ikGetJointType(int jointHandle,int* theType);
 bool ikGetJointMode(int jointHandle,int* mode);
 bool ikSetJointMode(int jointHandle,int jointMode);
 bool ikGetJointInterval(int jointHandle,bool* cyclic,simReal* intervalMinAndRange);

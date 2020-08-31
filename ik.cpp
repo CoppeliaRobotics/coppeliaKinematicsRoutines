@@ -1171,6 +1171,24 @@ bool ikCreateJoint(const char* jointName/*=nullptr*/,int jointType,int* jointHan
     return(retVal);
 }
 
+bool ikGetJointType(int jointHandle,int* theType)
+{
+    debugInfo inf(__FUNCTION__,jointHandle);
+    bool retVal=false;
+    if (hasLaunched())
+    {
+        CJoint* it=CEnvironment::currentEnvironment->objectContainer->getJoint(jointHandle);
+        if (it!=nullptr)
+        {
+            theType[0]=it->getJointType();
+            retVal=true;
+        }
+        else
+            _setLastError("Invalid joint handle: %i",jointHandle);
+    }
+    return(retVal);
+}
+
 bool ikSetJointMode(int jointHandle,int jointMode)
 {
     debugInfo inf(__FUNCTION__,jointHandle,jointMode);

@@ -139,10 +139,6 @@ void CJoint::setDependencyJointAdd(simReal off)
     }
 }
 
-
-
-
-
 int CJoint::getJointType() const
 {
     return(_jointType);
