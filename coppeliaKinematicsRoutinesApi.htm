@@ -873,6 +873,36 @@
 <br>
 
 <h3 class="subsectionBar">
+<a name="ikGetJointType" id="ikGetJointType"></a>ikGetJointType</h3>
+<table class="apiTable">
+<tr class="apiTableTr">
+<td class="apiTableLeftDescr">Description</td>
+<td class="apiTableRightDescr">Retrieves the joint type.</td>
+</tr>
+<tr class="apiTableTr">
+<td class="apiTableLeftCSyn">Synopsis</td>
+<td class="apiTableRightCSyn">bool ikGetJointType(int jointHandle,int* jointType)</td>
+</tr>
+<tr class="apiTableTr">
+<td class="apiTableLeftCParam">Arguments</td>
+<td class="apiTableRightCParam">
+<div><strong>jointHandle</strong>: the handle of the joint.</div>
+<div><strong>jointType</strong>: the joint type, in return. Possible values are: ik_jointtype_revolute, ik_jointtype_prismatic and ik_jointtype_spherical.</div>
+</td>
+</tr>
+<tr class="apiTableTr">
+<td class="apiTableLeftCRet">Return value</td>
+<td class="apiTableRightCRet">true in case of success.</td>
+</tr>
+<tr class="apiTableTr">
+
+<td class="apiTableLeftDescr">See also</td>
+<td class="apiTableRightDescr"><a href="#ikCreateJoint">ikCreateJoint</a></td>
+</tr>
+</table>
+<br>
+
+<h3 class="subsectionBar">
 <a name="ikGetLastError" id="ikGetLastError"></a>ikGetLastError</h3>
 <table class="apiTable">
 <tr class="apiTableTr">
