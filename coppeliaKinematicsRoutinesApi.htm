@@ -93,7 +93,7 @@
 </tr>
 <tr class="apiTableTr">
 <td class="apiTableLeftDescr">See also</td>
-<td class="apiTableRightDescr"><a href="#ikEraseEnvironment">ikEraseEnvironment</a>, <a href="#ikSwitchEnvironment">ikSwitchEnvironment</a>, <a href="#ikLoad">ikLoad</a></td>
+<td class="apiTableRightDescr"><a href="#ikEraseEnvironment">ikEraseEnvironment</a>, <a href="#ikSwitchEnvironment">ikSwitchEnvironment</a>, <a href="#ikDuplicateEnvironment">ikDuplicateEnvironment</a>, <a href="#ikLoad">ikLoad</a></td>
 </tr>
 </table>
 <br>
@@ -238,6 +238,34 @@
 <tr class="apiTableTr">
 <td class="apiTableLeftDescr">See also</td>
 <td class="apiTableRightDescr"><a href="#ikGetIkGroupHandle">ikGetIkGroupHandle</a></td>
+</tr>
+</table>
+<br>
+
+<h3 class="subsectionBar">
+<a name="ikDuplicateEnvironment" id="ikDuplicateEnvironment"></a>ikDuplicateEnvironment</h3>
+<table class="apiTable">
+<tr class="apiTableTr">
+<td class="apiTableLeftDescr">Description</td>
+<td class="apiTableRightDescr">Duplicate current IK environment. Can be used to operate on an environment without modifying the original environment</td>
+</tr>
+<tr class="apiTableTr">
+<td class="apiTableLeftCSyn">Synopsis</td>
+<td class="apiTableRightCSyn">bool ikDuplicateEnvironment(int* newEnvironmentHandle)</td>
+</tr>
+<tr class="apiTableTr">
+<td class="apiTableLeftCParam">Arguments</td>
+<td class="apiTableRightCParam">
+<div><strong>newEnvironmentHandle</strong>: the handle of the newly created environment.</div>
+</td>
+</tr>
+<tr class="apiTableTr">
+<td class="apiTableLeftCRet">Return value</td>
+<td class="apiTableRightCRet">true in case of success.</td>
+</tr>
+<tr class="apiTableTr">
+<td class="apiTableLeftDescr">See also</td>
+<td class="apiTableRightDescr"><a href="#ikEraseEnvironment">ikEraseEnvironment</a>, <a href="#ikSwitchEnvironment">ikSwitchEnvironment</a>, <a href="#ikDuplicateEnvironment">ikDuplicateEnvironment</a>, <a href="#ikCreateEnvironment">ikCreateEnvironment</a></td>
 </tr>
 </table>
 <br>
