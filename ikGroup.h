@@ -17,6 +17,7 @@ public:
     void performObjectLoadingMapping(std::vector<int>* map);
     void serialize(CSerialization& ar);
 
+    CikGroup* copyYourself() const;
     int addIkElement(CikElement* ikElement);
     CikElement* getIkElement(int elementHandle) const;
     CikElement* getIkElementWithTooltipHandle(int tooltipHandle) const;

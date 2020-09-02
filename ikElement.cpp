@@ -2,6 +2,15 @@
 #include "ikRoutines.h"
 #include "environment.h"
 
+CikElement::CikElement()
+{
+    matrix=nullptr;
+    matrix_correctJacobian=nullptr;
+    errorVector=nullptr;
+    rowJointHandles=nullptr;
+    rowJointStages=nullptr;
+}
+
 CikElement::CikElement(int theTooltip)
 {
     _tipHandle=theTooltip;
@@ -24,6 +33,45 @@ CikElement::CikElement(int theTooltip)
 CikElement::~CikElement()
 {
     clearIkEquations();
+}
+
+CikElement* CikElement::copyYourself() const
+{
+    CikElement* duplicate=new CikElement();
+
+    duplicate->_ikElementHandle=_ikElementHandle;
+    duplicate->_tipHandle=_tipHandle;
+    duplicate->_baseHandle=_baseHandle;
+    duplicate->_altBaseHandleForConstraints=_altBaseHandleForConstraints;
+    duplicate->_constraints=_constraints;
+    duplicate->_isActive=_isActive;
+    duplicate->_positionWeight=_positionWeight;
+    duplicate->_orientationWeight=_orientationWeight;
+    duplicate->_minAngularPrecision=_minAngularPrecision;
+    duplicate->_minLinearPrecision=_minLinearPrecision;
+    duplicate->rowJointHandles=nullptr;
+    if (rowJointHandles!=nullptr)
+    {
+        duplicate->rowJointHandles=new std::vector<int>;
+        duplicate->rowJointHandles->assign(rowJointHandles->begin(),rowJointHandles->end());
+    }
+    duplicate->rowJointStages=nullptr;
+    if (rowJointStages!=nullptr)
+    {
+        duplicate->rowJointStages=new std::vector<size_t>;
+        duplicate->rowJointStages->assign(rowJointStages->begin(),rowJointStages->end());
+    }
+    duplicate->matrix=nullptr;
+    if (matrix!=nullptr)
+        duplicate->matrix=new CMatrix(matrix[0]);
+    duplicate->matrix_correctJacobian=nullptr;
+    if (matrix_correctJacobian!=nullptr)
+        duplicate->matrix_correctJacobian=new CMatrix(matrix_correctJacobian[0]);
+    duplicate->errorVector=nullptr;
+    if (errorVector!=nullptr)
+        duplicate->errorVector=new CMatrix(errorVector[0]);
+
+    return(duplicate);
 }
 
 bool CikElement::announceSceneObjectWillBeErased(int objectHandle)

@@ -132,6 +132,48 @@ void CObjectContainer::actualizeObjectInformation()
     }
 }
 
+CObjectContainer* CObjectContainer::copyYourself() const
+{
+    CObjectContainer* duplicate=new CObjectContainer();
+    duplicate->_objectIndex.resize(_objectIndex.size());
+    for (size_t i=0;i<_objectIndex.size();i++)
+    {
+        if (_objectIndex[i]==nullptr)
+            duplicate->_objectIndex[i]=nullptr;
+        else
+            duplicate->_objectIndex[i]=_objectIndex[i]->copyYourself();
+    }
+    duplicate->_nextObjectHandle=_nextObjectHandle;
+    duplicate->orphanList.assign(orphanList.begin(),orphanList.end());
+    duplicate->objectList.assign(objectList.begin(),objectList.end());
+    duplicate->jointList.assign(jointList.begin(),jointList.end());
+    duplicate->dummyList.assign(dummyList.begin(),dummyList.end());
+
+    // Fix parenting info and joint dependencies lists:
+    for (size_t i=0;i<_objectIndex.size();i++)
+    {
+        if (_objectIndex[i]!=nullptr)
+        {
+            CSceneObject* obj=duplicate->_objectIndex[i];
+            if (_objectIndex[i]->getParentObject()!=nullptr)
+            {
+                CSceneObject* p=duplicate->getObject(_objectIndex[i]->getParentObject()->getObjectHandle());
+                obj->setParentObject(p,false);
+                p->childList.push_back(obj);
+            }
+            if (obj->getObjectType()==ik_objecttype_joint)
+            {
+                CJoint* duplicateJoint=(CJoint*)obj;
+                CJoint* originalJoint=(CJoint*)_objectIndex[i];
+                for (size_t j=0;j<originalJoint->dependentJoints.size();j++)
+                    duplicateJoint->dependentJoints.push_back(duplicate->getJoint(originalJoint->dependentJoints[j]->getObjectHandle()));
+            }
+        }
+    }
+
+    return(duplicate);
+}
+
 int CObjectContainer::getObjectHandle(const std::string& objectName) const
 {
     for (size_t i=0;i<objectList.size();i++)

@@ -10,6 +10,7 @@ public:
     CIkGroupContainer();
     virtual ~CIkGroupContainer();
 
+    CIkGroupContainer* copyYourself() const;
     CikGroup* getIkGroup(int groupHandle) const;
     CikGroup* getIkGroup(std::string groupName) const;
     void addIkGroup(CikGroup* anIkGroup,bool keepCurrentHandle);

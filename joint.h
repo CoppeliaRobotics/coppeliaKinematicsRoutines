@@ -7,6 +7,7 @@
 class CJoint : public CSceneObject
 {
 public:
+    CJoint();
     CJoint(int jointType);
     virtual ~CJoint();
 
@@ -15,6 +16,7 @@ public:
     void performSceneObjectLoadingMapping(const std::vector<int>* map);
     void serialize(CSerialization& ar);
 
+    CSceneObject* copyYourself() const;
     simReal getPosition(bool tempVals=false) const;
     void setPosition(simReal parameter,bool tempVals=false);
 

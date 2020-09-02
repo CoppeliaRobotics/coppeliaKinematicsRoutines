@@ -65,6 +65,7 @@ std::string ikGetLastError();
 void ikSetLogCallback(void(*logCallback)(int,const char*));
 void ikSetVerbosity(int level);
 bool ikCreateEnvironment(int* environmentHandle=nullptr,bool protectedEnvironment=false);
+bool ikDuplicateEnvironment(int* duplicateEnvironmentHandle);
 bool ikLoad(const unsigned char* data,size_t dataLength);
 bool ikSwitchEnvironment(int handle,bool allowAlsoProtectedEnvironment=false);
 bool ikEraseEnvironment(int* switchedEnvironmentHandle=nullptr);

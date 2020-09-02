@@ -15,6 +15,7 @@ public:
     void removeAllObjects();
     void actualizeObjectInformation();
 
+    CObjectContainer* copyYourself() const;
     int getObjectHandle(const std::string& objectName) const;
     CSceneObject* getObject(int objectHandle) const;
     CDummy* getDummy(int objectHandle) const;

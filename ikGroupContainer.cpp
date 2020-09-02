@@ -11,6 +11,16 @@ CIkGroupContainer::~CIkGroupContainer()
     removeAllIkGroups();
 }
 
+CIkGroupContainer* CIkGroupContainer::copyYourself() const
+{
+    CIkGroupContainer* duplicate=new CIkGroupContainer();
+
+    for (size_t i=0;i<ikGroups.size();i++)
+        duplicate->ikGroups.push_back(ikGroups[i]->copyYourself());
+
+    return(duplicate);
+}
+
 CikGroup* CIkGroupContainer::getIkGroup(int groupHandle) const
 {
      for (size_t i=0;i<ikGroups.size();i++)

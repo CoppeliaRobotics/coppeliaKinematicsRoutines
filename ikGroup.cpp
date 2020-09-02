@@ -221,6 +221,39 @@ CikElement* CikGroup::getIkElementFromIndex(size_t index) const
     return(retVal);
 }
 
+CikGroup* CikGroup::copyYourself() const
+{
+    CikGroup* duplicate=new CikGroup();
+
+    for (size_t i=0;i<_ikElements.size();i++)
+        duplicate->_ikElements.push_back(_ikElements[i]->copyYourself());
+
+    duplicate->objectHandle=objectHandle;
+    duplicate->objectName=objectName;
+    duplicate->maxIterations=maxIterations;
+    duplicate->active=active;
+    duplicate->_correctJointLimits=_correctJointLimits;
+    duplicate->dlsFactor=dlsFactor;
+    duplicate->calculationMethod=calculationMethod;
+    duplicate->restoreIfPositionNotReached=restoreIfPositionNotReached;
+    duplicate->restoreIfOrientationNotReached=restoreIfOrientationNotReached;
+    duplicate->doOnFailOrSuccessOf=doOnFailOrSuccessOf;
+    duplicate->doOnFail=doOnFail;
+    duplicate->doOnPerformed=doOnPerformed;
+    duplicate->constraints=constraints;
+    duplicate->jointLimitWeight=jointLimitWeight;
+    duplicate->jointTreshholdAngular=jointTreshholdAngular;
+    duplicate->jointTreshholdLinear=jointTreshholdLinear;
+    duplicate->ignoreMaxStepSizes=ignoreMaxStepSizes;
+    duplicate->_calculationResult=_calculationResult;
+    duplicate->_explicitHandling=_explicitHandling;
+    duplicate->_lastJacobian=nullptr;
+    if (_lastJacobian!=nullptr)
+        duplicate->_lastJacobian=new CMatrix(_lastJacobian[0]);
+
+    return(duplicate);
+}
+
 int CikGroup::addIkElement(CikElement* ikElement)
 {
     int retVal=0;

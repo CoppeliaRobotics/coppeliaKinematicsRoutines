@@ -4,6 +4,13 @@ CEnvironment* CEnvironment::currentEnvironment=nullptr;
 int CEnvironment::_nextHandle=0;
 std::vector<CEnvironment*> CEnvironment::_allEnvironments;
 
+CEnvironment::CEnvironment()
+{
+    objectContainer=nullptr;
+    ikGroupContainer=nullptr;
+    _protected=false;
+}
+
 CEnvironment::CEnvironment(bool protectedEnv)
 {
     objectContainer=new CObjectContainer();
@@ -27,6 +34,14 @@ int CEnvironment::getHandle() const
 bool CEnvironment::isProtected() const
 {
     return(_protected);
+}
+
+CEnvironment* CEnvironment::copyYourself() const
+{
+    CEnvironment* duplicate=new CEnvironment();
+    duplicate->ikGroupContainer=ikGroupContainer->copyYourself();
+    duplicate->objectContainer=objectContainer->copyYourself();
+    return(duplicate);
 }
 
 int CEnvironment::addEnvironment(CEnvironment* env)

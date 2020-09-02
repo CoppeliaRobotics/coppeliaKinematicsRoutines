@@ -6,6 +6,7 @@
 class CEnvironment
 {
 public:
+    CEnvironment();
     CEnvironment(bool protectedEnv);
     virtual ~CEnvironment();
 
@@ -15,6 +16,7 @@ public:
 
     int getHandle() const;
     bool isProtected() const;
+    CEnvironment* copyYourself() const;
     CIkGroupContainer* ikGroupContainer;
     CObjectContainer* objectContainer;
 

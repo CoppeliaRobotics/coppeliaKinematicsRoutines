@@ -22,6 +22,7 @@ public:
     virtual void serialize(CSerialization& ar);
     void serializeMain(CSerialization& ar);
 
+    virtual CSceneObject* copyYourself() const;
     C7Vector getParentCumulativeTransformation(bool tempVals=false) const;
     C7Vector getCumulativeTransformation(bool tempVals=false) const;
     C7Vector getLocalTransformation(bool tempVals=false) const;
@@ -38,7 +39,7 @@ public:
     std::string getObjectName() const;
     CSceneObject* getParentObject() const;
     bool isObjectAffiliatedWith(const CSceneObject* theObject) const;
-    void setParentObject(CSceneObject* newParentObject);
+    void setParentObject(CSceneObject* newParentObject,bool updateContainer=true);
     int getObjectType() const;
 
     std::vector<CSceneObject*> childList;

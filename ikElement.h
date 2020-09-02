@@ -9,9 +9,11 @@
 class CikElement
 {
 public:
+    CikElement();
     CikElement(int theTooltip);
     virtual ~CikElement();
 
+    CikElement* copyYourself() const;
     bool announceSceneObjectWillBeErased(int objectHandle);
     void performSceneObjectLoadingMapping(const std::vector<int>* map);
     void serialize(CSerialization& ar);

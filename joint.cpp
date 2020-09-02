@@ -1,6 +1,11 @@
 #include "joint.h"
 #include "environment.h"
 
+CJoint::CJoint()
+{
+    _objectType=ik_objecttype_joint;
+}
+
 CJoint::CJoint(int jointType)
 {
     _objectType=ik_objecttype_joint;
@@ -189,6 +194,35 @@ void CJoint::setMaxStepSize(simReal stepS)
 simReal CJoint::getMaxStepSize() const
 {
     return(_maxStepSize);
+}
+
+CSceneObject* CJoint::copyYourself() const
+{
+    CJoint* duplicate=(CJoint*)CSceneObject::copyYourself();
+
+    duplicate->_jointType=_jointType;
+    duplicate->_sphericalTransformation=_sphericalTransformation;
+    duplicate->_positionIsCyclic=_positionIsCyclic;
+    duplicate->_screwPitch=_screwPitch;
+    duplicate->_jointMinPosition=_jointMinPosition;
+    duplicate->_jointPositionRange=_jointPositionRange;
+    duplicate->_jointPosition=_jointPosition;
+    duplicate->_maxStepSize=_maxStepSize;
+    duplicate->_ikWeight=_ikWeight;
+    duplicate->_jointMode=_jointMode;
+    duplicate->_dependencyJointHandle=_dependencyJointHandle;
+    duplicate->_dependencyJointMult=_dependencyJointMult;
+    duplicate->_dependencyJointAdd=_dependencyJointAdd;
+    duplicate->_jointPosition_tempForIK=_jointPosition_tempForIK;
+    duplicate->_sphericalTransformation_euler1TempForIK=_sphericalTransformation_euler1TempForIK;
+    duplicate->_sphericalTransformation_euler2TempForIK=_sphericalTransformation_euler2TempForIK;
+    duplicate->_sphericalTransformation_euler3TempForIK=_sphericalTransformation_euler3TempForIK;
+    duplicate->_sphericalTransformation_eulerLockTempForIK=_sphericalTransformation_eulerLockTempForIK;
+
+    // Following is taken care of in the copyYourself function of the objectContainer:
+    // std::vector<CJoint*> dependentJoints;
+
+    return(duplicate);
 }
 
 simReal CJoint::getPosition(bool tempVals) const

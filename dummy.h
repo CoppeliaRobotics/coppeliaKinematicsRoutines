@@ -15,6 +15,7 @@ public:
     void performSceneObjectLoadingMapping(const std::vector<int>* map);
     void serialize(CSerialization& ar);
 
+    CSceneObject* copyYourself() const;
     int getLinkedDummyHandle() const;
     void setLinkedDummyHandle(int theHandle,bool setDirectly);
     int getLinkType() const;

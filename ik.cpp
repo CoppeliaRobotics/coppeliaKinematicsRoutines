@@ -216,6 +216,21 @@ bool ikCreateEnvironment(int* environmentHandle/*=nullptr*/,bool protectedEnviro
     return(true);
 }
 
+bool ikDuplicateEnvironment(int* duplicateEnvironmentHandle)
+{
+    debugInfo inf(__FUNCTION__);
+    bool retVal=false;
+    if (hasLaunched())
+    {
+        int currentEnvHandle=CEnvironment::currentEnvironment->getHandle();
+        CEnvironment* duplicate=CEnvironment::currentEnvironment->copyYourself();
+        duplicateEnvironmentHandle[0]=CEnvironment::addEnvironment(duplicate);
+        CEnvironment::switchToEnvironment(currentEnvHandle,true);
+        retVal=true;
+    }
+    return(retVal);
+}
+
 bool ikEraseEnvironment(int* switchedEnvironmentHandle/*=nullptr*/)
 {
     debugInfo inf(__FUNCTION__);

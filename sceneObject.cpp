@@ -55,6 +55,29 @@ void CSceneObject::announceIkGroupWillBeErasedMain(int ikGroupHandle)
 {
 }
 
+CSceneObject* CSceneObject::copyYourself() const
+{
+    CSceneObject* duplicate=nullptr;
+    if (_objectType==ik_objecttype_dummy)
+        duplicate=new CDummy();
+    if (_objectType==ik_objecttype_joint)
+        duplicate=new CJoint();
+
+    duplicate->_objectHandle=_objectHandle;
+    duplicate->_objectName=_objectName;
+    duplicate->_transformation=_transformation;
+    duplicate->_objectType=_objectType;
+    duplicate->_parentObjectHandle=_parentObjectHandle;
+
+    duplicate->_parentObject=nullptr;
+
+    // Following are taken care of in the copyYourself function of the objectContainer:
+    // duplicate->childList=...
+    // duplicate->_parentObject=_parentObject;
+
+    return(duplicate);
+}
+
 C7Vector CSceneObject::getParentCumulativeTransformation(bool tempVals) const
 {
     if (getParentObject()==nullptr)
@@ -191,12 +214,13 @@ bool CSceneObject::isObjectAffiliatedWith(const CSceneObject* theObject) const
     return(retVal);
 }
 
-void CSceneObject::setParentObject(CSceneObject* newParentObject)
-{
+void CSceneObject::setParentObject(CSceneObject* newParentObject,bool updateContainer/*=true*/)
+{ // also used during fast environment duplicate operation
     if (newParentObject!=this)
     {
         _parentObject=newParentObject;
-        CEnvironment::currentEnvironment->objectContainer->actualizeObjectInformation();
+        if (updateContainer)
+            CEnvironment::currentEnvironment->objectContainer->actualizeObjectInformation();
     }
 }
 

@@ -39,6 +39,16 @@ void CDummy::serialize(CSerialization& ar)
     _linkType=ar.readInt();
 }
 
+CSceneObject* CDummy::copyYourself() const
+{
+    CDummy* duplicate=(CDummy*)CSceneObject::copyYourself();
+
+    duplicate->_linkedDummyHandle=_linkedDummyHandle;
+    duplicate->_linkType=_linkType;
+
+    return(duplicate);
+}
+
 int CDummy::getLinkedDummyHandle() const
 {
     return(_linkedDummyHandle);
