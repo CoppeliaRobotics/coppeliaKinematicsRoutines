@@ -48,9 +48,10 @@ const simReal IK_DIVISION_FACTOR=simReal(100.0);
 #define ik_constraint_orientation (8+16)
 #define ik_constraint_pose (1+2+4+8+16)
 
-#define ik_method_pseudo_inverse 0
+#define ik_method_pseudo_inverse 0 /* tiny little bit of hard-coded damping */
 #define ik_method_damped_least_squares 1
 #define ik_method_jacobian_transpose 2
+#define ik_method_undamped_pseudo_inverse 3
 
 #define ik_result_not_performed 0
 #define ik_result_success 1

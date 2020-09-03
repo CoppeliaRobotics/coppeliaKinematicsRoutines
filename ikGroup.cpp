@@ -153,7 +153,7 @@ simReal CikGroup::getDlsFactor() const
 void CikGroup::setCalculationMethod(int theMethod)
 {
     if ( (theMethod==ik_method_pseudo_inverse)||(theMethod==ik_method_damped_least_squares)||
-        (theMethod==ik_method_jacobian_transpose) )
+        (theMethod==ik_method_jacobian_transpose)||(theMethod==ik_method_undamped_pseudo_inverse) )
     {
         calculationMethod=theMethod;
     }
@@ -524,9 +524,7 @@ int CikGroup::computeGroupIk(bool forInternalFunctionality)
     }
     // Now validElements contains all valid elements we have to use in the following computation!
     if (validElements.size()==0)
-    {
         return(ik_result_fail); // Error!
-    }
 
     _resetTemporaryParameters();
 
@@ -916,7 +914,10 @@ int CikGroup::performOnePass(std::vector<CikElement*>* validElements,bool& limit
         _lastJacobian=new CMatrix(mainMatrix_correctJacobian);
     }
 
-    if (calculationMethod==ik_method_pseudo_inverse)
+    int calcMethod=calculationMethod;
+    simReal dampingFact=dlsFactor;
+
+    if (calcMethod==ik_method_undamped_pseudo_inverse)
     {
         CMatrix JT(mainMatrix);
         JT.transpose();
@@ -927,7 +928,12 @@ int CikGroup::performOnePass(std::vector<CikElement*>* validElements,bool& limit
         pseudoJ=JT*JJTInv;
         solution=pseudoJ*mainErrorVector;
     }
-    if (calculationMethod==ik_method_damped_least_squares)
+    if (calcMethod==ik_method_pseudo_inverse)
+    {
+        calcMethod=ik_method_damped_least_squares;
+        dampingFact=0.000001;
+    }
+    if (calcMethod==ik_method_damped_least_squares)
     {
         CMatrix JT(mainMatrix);
         JT.transpose();
@@ -935,14 +941,14 @@ int CikGroup::performOnePass(std::vector<CikElement*>* validElements,bool& limit
         CMatrix JJTInv(mainMatrix*JT);
         CMatrix ID(mainMatrix.rows,mainMatrix.rows);
         ID.setIdentity();
-        ID/=simReal(1.0)/(dlsFactor*dlsFactor);
+        ID/=simReal(1.0)/(dampingFact*dampingFact);
         JJTInv+=ID;
         if (!JJTInv.inverse())
             return(-1);
         DLSJ=JT*JJTInv;
         solution=DLSJ*mainErrorVector;
     }
-    if (calculationMethod==ik_method_jacobian_transpose)
+    if (calcMethod==ik_method_jacobian_transpose)
     {
         CMatrix JT(mainMatrix);
         JT.transpose();

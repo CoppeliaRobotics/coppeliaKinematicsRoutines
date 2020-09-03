@@ -1633,24 +1633,79 @@ int ikGetConfigForTipPose(int ikGroupHandle,size_t jointCnt,const int* jointHand
                 else
                 {
                     joints.push_back(aJoint);
+
+                    simReal l0=aJoint->getPositionIntervalMin();
+                    simReal r0=aJoint->getPositionIntervalRange();
+                    if (aJoint->getPositionIsCyclic())
+                    {
+                        l0=-piValue;
+                        r0=piValTimes2;
+                    }
+                    simReal l=l0;
+                    simReal r=r0;
                     if ( (lowLimits!=nullptr)&&(ranges!=nullptr) )
-                    {
-                        minVals.push_back(lowLimits[i]);
-                        rangeVals.push_back(ranges[i]);
-                    }
-                    else
-                    {
-                        if (aJoint->getPositionIsCyclic())
+                    { // maybe we want different limits than the joint's limits?
+                        simReal ll=lowLimits[i];
+                        simReal rr=ranges[i];
+                        if (rr!=0.0)
                         {
-                            minVals.push_back(-piValue);
-                            rangeVals.push_back(piValTimes2);
-                        }
-                        else
-                        {
-                            minVals.push_back(aJoint->getPositionIntervalMin());
-                            rangeVals.push_back(aJoint->getPositionIntervalRange());
+                            if (rr>0.0)
+                            { // we want custom limits. Make sure they are valid
+                                if (aJoint->getPositionIsCyclic())
+                                {
+                                    r=rr;
+                                    if (r>piValTimes2)
+                                        r=piValTimes2;
+                                    l=ll;
+                                    while (l<-piValue)
+                                        l+=piValTimes2;
+                                    while (l>piValue)
+                                        l-=piValTimes2;
+                                }
+                                else
+                                {
+                                    l=ll;
+                                    if (l<l0)
+                                        l=l0;
+                                    simReal u=ll+rr;
+                                    if (u>l0+r0)
+                                        u=l0+r0;
+                                    r=u-l;
+                                }
+                            }
+                            else
+                            { // we want custom limits centered around current position
+                                rr=-rr;
+                                if (aJoint->getPositionIsCyclic())
+                                {
+                                    if (r>=piValTimes2)
+                                    {
+                                        l=-piValue;
+                                        r=piValTimes2;
+                                    }
+                                    else
+                                    {
+                                        l=aJoint->getPosition()-rr*0.5;
+                                        if (l<-piValue)
+                                            l+=piValTimes2;
+                                        r=rr;
+                                    }
+                                }
+                                else
+                                {
+                                    l=aJoint->getPosition()-rr*0.5;
+                                    if (l<l0)
+                                        l=l0;
+                                    simReal u=aJoint->getPosition()+rr*0.5;
+                                    if (u>l0+r0)
+                                        u=l0+r0;
+                                    r=u-l;
+                                }
+                            }
                         }
                     }
+                    minVals.push_back(l);
+                    rangeVals.push_back(r);
                 }
             }
             std::vector<CDummy*> tips;
@@ -1755,11 +1810,24 @@ int ikGetConfigForTipPose(int ikGroupHandle,size_t jointCnt,const int* jointHand
                         { // 3.1 We found a configuration that works!
                             // 3.2 Check joint limits:
                             bool limitsOk=true;
-                            if ( (lowLimits!=nullptr)&&(ranges!=nullptr) )
+                            for (size_t i=0;i<jointCnt;i++)
                             {
-                                for (size_t i=0;i<jointCnt;i++)
+                                simReal pp=joints[i]->getPosition();
+                                if (joints[i]->getPositionIsCyclic())
                                 {
-                                    if ( (joints[i]->getPosition()<minVals[i])||(joints[i]->getPosition()>minVals[i]+rangeVals[i]) )
+                                    if (rangeVals[i]<piValTimes2)
+                                    {
+                                        while (pp>minVals[i])
+                                            pp-=piValTimes2;
+                                        while (pp<minVals[i])
+                                            pp+=piValTimes2;
+                                        if (pp>minVals[i]+rangeVals[i])
+                                            limitsOk=false;
+                                    }
+                                }
+                                else
+                                {
+                                    if ( (pp<minVals[i])||(pp>minVals[i]+rangeVals[i]) )
                                         limitsOk=false;
                                 }
                             }
