@@ -63,7 +63,7 @@ void _setLastError(const char* errStr,int intVal1,int intVal2=-1);
 int _getLoadingMapping(const std::vector<int>* map,int oldVal);
 
 std::string ikGetLastError();
-void ikSetLogCallback(void(*logCallback)(int,const char*));
+void ikSetLogCallback(bool(*logCallback)(int,const char*,const char*));
 void ikSetVerbosity(int level);
 bool ikCreateEnvironment(int* environmentHandle=nullptr,bool protectedEnvironment=false);
 bool ikDuplicateEnvironment(int* duplicateEnvironmentHandle);

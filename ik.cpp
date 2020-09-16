@@ -12,7 +12,7 @@
 
 static int _verbosityLevel=0;
 static std::string _lastError;
-static void(*_logCallback)(int,const char*)=nullptr;
+static bool(*_logCallback)(int,const char*,const char*)=nullptr;
 
 void _setLastError(const char* errStr,const char* substr1/*=nullptr*/,const char* substr2/*=nullptr*/)
 {
@@ -57,7 +57,7 @@ int getTimeDiffInMs(int lastTime)
     return(retVal);
 }
 
-void ikSetLogCallback(void(*logCallback)(int,const char*))
+void ikSetLogCallback(bool(*logCallback)(int,const char*,const char*))
 {
     _logCallback=logCallback;
 }
@@ -72,98 +72,97 @@ class debugInfo
     public:
     debugInfo(const char* funcName,const char* strArg=nullptr)
     {
-        if (_verbosityLevel>=1)
+        if (_logCallback!=nullptr)
         {
-            _lastErrorSaved=_lastError;
-            _lastError.clear();
-        }
-        if (_verbosityLevel>=5)
-        {
-            _funcName=funcName;
-            std::string msg("--> ");
-            msg+=funcName;
-
-            if (strArg!=nullptr)
+            if (_verbosityLevel>=1)
             {
-                msg+=" (strArg: ";
-                msg+=strArg;
-                msg+=")";
+                _lastErrorSaved=_lastError;
+                _lastError.clear();
             }
-            if (_logCallback==nullptr)
-                printf("CoppeliaKinematicsRoutines: trace: %s\n",msg.c_str());
-            else
-                _logCallback(5,msg.c_str());
+            if (_verbosityLevel>=5)
+            {
+                _funcName=funcName;
+                std::string msg("--> ");
+                msg+=funcName;
+
+                if (strArg!=nullptr)
+                {
+                    msg+=" (strArg: ";
+                    msg+=strArg;
+                    msg+=")";
+                }
+                _logCallback(5,_funcName.c_str(),msg.c_str());
+            }
         }
     }
     debugInfo(const char* funcName,int intArg1,int intArg2=-123456789,int intArg3=-123456789,int intArg4=-123456789)
     {
-        if (_verbosityLevel>=1)
+        if (_logCallback!=nullptr)
         {
-            _lastErrorSaved=_lastError;
-            _lastError.clear();
-        }
-        if (_verbosityLevel>=5)
-        {
-            _funcName=funcName;
-            std::string msg("--> ");
-            msg+=funcName;
-            msg+=" (intArgs: ";
-            msg+=std::to_string(intArg1);
-
-            if (intArg2!=-123456789)
+            if (_verbosityLevel>=1)
             {
-                msg+=", ";
-                msg+=std::to_string(intArg2);
-                if (intArg3!=-123456789)
+                _lastErrorSaved=_lastError;
+                _lastError.clear();
+            }
+            if (_verbosityLevel>=5)
+            {
+                _funcName=funcName;
+                std::string msg("--> ");
+                msg+=funcName;
+                msg+=" (intArgs: ";
+                msg+=std::to_string(intArg1);
+
+                if (intArg2!=-123456789)
                 {
                     msg+=", ";
-                    msg+=std::to_string(intArg3);
-                    if (intArg4!=-123456789)
+                    msg+=std::to_string(intArg2);
+                    if (intArg3!=-123456789)
                     {
                         msg+=", ";
-                        msg+=std::to_string(intArg4);
+                        msg+=std::to_string(intArg3);
+                        if (intArg4!=-123456789)
+                        {
+                            msg+=", ";
+                            msg+=std::to_string(intArg4);
+                        }
                     }
                 }
+                msg+=")";
+                _logCallback(5,_funcName.c_str(),msg.c_str());
             }
-            msg+=")";
-            if (_logCallback==nullptr)
-                printf("CoppeliaKinematicsRoutines: trace: %s\n",msg.c_str());
-            else
-                _logCallback(5,msg.c_str());
         }
     }
     virtual ~debugInfo()
     {
-        if (_verbosityLevel>=1)
+        if (_logCallback!=nullptr)
         {
-            if (_lastError.size()>0)
+            if (_verbosityLevel>=1)
             {
-                if (_logCallback==nullptr)
-                    printf("CoppeliaKinematicsRoutines: error: %s\n",_lastError.c_str());
+                if (_lastError.size()>0)
+                {
+                    if (_logCallback(1,_funcName.c_str(),_lastError.c_str()))
+                        _lastError=_lastErrorSaved;
+                }
                 else
-                    _logCallback(1,_lastError.c_str());
+                    _lastError=_lastErrorSaved;
             }
-            _lastError=_lastErrorSaved;
-        }
-        if (_verbosityLevel>=5)
-        {
-            std::string msg("<-- ");
-            msg+=_funcName;
-            if (_logCallback==nullptr)
-                printf("CoppeliaKinematicsRoutines: trace: %s\n",msg.c_str());
-            else
-                _logCallback(5,msg.c_str());
+            if (_verbosityLevel>=5)
+            {
+                std::string msg("<-- ");
+                msg+=_funcName;
+                _logCallback(5,_funcName.c_str(),msg.c_str());
+            }
         }
     }
     void debugMsg(const char* msg,int intArg1=-123456789)
     {
-        std::string mm(msg);
-        if (intArg1!=-123456789)
-            mm+=std::to_string(intArg1);
-        if (_logCallback==nullptr)
-            printf("CoppeliaKinematicsRoutines: debug: %s\n",mm.c_str());
-        else
-            _logCallback(4,mm.c_str());
+        if (_logCallback!=nullptr)
+        {
+            std::string mm(msg);
+            if (intArg1!=-123456789)
+                mm+=std::to_string(intArg1);
+            _logCallback(4,_funcName.c_str(),mm.c_str());
+        }
     }
 
 
