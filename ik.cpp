@@ -269,6 +269,27 @@ bool ikSwitchEnvironment(int handle,bool allowAlsoProtectedEnvironment/*=false*/
     return(retVal);
 }
 
+unsigned char* ikSave(size_t* dataLength)
+{
+    debugInfo inf(__FUNCTION__);
+    unsigned char* retVal=nullptr;
+    if (hasLaunched())
+    {
+        if (CEnvironment::currentEnvironment->objectContainer->objectList.size()!=0)
+        {
+            CSerialization ar;
+            CEnvironment::currentEnvironment->objectContainer->importExportKinematicsData(ar);
+            unsigned char* data=ar.getWriteBuffer(dataLength[0]);
+            retVal=new unsigned char[dataLength[0]];
+            for (size_t i=0;i<dataLength[0];i++)
+                retVal[i]=data[i];
+        }
+        else
+            _setLastError("Environment is empty");
+    }
+    return(retVal);
+}
+
 bool ikLoad(const unsigned char* data,size_t dataLength)
 {
     debugInfo inf(__FUNCTION__);
@@ -280,8 +301,7 @@ bool ikLoad(const unsigned char* data,size_t dataLength)
             if ((data!=nullptr)&&(dataLength!=0))
             {
                 CSerialization ar(data,dataLength);
-                CEnvironment::currentEnvironment->objectContainer->importKinematicsData(ar);
-                CEnvironment::currentEnvironment->objectContainer->objectList.size();
+                CEnvironment::currentEnvironment->objectContainer->importExportKinematicsData(ar);
                 retVal=true;
             }
             else

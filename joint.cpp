@@ -521,21 +521,48 @@ void CJoint::announceIkGroupWillBeErased(int ikGroupHandle)
 void CJoint::serialize(CSerialization& ar)
 {
     serializeMain(ar);
-    _jointType=ar.readInt();
-    _screwPitch=simReal(ar.readFloat());
-    _sphericalTransformation(0)=simReal(ar.readFloat());
-    _sphericalTransformation(1)=simReal(ar.readFloat());
-    _sphericalTransformation(2)=simReal(ar.readFloat());
-    _sphericalTransformation(3)=simReal(ar.readFloat());
-    unsigned char dummy=ar.readByte();
-    _positionIsCyclic=SIM_IS_BIT_SET(dummy,0);
-    _jointMinPosition=simReal(ar.readFloat());
-    _jointPositionRange=simReal(ar.readFloat());
-    _jointPosition=simReal(ar.readFloat());
-    _maxStepSize=simReal(ar.readFloat());
-    _ikWeight=simReal(ar.readFloat());
-    _jointMode=ar.readInt();
-    _dependencyJointHandle=ar.readInt();
-    _dependencyJointMult=simReal(ar.readFloat());
-    _dependencyJointAdd=simReal(ar.readFloat());
+    if (ar.isWriting())
+    {
+        ar.writeInt(_jointType);
+        ar.writeFloat(float(_screwPitch));
+
+        ar.writeFloat(float(_sphericalTransformation(0)));
+        ar.writeFloat(float(_sphericalTransformation(1)));
+        ar.writeFloat(float(_sphericalTransformation(2)));
+        ar.writeFloat(float(_sphericalTransformation(3)));
+
+        unsigned char dummy=0;
+        SIM_SET_CLEAR_BIT(dummy,0,_positionIsCyclic);
+        ar.writeByte(dummy);
+
+        ar.writeFloat(float(_jointMinPosition));
+        ar.writeFloat(float(_jointPositionRange));
+        ar.writeFloat(float(_jointPosition));
+        ar.writeFloat(float(_maxStepSize));
+        ar.writeFloat(float(_ikWeight));
+        ar.writeInt(_jointMode);
+        ar.writeInt(_dependencyJointHandle);
+        ar.writeFloat(float(_dependencyJointMult));
+        ar.writeFloat(float(_dependencyJointAdd));
+    }
+    else
+    {
+        _jointType=ar.readInt();
+        _screwPitch=simReal(ar.readFloat());
+        _sphericalTransformation(0)=simReal(ar.readFloat());
+        _sphericalTransformation(1)=simReal(ar.readFloat());
+        _sphericalTransformation(2)=simReal(ar.readFloat());
+        _sphericalTransformation(3)=simReal(ar.readFloat());
+        unsigned char dummy=ar.readByte();
+        _positionIsCyclic=SIM_IS_BIT_SET(dummy,0);
+        _jointMinPosition=simReal(ar.readFloat());
+        _jointPositionRange=simReal(ar.readFloat());
+        _jointPosition=simReal(ar.readFloat());
+        _maxStepSize=simReal(ar.readFloat());
+        _ikWeight=simReal(ar.readFloat());
+        _jointMode=ar.readInt();
+        _dependencyJointHandle=ar.readInt();
+        _dependencyJointMult=simReal(ar.readFloat());
+        _dependencyJointAdd=simReal(ar.readFloat());
+    }
 }

@@ -1282,45 +1282,79 @@ simReal CikGroup::getDeterminant(const CMatrix& m,const std::vector<size_t>* act
 
 void CikGroup::serialize(CSerialization &ar)
 {
-    while (_ikElements.size()!=0)
-        removeIkElement(_ikElements[0]->getIkElementHandle());
-
-    objectHandle=ar.readInt();
-
-    objectName=ar.readString();
-
-    maxIterations=ar.readInt();
-
-    constraints=ar.readInt();
-    
-    jointLimitWeight=simReal(ar.readFloat());
-
-    jointTreshholdAngular=simReal(ar.readFloat());
-    jointTreshholdLinear=simReal(ar.readFloat());
-
-    dlsFactor=simReal(ar.readFloat());
-
-    calculationMethod=ar.readInt();
-
-    doOnFailOrSuccessOf=ar.readInt();
-
-    unsigned char nothing=ar.readByte();
-    active=SIM_IS_BIT_SET(nothing,0);
-    restoreIfPositionNotReached=SIM_IS_BIT_SET(nothing,1);
-    restoreIfOrientationNotReached=SIM_IS_BIT_SET(nothing,2);
-    doOnFail=SIM_IS_BIT_SET(nothing,3);
-    doOnPerformed=SIM_IS_BIT_SET(nothing,4);
-    ignoreMaxStepSizes=!SIM_IS_BIT_SET(nothing,5);
-    _explicitHandling=SIM_IS_BIT_SET(nothing,6);
-
-    nothing=ar.readByte();
-    _correctJointLimits=SIM_IS_BIT_SET(nothing,0);
-
-    int el=ar.readInt();
-    for (int i=0;i<el;i++)
+    if (ar.isWriting())
     {
-        CikElement* it=new CikElement(-1);
-        it->serialize(ar);
-        _ikElements.push_back(it);
+        ar.writeInt(objectHandle);
+        ar.writeString(objectName.c_str());
+        ar.writeInt(maxIterations);
+        ar.writeInt(constraints);
+        ar.writeFloat(float(jointLimitWeight));
+        ar.writeFloat(float(jointTreshholdAngular));
+        ar.writeFloat(float(jointTreshholdLinear));
+        ar.writeFloat(float(dlsFactor));
+        ar.writeInt(calculationMethod);
+        ar.writeInt(doOnFailOrSuccessOf);
+
+        unsigned char nothing=0;
+        SIM_SET_CLEAR_BIT(nothing,0,active);
+        SIM_SET_CLEAR_BIT(nothing,1,restoreIfPositionNotReached);
+        SIM_SET_CLEAR_BIT(nothing,2,restoreIfOrientationNotReached);
+        SIM_SET_CLEAR_BIT(nothing,3,doOnFail);
+        SIM_SET_CLEAR_BIT(nothing,4,doOnPerformed);
+        SIM_SET_CLEAR_BIT(nothing,5,!ignoreMaxStepSizes);
+        SIM_SET_CLEAR_BIT(nothing,6,_explicitHandling);
+        ar.writeByte(nothing);
+
+        nothing=0;
+        SIM_SET_CLEAR_BIT(nothing,0,_correctJointLimits);
+        ar.writeByte(nothing);
+
+        ar.writeInt(int(_ikElements.size()));
+        for (size_t i=0;i<_ikElements.size();i++)
+            _ikElements[i]->serialize(ar);
+    }
+    else
+    {
+        while (_ikElements.size()!=0)
+            removeIkElement(_ikElements[0]->getIkElementHandle());
+
+        objectHandle=ar.readInt();
+
+        objectName=ar.readString();
+
+        maxIterations=ar.readInt();
+
+        constraints=ar.readInt();
+
+        jointLimitWeight=simReal(ar.readFloat());
+
+        jointTreshholdAngular=simReal(ar.readFloat());
+        jointTreshholdLinear=simReal(ar.readFloat());
+
+        dlsFactor=simReal(ar.readFloat());
+
+        calculationMethod=ar.readInt();
+
+        doOnFailOrSuccessOf=ar.readInt();
+
+        unsigned char nothing=ar.readByte();
+        active=SIM_IS_BIT_SET(nothing,0);
+        restoreIfPositionNotReached=SIM_IS_BIT_SET(nothing,1);
+        restoreIfOrientationNotReached=SIM_IS_BIT_SET(nothing,2);
+        doOnFail=SIM_IS_BIT_SET(nothing,3);
+        doOnPerformed=SIM_IS_BIT_SET(nothing,4);
+        ignoreMaxStepSizes=!SIM_IS_BIT_SET(nothing,5);
+        _explicitHandling=SIM_IS_BIT_SET(nothing,6);
+
+        nothing=ar.readByte();
+        _correctJointLimits=SIM_IS_BIT_SET(nothing,0);
+
+        int el=ar.readInt();
+        for (int i=0;i<el;i++)
+        {
+            CikElement* it=new CikElement(-1);
+            it->serialize(ar);
+            _ikElements.push_back(it);
+        }
     }
 }

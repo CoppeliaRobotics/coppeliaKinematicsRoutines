@@ -13,6 +13,9 @@
 const simReal IK_DIVISION_FACTOR=simReal(100.0);
 
 #define SIM_IS_BIT_SET(var,bit) (((var) & (1<<(bit)))!=0)
+#define SIM_SET_BIT(var,bit) ((var) |= (1<<(bit)))
+#define SIM_CLEAR_BIT(var,bit) ((var) &= (~(1<<(bit))))
+#define SIM_SET_CLEAR_BIT(var,bit,on) ((on) ? SIM_SET_BIT((var),(bit)) : SIM_CLEAR_BIT((var),(bit)) )
 
 #define ik_handleflag_tipdummy 0x00400000
 
@@ -67,6 +70,7 @@ void ikSetLogCallback(bool(*logCallback)(int,const char*,const char*));
 void ikSetVerbosity(int level);
 bool ikCreateEnvironment(int* environmentHandle=nullptr,bool protectedEnvironment=false);
 bool ikDuplicateEnvironment(int* duplicateEnvironmentHandle);
+unsigned char* ikSave(size_t* dataLength);
 bool ikLoad(const unsigned char* data,size_t dataLength);
 bool ikSwitchEnvironment(int handle,bool allowAlsoProtectedEnvironment=false);
 bool ikEraseEnvironment(int* switchedEnvironmentHandle=nullptr);

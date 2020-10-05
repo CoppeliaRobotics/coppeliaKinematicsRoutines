@@ -35,8 +35,16 @@ void CDummy::performSceneObjectLoadingMapping(const std::vector<int>* map)
 void CDummy::serialize(CSerialization& ar)
 {
     serializeMain(ar);
-    _linkedDummyHandle=ar.readInt();
-    _linkType=ar.readInt();
+    if (ar.isWriting())
+    {
+        ar.writeInt(_linkedDummyHandle);
+        ar.writeInt(_linkType);
+    }
+    else
+    {
+        _linkedDummyHandle=ar.readInt();
+        _linkType=ar.readInt();
+    }
 }
 
 CSceneObject* CDummy::copyYourself() const

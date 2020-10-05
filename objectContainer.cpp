@@ -84,6 +84,27 @@ void CObjectContainer::setAbsoluteConfiguration(int objectHandle,const C7Vector&
     }
 }
 
+void CObjectContainer::_updateJointDependencies()
+{
+    for (size_t i=0;i<jointList.size();i++)
+    {
+        CJoint* it=getJoint(jointList[i]);
+        it->dependentJoints.clear();
+        for (size_t j=0;j<jointList.size();j++)
+        {
+            CJoint* anAct=getJoint(jointList[j]);
+            if (anAct!=it)
+            {
+                if (anAct->getJointMode()==ik_jointmode_dependent)
+                {
+                    if (anAct->getDependencyJointHandle()==it->getObjectHandle())
+                        it->dependentJoints.push_back(anAct);
+                }
+            }
+        }
+    }
+}
+
 void CObjectContainer::actualizeObjectInformation()
 {
     for (size_t i=0;i<objectList.size();i++)
@@ -112,24 +133,7 @@ void CObjectContainer::actualizeObjectInformation()
         if (_objectIndex[size_t(objectList[i])]->getParentObject()==nullptr)
             orphanList.push_back(objectList[i]);
     }
-
-    for (size_t i=0;i<jointList.size();i++)
-    {
-        CJoint* it=getJoint(jointList[i]);
-        it->dependentJoints.clear();
-        for (size_t j=0;j<jointList.size();j++)
-        {
-            CJoint* anAct=getJoint(CEnvironment::currentEnvironment->objectContainer->jointList[j]);
-            if (anAct!=it)
-            {
-                if (anAct->getJointMode()==ik_jointmode_dependent)
-                {
-                    if (anAct->getDependencyJointHandle()==it->getObjectHandle())
-                        it->dependentJoints.push_back(anAct);
-                }
-            }
-        }
-    }
+    _updateJointDependencies();
 }
 
 CObjectContainer* CObjectContainer::copyYourself() const
@@ -242,7 +246,7 @@ int CObjectContainer::createDummy(const char* objectName)
     CDummy* it=new CDummy();
     if (objectName!=nullptr)
         it->setObjectName(objectName);
-    addObjectToScene(it);
+    addObjectToScene(it,false);
     return(it->getObjectHandle());
 }
 
@@ -251,7 +255,7 @@ int CObjectContainer::createJoint(const char* objectName,int jointType)
     CJoint* it=new CJoint(jointType);
     if (objectName!=nullptr)
         it->setObjectName(objectName);
-    addObjectToScene(it);
+    addObjectToScene(it,false);
     return(it->getObjectHandle());
 }
 
@@ -303,112 +307,222 @@ void CObjectContainer::announceIkGroupWillBeErased(int ikGroupHandle)
     CEnvironment::currentEnvironment->ikGroupContainer->announceIkGroupWillBeErased(ikGroupHandle); // This will never trigger an Ik group destruction
 }
 
-void CObjectContainer::importKinematicsData(CSerialization& ar)
+void CObjectContainer::importExportKinematicsData(CSerialization& ar)
 {
-    removeAllObjects();
-    CEnvironment::currentEnvironment->ikGroupContainer->removeAllIkGroups(); // just in case
-
-    int versionNumber=ar.readInt(); // this is the ext IK serialization version. Not forward nor backward compatible!
-
-    int objCnt=ar.readInt();
-
-    std::vector<int> objectMapping;
-    for (int i=0;i<objCnt;i++)
+    if (ar.isWriting())
     {
-        int objType=ar.readInt();
+        ar.writeInt(1); // 0 is/was from CoppeliaSim, 1 is from here!
 
-        CSceneObject* it;
-
-        if (objType==ik_objecttype_joint)
+        ar.writeInt(int(_objectIndex.size()));
+        for (size_t i=0;i<_objectIndex.size();i++)
         {
-            CJoint* joint=new CJoint(ik_jointtype_revolute);
-            joint->serialize(ar);
-            it=joint;
+            CSceneObject* it=getObjectFromIndex(i);
+            if (it!=nullptr)
+            {
+                ar.writeInt(it->getObjectType());
+                it->serialize(ar);
+            }
+            else
+                ar.writeInt(-1);
+        }
+
+        ar.writeInt(_nextObjectHandle);
+
+        ar.writeInt(int(orphanList.size()));
+        for (size_t i=0;i<orphanList.size();i++)
+            ar.writeInt(orphanList[i]);
+        ar.writeInt(int(objectList.size()));
+        for (size_t i=0;i<objectList.size();i++)
+            ar.writeInt(objectList[i]);
+        ar.writeInt(int(jointList.size()));
+        for (size_t i=0;i<jointList.size();i++)
+            ar.writeInt(jointList[i]);
+        ar.writeInt(int(dummyList.size()));
+        for (size_t i=0;i<dummyList.size();i++)
+            ar.writeInt(dummyList[i]);
+
+        ar.writeInt(int(CEnvironment::currentEnvironment->ikGroupContainer->ikGroups.size()));
+        for (size_t i=0;i<CEnvironment::currentEnvironment->ikGroupContainer->ikGroups.size();i++)
+            CEnvironment::currentEnvironment->ikGroupContainer->ikGroups[i]->serialize(ar);
+    }
+    else
+    {
+        removeAllObjects();
+        CEnvironment::currentEnvironment->ikGroupContainer->removeAllIkGroups(); // just in case
+
+        int versionNumber=ar.readInt(); // this is the ext IK serialization version. Not forward nor backward compatible!
+
+        if (versionNumber==1)
+        {
+            int cnt=ar.readInt();
+            for (int i=0;i<cnt;i++)
+            {
+                int objType=ar.readInt();
+                if (objType==-1)
+                    _objectIndex.push_back(nullptr);
+                else if (objType==ik_objecttype_joint)
+                {
+                    CJoint* joint=new CJoint(ik_jointtype_revolute);
+                    joint->serialize(ar);
+                    _objectIndex.push_back(joint);
+                }
+                else
+                {
+                    CDummy* dum=new CDummy();
+                    dum->serialize(ar);
+                    _objectIndex.push_back(dum);
+                }
+            }
+            _nextObjectHandle=ar.readInt();
+            cnt=ar.readInt();
+            for (int i=0;i<cnt;i++)
+            {
+                int v=ar.readInt();
+                orphanList.push_back(v);
+            }
+            cnt=ar.readInt();
+            for (int i=0;i<cnt;i++)
+            {
+                int v=ar.readInt();
+                objectList.push_back(v);
+            }
+            cnt=ar.readInt();
+            for (int i=0;i<cnt;i++)
+            {
+                int v=ar.readInt();
+                jointList.push_back(v);
+            }
+            cnt=ar.readInt();
+            for (int i=0;i<cnt;i++)
+            {
+                int v=ar.readInt();
+                dummyList.push_back(v);
+            }
+
+            for (size_t i=0;i<objectList.size();i++)
+            {
+                CSceneObject* obj=getObject(objectList[i]);
+                int p=obj->getParentObjectHandle();
+                if (p>=0)
+                    obj->setParentObject(getObject(p),false);
+            }
+
+            _updateJointDependencies();
+
+            int ikGroupCnt=ar.readInt();
+
+            for (int i=0;i<ikGroupCnt;i++)
+            {
+                CikGroup* it=new CikGroup();
+                it->serialize(ar);
+                CEnvironment::currentEnvironment->ikGroupContainer->addIkGroup(it,true);
+            }
         }
         else
         {
-            CDummy* dum=new CDummy();
-            dum->serialize(ar);
-            it=dum;
+            int objCnt=ar.readInt();
+
+            std::vector<int> objectMapping;
+            for (int i=0;i<objCnt;i++)
+            {
+                int objType=ar.readInt();
+
+                CSceneObject* it;
+
+                if (objType==ik_objecttype_joint)
+                {
+                    CJoint* joint=new CJoint(ik_jointtype_revolute);
+                    joint->serialize(ar);
+                    it=joint;
+                }
+                else
+                {
+                    CDummy* dum=new CDummy();
+                    dum->serialize(ar);
+                    it=dum;
+                }
+                objectMapping.push_back(it->getObjectHandle());
+                addObjectToScene(it,false);
+                objectMapping.push_back(it->getObjectHandle());
+            }
+
+            for (size_t i=0;i<objectList.size();i++)
+            {
+                CSceneObject* it=getObject(objectList[i]);
+                it->performSceneObjectLoadingMapping(&objectMapping);
+            }
+
+            int ikGroupCnt=ar.readInt();
+
+            for (int i=0;i<ikGroupCnt;i++)
+            {
+                CikGroup* it=new CikGroup();
+                it->serialize(ar);
+                CEnvironment::currentEnvironment->ikGroupContainer->addIkGroup(it,true);
+            }
+
+            for (size_t i=0;i<CEnvironment::currentEnvironment->ikGroupContainer->ikGroups.size();i++)
+            {
+                CikGroup* it=CEnvironment::currentEnvironment->ikGroupContainer->ikGroups[i];
+                it->performObjectLoadingMapping(&objectMapping);
+            }
         }
-        objectMapping.push_back(it->getObjectHandle());
-        addObjectToScene(it);
-        objectMapping.push_back(it->getObjectHandle());
-    }
-
-    // We do it the slow way (in order not to use too much RAM)
-    // prepareFastLoadingMapping(objectMapping);
-
-    for (size_t i=0;i<objectList.size();i++)
-    {
-        CSceneObject* it=getObject(objectList[i]);
-        it->performSceneObjectLoadingMapping(&objectMapping);
-    }
-
-    int ikGroupCnt=ar.readInt();
-
-    for (int i=0;i<ikGroupCnt;i++)
-    {
-        CikGroup* it=new CikGroup();
-        it->serialize(ar);
-        CEnvironment::currentEnvironment->ikGroupContainer->addIkGroup(it,true);
-    }
-
-    for (size_t i=0;i<CEnvironment::currentEnvironment->ikGroupContainer->ikGroups.size();i++)
-    {
-        CikGroup* it=CEnvironment::currentEnvironment->ikGroupContainer->ikGroups[i];
-        it->performObjectLoadingMapping(&objectMapping);
     }
 }
 
-void CObjectContainer::addObjectToScene(CSceneObject* newObject)
+void CObjectContainer::addObjectToScene(CSceneObject* newObject,bool keepAllCurrentSettings)
 {
-    std::string newObjName=newObject->getObjectName();
-    if (newObjName.size()==0)
-    {
-        newObjName="0";
-        newObject->setObjectName(newObjName);
-    }
-    while (getObject(newObjName)!=nullptr)
-    {
-        char aChar=newObjName[newObjName.length()-1];
-        std::string oldNumber("");
-        while ( (aChar>='0')&&(aChar<='9') )
-        {
-            oldNumber.insert(oldNumber.begin(),aChar);
-            newObjName.erase(newObjName.end()-1);
-            if (newObjName.length()!=0)
-                aChar=newObjName[newObjName.length()-1];
-            else
-                aChar='a';
-        }
-        if (oldNumber.length()==0)
-            newObjName=newObjName+"0";
-        else
-            newObjName=newObjName+std::to_string(atoi(oldNumber.c_str())+1);
-    }
-
-    // Give the object a new handle
-    int handle=-1;
-    for (size_t i=0;i<_objectIndex.size();i++)
-    {
-        if (_objectIndex[i]==nullptr)
-        {
-            _objectIndex[i]=newObject;
-            handle=int(i);
-            break;
-        }
-    }
-    if (handle==-1)
-    {
-        handle=int(_objectIndex.size());
+    if (keepAllCurrentSettings)
         _objectIndex.push_back(newObject);
+    else
+    {
+        std::string newObjName=newObject->getObjectName();
+        if (newObjName.size()==0)
+        {
+            newObjName="0";
+            newObject->setObjectName(newObjName);
+        }
+        while (getObject(newObjName)!=nullptr)
+        {
+            char aChar=newObjName[newObjName.length()-1];
+            std::string oldNumber("");
+            while ( (aChar>='0')&&(aChar<='9') )
+            {
+                oldNumber.insert(oldNumber.begin(),aChar);
+                newObjName.erase(newObjName.end()-1);
+                if (newObjName.length()!=0)
+                    aChar=newObjName[newObjName.length()-1];
+                else
+                    aChar='a';
+            }
+            if (oldNumber.length()==0)
+                newObjName=newObjName+"0";
+            else
+                newObjName=newObjName+std::to_string(atoi(oldNumber.c_str())+1);
+        }
+
+        // Give the object a new handle
+        int handle=-1;
+        for (size_t i=0;i<_objectIndex.size();i++)
+        {
+            if (_objectIndex[i]==nullptr)
+            {
+                _objectIndex[i]=newObject;
+                handle=int(i);
+                break;
+            }
+        }
+        if (handle==-1)
+        {
+            handle=int(_objectIndex.size());
+            _objectIndex.push_back(newObject);
+        }
+
+        // set the new handle to the object:
+        newObject->setObjectHandle(handle);
+        objectList.push_back(handle);
+
+        // Actualize the object information
+        actualizeObjectInformation();
     }
-
-    // set the new handle to the object:
-    newObject->setObjectHandle(handle);
-    objectList.push_back(handle);
-
-    // Actualize the object information
-    actualizeObjectInformation();
 }

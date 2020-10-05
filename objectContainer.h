@@ -44,7 +44,11 @@ public:
     std::vector<int> jointList;
     std::vector<int> dummyList;
 
-    void importKinematicsData(CSerialization& ar);
-    void addObjectToScene(CSceneObject* newObject);
+    void importExportKinematicsData(CSerialization& ar);
+    void addObjectToScene(CSceneObject* newObject,bool keepAllCurrentSettings);
+
+private:
+    void _updateJointDependencies();
+
 };
 

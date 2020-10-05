@@ -89,16 +89,34 @@ void CikElement::performSceneObjectLoadingMapping(const std::vector<int>* map)
 
 void CikElement::serialize(CSerialization& ar)
 {
-    _ikElementHandle=ar.readInt();
-    _tipHandle=ar.readInt();
-    _baseHandle=ar.readInt();
-    _altBaseHandleForConstraints=ar.readInt();
-    _minAngularPrecision=simReal(ar.readFloat());
-    _minLinearPrecision=simReal(ar.readFloat());
-    _constraints=ar.readInt();
-    _positionWeight=simReal(ar.readFloat());
-    _orientationWeight=simReal(ar.readFloat());
-    _isActive=(ar.readByte()&1);
+    if (ar.isWriting())
+    {
+        ar.writeInt(_ikElementHandle);
+        ar.writeInt(_tipHandle);
+        ar.writeInt(_baseHandle);
+        ar.writeInt(_altBaseHandleForConstraints);
+        ar.writeFloat(float(_minAngularPrecision));
+        ar.writeFloat(float(_minLinearPrecision));
+        ar.writeInt(_constraints);
+        ar.writeFloat(float(_positionWeight));
+        ar.writeFloat(float(_orientationWeight));
+        unsigned char nothing=0;
+        nothing=nothing+1*_isActive;
+        ar.writeByte(nothing);
+    }
+    else
+    {
+        _ikElementHandle=ar.readInt();
+        _tipHandle=ar.readInt();
+        _baseHandle=ar.readInt();
+        _altBaseHandleForConstraints=ar.readInt();
+        _minAngularPrecision=simReal(ar.readFloat());
+        _minLinearPrecision=simReal(ar.readFloat());
+        _constraints=ar.readInt();
+        _positionWeight=simReal(ar.readFloat());
+        _orientationWeight=simReal(ar.readFloat());
+        _isActive=(ar.readByte()&1);
+    }
 }
 
 int CikElement::getIkElementHandle() const

@@ -38,6 +38,7 @@ public:
     void setObjectName(std::string newName);
     std::string getObjectName() const;
     CSceneObject* getParentObject() const;
+    int getParentObjectHandle() const;
     bool isObjectAffiliatedWith(const CSceneObject* theObject) const;
     void setParentObject(CSceneObject* newParentObject,bool updateContainer=true);
     int getObjectType() const;

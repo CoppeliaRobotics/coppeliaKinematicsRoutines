@@ -229,6 +229,11 @@ CSceneObject* CSceneObject::getParentObject() const
     return(_parentObject);
 }
 
+int CSceneObject::getParentObjectHandle() const
+{
+    return(_parentObjectHandle);
+}
+
 int CSceneObject::getObjectType() const
 {
     return(_objectType);
@@ -240,14 +245,35 @@ void CSceneObject::serialize(CSerialization& ar)
 
 void CSceneObject::serializeMain(CSerialization& ar)
 {
-    _transformation.Q(0)=simReal(ar.readFloat());
-    _transformation.Q(1)=simReal(ar.readFloat());
-    _transformation.Q(2)=simReal(ar.readFloat());
-    _transformation.Q(3)=simReal(ar.readFloat());
-    _transformation.X(0)=simReal(ar.readFloat());
-    _transformation.X(1)=simReal(ar.readFloat());
-    _transformation.X(2)=simReal(ar.readFloat());
-    _objectHandle=ar.readInt();
-    _parentObjectHandle=ar.readInt();
-    _objectName=ar.readString().c_str();
+    if (ar.isWriting())
+    {
+        C7Vector tr=getLocalTransformationPart1();
+        ar.writeFloat(float(tr.Q(0)));
+        ar.writeFloat(float(tr.Q(1)));
+        ar.writeFloat(float(tr.Q(2)));
+        ar.writeFloat(float(tr.Q(3)));
+        ar.writeFloat(float(tr.X(0)));
+        ar.writeFloat(float(tr.X(1)));
+        ar.writeFloat(float(tr.X(2)));
+
+        int parentID=-1;
+        if (getParentObject()!=nullptr)
+            parentID=getParentObject()->getObjectHandle();
+        ar.writeInt(_objectHandle);
+        ar.writeInt(parentID);
+        ar.writeString(_objectName.c_str());
+    }
+    else
+    {
+        _transformation.Q(0)=simReal(ar.readFloat());
+        _transformation.Q(1)=simReal(ar.readFloat());
+        _transformation.Q(2)=simReal(ar.readFloat());
+        _transformation.Q(3)=simReal(ar.readFloat());
+        _transformation.X(0)=simReal(ar.readFloat());
+        _transformation.X(1)=simReal(ar.readFloat());
+        _transformation.X(2)=simReal(ar.readFloat());
+        _objectHandle=ar.readInt();
+        _parentObjectHandle=ar.readInt();
+        _objectName=ar.readString().c_str();
+    }
 }
