@@ -1,4 +1,5 @@
 #include "serialization.h"
+#include <string.h>
 
 CSerialization::CSerialization()
 {
