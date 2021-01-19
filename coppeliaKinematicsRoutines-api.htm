@@ -4,11 +4,197 @@
 <meta http-equiv="Content-Language" content="en-us">
 <title>Coppelia Kinematics Routines, API</title>
 <link rel="stylesheet" type="text/css" href="../../helpFiles/style.css">
-</head>
-<body><div align="center"><table class="allEncompassingTable"><tr><td>
-<h1>Coppelia Kinematics Routines, API</h1>
-<p class="infoBox">All units, unless otherwise indicated, are specified in meters and radians.</p>
+<script type="text/javascript">
+//
+function getParameterByName(name, url = window.location.href)
+{
+    name = name.replace(/[\[\]]/g, '\\$&');
+    var regex = new RegExp('[?&]' + name + '(=([^&#]*)|&|#|$)'),
+        results = regex.exec(url);
+    if(!results) return null;
+    if(!results[2]) return '';
+    return decodeURIComponent(results[2].replace(/\+/g, ' '));
+}
+//
+                </script><style type="text/css">
+td.section { margin: 0; padding: 0; }
+                </style></head>
+<body>
+<div align="center"><table class="allEncompassingTable">
 
+<tr><td id="title" class="section"><h1>Coppelia Kinematics Routines, API reference</h1></td></tr>
+<tr><td id="info" class="section"><p class="infoBox">All units, unless otherwise indicated, are specified in meters and radians.</p></td></tr>
+
+<tr><td id="alphabetical" class="section"><pre class="lightGreyBox">
+<a href="?#ikAddIkElement">ikAddIkElement</a>
+<a href="?#ikComputeJacobian">ikComputeJacobian</a>
+<a href="?#ikCreateEnvironment">ikCreateEnvironment</a>
+<a href="?#ikCreateDummy">ikCreateDummy</a>
+<a href="?#ikCreateIkGroup">ikCreateIkGroup</a>
+<a href="?#ikCreateJoint">ikCreateJoint</a>
+<a href="?#ikDoesObjectExist">ikDoesObjectExist</a>
+<a href="?#ikDoesIkGroupExist">ikDoesIkGroupExist</a>
+<a href="?#ikDuplicateEnvironment">ikDuplicateEnvironment</a>
+<a href="?#ikEraseEnvironment">ikEraseEnvironment</a>
+<a href="?#ikEraseObject">ikEraseObject</a>
+<a href="?#ikGetConfigForTipPose">ikGetConfigForTipPose</a>
+<a href="?#ikGetIkElementBase">ikGetIkElementBase</a>
+<a href="?#ikGetIkElementConstraints">ikGetIkElementConstraints</a>
+<a href="?#ikGetIkElementFlags">ikGetIkElementFlags</a>
+<a href="?#ikGetIkElementPrecision">ikGetIkElementPrecision</a>
+<a href="?#ikGetIkElementWeights">ikGetIkElementWeights</a>
+<a href="?#ikGetIkGroupCalculation">ikGetIkGroupCalculation</a>
+<a href="?#ikGetIkGroupFlags">ikGetIkGroupFlags</a>
+<a href="?#ikGetIkGroupHandle">ikGetIkGroupHandle</a>
+<a href="?#ikGetJacobian">ikGetJacobian</a>
+<a href="?#ikGetJointDependency">ikGetJointDependency</a>
+<a href="?#ikGetJointIkWeight">ikGetJointIkWeight</a>
+<a href="?#ikGetJointInterval">ikGetJointInterval</a>
+<a href="?#ikGetJointMatrix">ikGetJointMatrix</a>
+<a href="?#ikGetJointMaxStepSize">ikGetJointMaxStepSize</a>
+<a href="?#ikGetJointMode">ikGetJointMode</a>
+<a href="?#ikGetJointPosition">ikGetJointPosition</a>
+<a href="?#ikGetJointScrewPitch">ikGetJointScrewPitch</a>
+<a href="?#ikGetJointTransformation">ikGetJointTransformation</a>
+<a href="?#ikGetJointType">ikGetJointType</a>
+<a href="?#ikGetLastError">ikGetLastError</a>
+<a href="?#ikGetLinkedDummy">ikGetLinkedDummy</a>
+<a href="?#ikGetManipulability">ikGetManipulability</a>
+<a href="?#ikGetObjectHandle">ikGetObjectHandle</a>
+<a href="?#ikGetObjectMatrix">ikGetObjectMatrix</a>
+<a href="?#ikGetObjectParent">ikGetObjectParent</a>
+<a href="?#ikGetObjects">ikGetObjects</a>
+<a href="?#ikGetObjectTransformation">ikGetObjectTransformation</a>
+<a href="?#ikHandleIkGroup">ikHandleIkGroup</a>
+<a href="?#ikLoad">ikLoad</a>
+<a href="?#ikReleaseBuffer">ikReleaseBuffer</a>
+<a href="?#ikSave">ikSave</a>
+<a href="?#ikSetIkElementBase">ikSetIkElementBase</a>
+<a href="?#ikSetIkElementConstraints">ikSetIkElementConstraints</a>
+<a href="?#ikSetIkElementFlags">ikSetIkElementFlags</a>
+<a href="?#ikSetIkElementPrecision">ikSetIkElementPrecision</a>
+<a href="?#ikSetIkElementWeights">ikSetIkElementWeights</a>
+<a href="?#ikSetIkGroupCalculation">ikSetIkGroupCalculation</a>
+<a href="?#ikSetIkGroupFlags">ikSetIkGroupFlags</a>
+<a href="?#ikSetJointDependency">ikSetJointDependency</a>
+<a href="?#ikSetJointIkWeight">ikSetJointIkWeight</a>
+<a href="?#ikSetJointInterval">ikSetJointInterval</a>
+<a href="?#ikSetJointMaxStepSize">ikSetJointMaxStepSize</a>
+<a href="?#ikSetJointMode">ikSetJointMode</a>
+<a href="?#ikSetJointPosition">ikSetJointPosition</a>
+<a href="?#ikSetJointScrewPitch">ikSetJointScrewPitch</a>
+<a href="?#ikSetLinkedDummy">ikSetLinkedDummy</a>
+<a href="?#ikSetObjectMatrix">ikSetObjectMatrix</a>
+<a href="?#ikSetObjectParent">ikSetObjectParent</a>
+<a href="?#ikSetObjectTransformation">ikSetObjectTransformation</a>
+<a href="?#ikSetSphericalJointMatrix">ikSetSphericalJointMatrix</a>
+<a href="?#ikSetSphericalJointQuaternion">ikSetSphericalJointQuaternion</a>
+<a href="?#ikSwitchEnvironment">ikSwitchEnvironment</a></pre></td></tr>
+
+<tr><td id="category" class="section">
+
+<h3 class=subsectionBar><a name="environment"></a>Environment functions and helpers</h3>
+<pre class=lightGreyBox>
+<a href="?#ikCreateEnvironment">ikCreateEnvironment</a>
+<a href="?#ikEraseEnvironment">ikEraseEnvironment</a>
+<a href="?#ikDuplicateEnvironment">ikDuplicateEnvironment</a>
+<a href="?#ikSave">ikSave</a>
+<a href="?#ikLoad">ikLoad</a>
+<a href="?#ikSwitchEnvironment">ikSwitchEnvironment</a>
+<a href="?#ikGetLastError">ikGetLastError</a>
+<a href="?#ikReleaseBuffer">ikReleaseBuffer</a>
+</pre>
+
+
+<h3 class=subsectionBar><a name="objects"></a>Objects</h3>
+<pre class=lightGreyBox>
+<a href="?#ikGetObjects">ikGetObjects</a>
+<a href="?#ikGetObjectHandle">ikGetObjectHandle</a>
+<a href="?#ikDoesObjectExist">ikDoesObjectExist</a>
+<a href="?#ikEraseObject">ikEraseObject</a>
+<a href="?#ikGetObjectParent">ikGetObjectParent</a>
+<a href="?#ikSetObjectParent">ikSetObjectParent</a>
+<a href="?#ikGetObjectTransformation">ikGetObjectTransformation</a>
+<a href="?#ikSetObjectTransformation">ikSetObjectTransformation</a>
+<a href="?#ikGetObjectMatrix">ikGetObjectMatrix</a>
+<a href="?#ikSetObjectMatrix">ikSetObjectMatrix</a>
+</pre>
+
+
+<h3 class=subsectionBar><a name="dummies"></a>Dummies</h3>
+<pre class=lightGreyBox>
+<a href="?#ikCreateDummy">ikCreateDummy</a>
+<a href="?#ikEraseObject">ikEraseObject</a>
+<a href="?#ikGetLinkedDummy">ikGetLinkedDummy</a>
+<a href="?#ikSetLinkedDummy">ikSetLinkedDummy</a>
+</pre>
+
+
+<h3 class=subsectionBar><a name="joints"></a>Joints</h3>
+<pre class=lightGreyBox>
+<a href="?#ikCreateJoint">ikCreateJoint</a>
+<a href="?#ikEraseObject">ikEraseObject</a>
+<a href="?#ikGetJointPosition">ikGetJointPosition</a>
+<a href="?#ikSetJointPosition">ikSetJointPosition</a>
+<a href="?#ikGetJointMode">ikGetJointMode</a>
+<a href="?#ikSetJointMode">ikSetJointMode</a>
+<a href="?#ikGetJointInterval">ikGetJointInterval</a>
+<a href="?#ikSetJointInterval">ikSetJointInterval</a>
+<a href="?#ikGetJointDependency">ikGetJointDependency</a>
+<a href="?#ikSetJointDependency">ikSetJointDependency</a>
+<a href="?#ikGetJointIkWeight">ikGetJointIkWeight</a>
+<a href="?#ikSetJointIkWeight">ikSetJointIkWeight</a>
+<a href="?#ikGetJointMaxStepSize">ikGetJointMaxStepSize</a>
+<a href="?#ikSetJointMaxStepSize">ikSetJointMaxStepSize</a>
+<a href="?#ikGetJointScrewPitch">ikGetJointScrewPitch</a>
+<a href="?#ikSetJointScrewPitch">ikSetJointScrewPitch</a>
+<a href="?#ikGetJointTransformation">ikGetJointTransformation</a>
+<a href="?#ikSetSphericalJointQuaternion">ikSetSphericalJointQuaternion</a>
+<a href="?#ikGetJointType">ikGetJointType</a>
+<a href="?#ikGetJointMatrix">ikGetJointMatrix</a>
+<a href="?#ikSetSphericalJointMatrix">ikSetSphericalJointMatrix</a>
+</pre>
+
+
+<h3 class=subsectionBar><a name="ikGroups"></a>IK groups</h3>
+<pre class=lightGreyBox>
+<a href="?#ikCreateIkGroup">ikCreateIkGroup</a>
+<a href="?#ikGetIkGroupHandle">ikGetIkGroupHandle</a>
+<a href="?#ikDoesIkGroupExist">ikDoesIkGroupExist</a>
+<a href="?#ikGetIkGroupFlags">ikGetIkGroupFlags</a>
+<a href="?#ikSetIkGroupFlags">ikSetIkGroupFlags</a>
+<a href="?#ikGetIkGroupCalculation">ikGetIkGroupCalculation</a>
+<a href="?#ikSetIkGroupCalculation">ikSetIkGroupCalculation</a>
+</pre>
+
+
+<h3 class=subsectionBar><a name="ikElements"></a>IK elements</h3>
+<pre class=lightGreyBox>
+<a href="?#ikAddIkElement">ikAddIkElement</a>
+<a href="?#ikGetIkElementFlags">ikGetIkElementFlags</a>
+<a href="?#ikSetIkElementFlags">ikSetIkElementFlags</a>
+<a href="?#ikGetIkElementConstraints">ikGetIkElementConstraints</a>
+<a href="?#ikSetIkElementConstraints">ikSetIkElementConstraints</a>
+<a href="?#ikGetIkElementBase">ikGetIkElementBase</a>
+<a href="?#ikSetIkElementBase">ikSetIkElementBase</a>
+<a href="?#ikGetIkElementPrecision">ikGetIkElementPrecision</a>
+<a href="?#ikSetIkElementPrecision">ikSetIkElementPrecision</a>
+<a href="?#ikGetIkElementWeights">ikGetIkElementWeights</a>
+<a href="?#ikSetIkElementWeights">ikSetIkElementWeights</a>
+</pre>
+
+
+<h3 class=subsectionBar><a name="ikCalculation"></a>IK calculation</h3>
+<pre class=lightGreyBox>
+<a href="?#ikHandleIkGroup">ikHandleIkGroup</a>
+<a href="?#ikGetConfigForTipPose">ikGetConfigForTipPose</a>
+<a href="?#ikComputeJacobian">ikComputeJacobian</a>
+<a href="?#ikGetJacobian">ikGetJacobian</a>
+<a href="?#ikGetManipulability">ikGetManipulability</a>
+</pre>
+</td></tr>
+
+<tr><td id="commands" class="section">
 <h3 class="subsectionBar">
 <a name="ikAddIkElement" id="ikAddIkElement"></a>ikAddIkElement</h3>
 <table class="apiTable">
@@ -1903,11 +2089,19 @@
 </tr>
 </table>
 <br>
-<br>
 
-
-
-
-
-</td></tr></table></div></body>
+</td></tr>
+</table></div>
+<script type="text/javascript">
+//
+view = getParameterByName('view')
+document.getElementById('alphabetical').style.display = view == 'alphabetical' ? 'table-cell' : 'none'
+document.getElementById('category').style.display = view == 'category' ? 'table-cell' : 'none'
+document.getElementById('commands').style.display = view == null ? 'table-cell' : 'none'
+document.getElementById('enums').style.display = view == null ? 'table-cell' : 'none'
+document.getElementById('structs').style.display = view == null ? 'table-cell' : 'none'
+document.getElementById('scriptFunctions').style.display = view == null ? 'table-cell' : 'none'
+//
+                </script>
+</body>
 </html>
