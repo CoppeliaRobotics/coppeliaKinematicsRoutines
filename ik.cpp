@@ -1723,6 +1723,11 @@ int ikGetConfigForTipPose(int ikGroupHandle,size_t jointCnt,const int* jointHand
                             }
                         }
                     }
+                    if (aJoint->getJointMode()==ik_jointmode_passive)
+                    {
+                        l=aJoint->getPosition();
+                        r=simZero;
+                    }
                     minVals.push_back(l);
                     rangeVals.push_back(r);
                 }
@@ -1785,7 +1790,12 @@ int ikGetConfigForTipPose(int ikGroupHandle,size_t jointCnt,const int* jointHand
                 for (size_t i=0;i<jointCnt;i++)
                 {
                     if ( (jointOptions==nullptr)||((jointOptions[i]&1)==0) )
-                        joints[i]->setJointMode(ik_jointmode_ik);
+                    {
+                        if (rangeVals[i]==simZero)
+                            joints[i]->setJointMode(ik_jointmode_passive);
+                        else
+                            joints[i]->setJointMode(ik_jointmode_ik);
+                    }
                     else
                         joints[i]->setJointMode(ik_jointmode_dependent);
                 }
