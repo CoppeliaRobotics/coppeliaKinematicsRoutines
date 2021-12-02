@@ -138,6 +138,7 @@ bool ikComputeJacobian(int ikGroupHandle,int options,bool* success=nullptr);
 simReal* ikGetJacobian(int ikGroupHandle,size_t* matrixSize);
 bool ikGetManipulability(int ikGroupHandle,simReal* manip);
 
+int ikFindConfig(int ikGroupHandle,size_t jointCnt,const int* jointHandles,simReal thresholdDist,int maxTimeInMs,simReal* retConfig,const simReal* metric=nullptr,bool(*validationCallback)(simReal*)=nullptr);
 int ikGetConfigForTipPose(int ikGroupHandle,size_t jointCnt,const int* jointHandles,simReal thresholdDist,int maxIterations,simReal* retConfig,const simReal* metric=nullptr,bool(*validationCallback)(simReal*)=nullptr,const int* jointOptions=nullptr,const simReal* lowLimits=nullptr,const simReal* ranges=nullptr);
 
 bool ikGetObjectTransformation(int objectHandle,int relativeToObjectHandle,C7Vector* transf);

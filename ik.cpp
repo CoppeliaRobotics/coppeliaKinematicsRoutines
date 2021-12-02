@@ -1626,6 +1626,173 @@ bool ikGetIkGroupFlags(int ikGroupHandle,int* flags)
     return(retVal);
 }
 
+int ikFindConfig(int ikGroupHandle,size_t jointCnt,const int* jointHandles,simReal thresholdDist,int maxTimeInMs,simReal* retConfig,const simReal* metric/*=nullptr*/,bool(*validationCallback)(simReal*)/*=nullptr*/)
+{
+    debugInfo inf(__FUNCTION__,ikGroupHandle);
+    std::vector<simReal> retConf(jointCnt);
+    if (!hasLaunched())
+        return(-1);
+    CikGroup* ikGroup=CEnvironment::currentEnvironment->ikGroupContainer->getIkGroup(ikGroupHandle);
+    if (ikGroup==nullptr)
+    {
+        _setLastError("Invalid IK group handle: %i",ikGroupHandle);
+        return(-1);
+    }
+    if ( (!ikGroup->getActive())||(ikGroup->getIkElementCount()==0) )
+    {
+        _setLastError("Invalid IK group");
+        return(-1);
+    }
+    if (jointCnt<=0)
+    {
+        _setLastError("Invalid number of selected joints");
+        return(-1);
+    }
+    std::vector<CJoint*> selectedJoints;
+    for (size_t i=0;i<jointCnt;i++)
+    {
+        CJoint* aJoint=CEnvironment::currentEnvironment->objectContainer->getJoint(jointHandles[i]);
+        if (aJoint==nullptr)
+        {
+            _setLastError("Found invalid joint handle");
+            return(-1);
+        }
+        selectedJoints.push_back(aJoint);
+    }
+
+    const simReal _defaultMetric[4]={simOne,simOne,simOne,simReal(0.1)};
+    const simReal* theMetric=_defaultMetric;
+    if (metric!=nullptr)
+        theMetric=metric;
+
+    std::vector<CDummy*> tips;
+    std::vector<CDummy*> targets;
+    std::vector<CSceneObject*> bases;
+    for (size_t i=0;i<ikGroup->getIkElementCount();i++)
+    {
+        CikElement* ikEl=ikGroup->getIkElementFromIndex(i);
+        CDummy* tip=CEnvironment::currentEnvironment->objectContainer->getDummy(ikEl->getTipHandle());
+        CDummy* target=CEnvironment::currentEnvironment->objectContainer->getDummy(ikEl->getTargetHandle());
+        CSceneObject* base=nullptr;
+        if (ikEl->getAltBaseHandleForConstraints()!=-1)
+            base=CEnvironment::currentEnvironment->objectContainer->getObject(ikEl->getAltBaseHandleForConstraints());
+        else
+            base=CEnvironment::currentEnvironment->objectContainer->getObject(ikEl->getBaseHandle());
+        if ((tip==nullptr)||(target==nullptr))
+        {
+            _setLastError("Found invalid IK element");
+            return(-1);
+        }
+        tips.push_back(tip);
+        targets.push_back(target);
+        bases.push_back(base);
+    }
+
+    std::vector<CJoint*> allJoints;
+    std::vector<simReal> allJointInitValues;
+    std::vector<simReal> allJointMinVals;
+    std::vector<simReal> allJointRangeVals;
+    for (size_t i=0;i<CEnvironment::currentEnvironment->objectContainer->jointList.size();i++)
+    {
+        CJoint* aJoint=CEnvironment::currentEnvironment->objectContainer->getJoint(CEnvironment::currentEnvironment->objectContainer->jointList[i]);
+        allJoints.push_back(aJoint);
+        allJointInitValues.push_back(aJoint->getPosition());
+        simReal l=aJoint->getPositionIntervalMin();
+        simReal r=aJoint->getPositionIntervalRange();
+        if (aJoint->getPositionIsCyclic())
+        {
+            l=-piValue;
+            r=piValTimes2;
+        }
+        if (aJoint->getJointMode()!=ik_jointmode_ik)
+        {
+            l=aJoint->getPosition();
+            r=simZero;
+        }
+        allJointMinVals.push_back(l);
+        allJointRangeVals.push_back(r);
+    }
+
+    int startTime=getTimeDiffInMs(-1);
+    int retVal=0;
+    while (getTimeDiffInMs(startTime)<maxTimeInMs)
+    {
+        // 1. Pick a random state:
+        for (size_t i=0;i<allJoints.size();i++)
+        {
+            if (allJointRangeVals[i]!=simZero)
+                allJoints[i]->setPosition(allJointMinVals[i]+(rand()/simReal(RAND_MAX))*allJointRangeVals[i]);
+        }
+
+        // 2. Check distances between tip and target pairs (there might be several pairs!):
+        simReal cumulatedDist=simZero;
+        for (size_t el=0;el<ikGroup->getIkElementCount();el++)
+        {
+            C7Vector tipTr(tips[el]->getCumulativeTransformation());
+            C7Vector targetTr(targets[el]->getCumulativeTransformation());
+            C7Vector relTrInv(C7Vector::identityTransformation);
+            if (bases[el]!=nullptr)
+                relTrInv=bases[el]->getCumulativeTransformationPart1().getInverse();
+            tipTr=relTrInv*tipTr;
+            targetTr=relTrInv*targetTr;
+            C3Vector dx(tipTr.X-targetTr.X);
+            dx(0)*=theMetric[0];
+            dx(1)*=theMetric[1];
+            dx(2)*=theMetric[2];
+            simReal angle=tipTr.Q.getAngleBetweenQuaternions(targetTr.Q)*theMetric[3];
+            cumulatedDist+=sqrt(dx(0)*dx(0)+dx(1)*dx(1)+dx(2)*dx(2)+angle*angle);
+        }
+
+        // 3. If distance<=threshold, try to perform IK:
+        if (cumulatedDist<=thresholdDist)
+        {
+            if (ik_result_success==ikGroup->computeGroupIk(true))
+            { // 3.1 We found a configuration that works!
+                /*
+                // 3.2 Check joint limits:
+                bool limitsOk=true;
+                for (size_t i=0;i<jointCnt;i++)
+                {
+                    simReal pp=allJoints[i]->getPosition();
+                    if (allJoints[i]->getPositionIsCyclic())
+                    {
+                        if (allJointRangeVals[i]<piValTimes2)
+                        {
+                            while (pp>allJointMinVals[i])
+                                pp-=piValTimes2;
+                            while (pp<allJointMinVals[i])
+                                pp+=piValTimes2;
+                            if (pp>allJointMinVals[i]+allJointRangeVals[i])
+                                limitsOk=false;
+                        }
+                    }
+                    else
+                    {
+                        if ( (pp<allJointMinVals[i])||(pp>allJointMinVals[i]+allJointRangeVals[i]) )
+                            limitsOk=false;
+                    }
+                }
+                */
+                // 3.3 Finally check if the callback accepts that configuration:
+                for (size_t i=0;i<jointCnt;i++)
+                    retConf[i]=selectedJoints[i]->getPosition();
+                if ( (validationCallback==nullptr)||validationCallback(&retConf[0]) )
+                {
+                    for (size_t i=0;i<jointCnt;i++)
+                        retConfig[i]=retConf[i];
+                    retVal=1;
+                    break;
+                }
+            }
+        }
+    }
+
+    // Restore joint positions:
+    for (size_t i=0;i<allJoints.size();i++)
+        allJoints[i]->setPosition(allJointInitValues[i]);
+    return(retVal);
+}
+
 int ikGetConfigForTipPose(int ikGroupHandle,size_t jointCnt,const int* jointHandles,simReal thresholdDist,int maxIterations,simReal* retConfig,const simReal* metric/*=nullptr*/,bool(*validationCallback)(simReal*)/*=nullptr*/,const int* jointOptions/*=nullptr*/,const simReal* lowLimits/*=nullptr*/,const simReal* ranges/*=nullptr*/)
 {
     debugInfo inf(__FUNCTION__,ikGroupHandle);
