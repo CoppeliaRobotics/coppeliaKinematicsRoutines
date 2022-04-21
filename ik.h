@@ -32,6 +32,7 @@ const simReal IK_DIVISION_FACTOR=simReal(100.0);
 #define ik_jointtype_prismatic 11
 #define ik_jointtype_spherical 12
 
+#define ik_handle_world -1
 #define ik_handle_all -2
 #define ik_handle_parent -11
 
