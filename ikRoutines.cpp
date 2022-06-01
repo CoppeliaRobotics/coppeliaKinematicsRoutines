@@ -47,7 +47,6 @@ CMatrix* CIkRoutines::getJacobian(CikElement* ikElement,C4X4Matrix& tooltipTrans
     // Return value nullptr means that is ikElement is either inactive, either invalid
     // tooltipTransf is the cumulative transformation matrix of the tooltip,
     // computed relative to the base!
-    // The temporary joint parameters need to be initialized before calling this function!
     // We check if the ikElement's base is in the chain and that tooltip is valid!
     CDummy* tooltip=CEnvironment::currentEnvironment->objectContainer->getDummy(ikElement->getTipHandle());
     if (tooltip==nullptr)
