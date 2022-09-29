@@ -1610,6 +1610,8 @@ bool ikSetIkGroupFlags(int ikGroupHandle,int flags)
                 it->setRestoreIfOrientationNotReached((flags&8)!=0);
             if (it->getFailOnJointLimits()!=((flags&0x10)!=0))
                 it->setFailOnJointLimits((flags&0x10)!=0);
+            if (it->getForbidOvershoot()!=((flags&0x20)!=0))
+                it->setForbidOvershoot((flags&0x20)!=0);
             retVal=true;
         }
         else
@@ -1641,6 +1643,8 @@ bool ikGetIkGroupFlags(int ikGroupHandle,int* flags)
                 flags[0]=flags[0]|8;
             if (it->getFailOnJointLimits())
                 flags[0]=flags[0]|0x10;
+            if (it->getForbidOvershoot())
+                flags[0]=flags[0]|0x20;
         }
         else
             _setLastError("Invalid IK group handle: %i",ikGroupHandle);

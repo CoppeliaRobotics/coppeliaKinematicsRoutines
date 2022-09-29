@@ -243,10 +243,10 @@ void CikElement::setConstraints(int constraints)
     _constraints=constraints;
 }
 
-void CikElement::isWithinTolerance(bool& position,bool& orientation,bool useTempValues) const
-{
-    position=true;
-    orientation=true;
+void CikElement::getDistances(simReal& linDist,simReal& angDist,bool useTempValues) const
+{ // returns the tip-target lin./ang. distances, taking into account the constraint settings
+    linDist=simZero;
+    angDist=simZero;
     CDummy* targetObject=CEnvironment::currentEnvironment->objectContainer->getDummy(getTargetHandle());
     if (targetObject!=nullptr)
     {
@@ -262,18 +262,25 @@ void CikElement::isWithinTolerance(bool& position,bool& orientation,bool useTemp
             baseTrInv=altBaseObject->getCumulativeTransformationPart1(useTempValues).getInverse();
         tooltipTr=baseTrInv*tooltipTr;
         targetTr=baseTrInv*targetTr;
-        simReal linAndAngErrors[2];
-        _getMatrixError(targetTr.getMatrix(),tooltipTr.getMatrix(),linAndAngErrors);
-        if ( (_constraints&(ik_constraint_x|ik_constraint_y|ik_constraint_z))!=0 )
-        {
-            if (_minLinearPrecision<linAndAngErrors[0])
-                position=false;
-        }
-        if ( (_constraints&(ik_constraint_alpha_beta|ik_constraint_gamma))!=0 )
-        {
-            if (_minAngularPrecision<linAndAngErrors[1])
-                orientation=false;
-        }
+        _getMatrixError(targetTr,tooltipTr,linDist,angDist);
+    }
+}
+
+void CikElement::isWithinTolerance(bool& position,bool& orientation,bool useTempValues) const
+{
+    position=true;
+    orientation=true;
+    simReal linDist,angDist;
+    getDistances(linDist,angDist,useTempValues);
+    if ( (_constraints&(ik_constraint_x|ik_constraint_y|ik_constraint_z))!=0 )
+    {
+        if (_minLinearPrecision<linDist)
+            position=false;
+    }
+    if ( (_constraints&(ik_constraint_alpha_beta|ik_constraint_gamma))!=0 )
+    {
+        if (_minAngularPrecision<angDist)
+            orientation=false;
     }
 }
 
@@ -414,7 +421,7 @@ void CikElement::clearIkEquations()
     rowJointStages=nullptr;
 }
 
-void CikElement::_getMatrixError(const C4X4Matrix& frame1,const C4X4Matrix& frame2,simReal linAndAngErrors[2]) const
+void CikElement::_getMatrixError(const C7Vector& frame1,const C7Vector& frame2,simReal& linError,simReal& angError) const
 {
     // Linear:
     simReal constr[3]={simZero,simZero,simZero};
@@ -425,36 +432,24 @@ void CikElement::_getMatrixError(const C4X4Matrix& frame1,const C4X4Matrix& fram
     if ( (_constraints&ik_constraint_z)!=0 )
         constr[2]=simOne;
     C3Vector displ(frame2.X-frame1.X);
-    linAndAngErrors[0]=sqrt(displ(0)*displ(0)*constr[0]+displ(1)*displ(1)*constr[1]+displ(2)*displ(2)*constr[2]);
+    linError=sqrt(displ(0)*displ(0)*constr[0]+displ(1)*displ(1)*constr[1]+displ(2)*displ(2)*constr[2]);
 
     // Angular:
     if ( (_constraints&ik_constraint_gamma)!=0 )
     { // means implicitely also ik_constraint_alpha_beta constraint
-        simReal x=frame1.M.axis[0]*frame2.M.axis[0];
-        if (x<-simOne)
-            x=-simOne;
-        if (x>simOne)
-            x=simOne;
-        simReal z=frame1.M.axis[2]*frame2.M.axis[2];
-        if (z<-simOne)
-            z=-simOne;
-        if (z>simOne)
-            z=simOne;
-        linAndAngErrors[1]=fabs(CMath::robustAcos(x));
-        simReal v=fabs(CMath::robustAcos(z));
-        if (v>linAndAngErrors[1])
-            linAndAngErrors[1]=v;
+        C4Vector aa((frame1.getInverse()*frame2).Q.getAngleAndAxis());
+        angError=aa(0);
     }
     else if ( (_constraints&ik_constraint_alpha_beta)!=0 )
     { // Free around Z
-        simReal z=frame1.M.axis[2]*frame2.M.axis[2];
+        simReal z=frame1.getMatrix().M.axis[2]*frame2.getMatrix().M.axis[2];
         if (z<-simOne)
             z=-simOne;
         if (z>simOne)
             z=simOne;
-        linAndAngErrors[1]=fabs(CMath::robustAcos(z));
+        angError=fabs(CMath::robustAcos(z));
     }
     else
-        linAndAngErrors[1]=simZero; // No ang. constraints
+        angError=simZero; // No ang. constraints
 }
 

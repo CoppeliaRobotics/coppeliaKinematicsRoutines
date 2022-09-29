@@ -43,6 +43,7 @@ public:
     void setConstraints(int constraints);
 
     void isWithinTolerance(bool& position,bool& orientation,bool useTempValues) const;
+    void getDistances(simReal& linDist,simReal& angDist,bool useTempValues) const;
     void prepareEquations(simReal interpolationFactor);
     void clearIkEquations();
 
@@ -53,7 +54,7 @@ public:
     std::vector<size_t>* rowJointStages;
 
 private:
-    void _getMatrixError(const C4X4Matrix& frame1,const C4X4Matrix& frame2,simReal linAndAngErrors[2]) const;
+    void _getMatrixError(const C7Vector& frame1,const C7Vector& frame2,simReal& linError,simReal& angError) const;
 
     int _ikElementHandle;
     int _tipHandle;

@@ -73,6 +73,8 @@ public:
     bool getFailOnJointLimits() const;
     void setFailOnJointLimits(bool fail);
     bool getJointLimitHits(std::vector<int>* jointHandles,std::vector<simReal>* underOrOvershots) const;
+    bool getForbidOvershoot() const;
+    void setForbidOvershoot(bool forbid);
 
 
     void setActive(bool isActive);
@@ -105,6 +107,7 @@ private:
     bool restoreIfPositionNotReached;
     bool restoreIfOrientationNotReached;
     bool _failOnJointLimits;
+    bool _forbidOvershoot;
     std::map<int,simReal> _jointLimitHits;
     int doOnFailOrSuccessOf; // group identifier which success/fail will be evaluated
     bool doOnFail;

@@ -11,6 +11,7 @@ CikGroup::CikGroup()
     active=true;
     ignoreMaxStepSizes=true;
     _failOnJointLimits=false;
+    _forbidOvershoot=false;
     _lastJacobian=nullptr;
     _explicitHandling=false;
     dlsFactor=simReal(0.1);
@@ -246,6 +247,7 @@ CikGroup* CikGroup::copyYourself() const
     duplicate->jointTreshholdAngular=jointTreshholdAngular;
     duplicate->jointTreshholdLinear=jointTreshholdLinear;
     duplicate->_failOnJointLimits=_failOnJointLimits;
+    duplicate->_forbidOvershoot=_forbidOvershoot;
     duplicate->ignoreMaxStepSizes=ignoreMaxStepSizes;
     duplicate->_calculationResult=_calculationResult;
     duplicate->_explicitHandling=_explicitHandling;
@@ -347,6 +349,16 @@ bool CikGroup::getFailOnJointLimits() const
 void CikGroup::setFailOnJointLimits(bool fail)
 {
     _failOnJointLimits=fail;
+}
+
+bool CikGroup::getForbidOvershoot() const
+{
+    return(_forbidOvershoot);
+}
+
+void CikGroup::setForbidOvershoot(bool forbid)
+{
+    _forbidOvershoot=forbid;
 }
 
 bool CikGroup::getJointLimitHits(std::vector<int>* jointHandles,std::vector<simReal>* underOrOvershots) const
@@ -555,7 +567,6 @@ int CikGroup::computeGroupIk(bool forInternalFunctionality)
 
     // Here we have the main iteration loop:
     simReal interpolFact=1.0; // We first try to solve in one step
-    int successNumber=0;
     bool limitOrAvoidanceNeedMoreCalculation;
     bool leaveNow=false;
     bool errorOccured=false;
@@ -570,14 +581,17 @@ int CikGroup::computeGroupIk(bool forInternalFunctionality)
 
         int res=performOnePass(&validElements,limitOrAvoidanceNeedMoreCalculation,interpolFact,forInternalFunctionality);
         if (res==-1)
-        {
+        { // an error occured during resolution, or a joint limit was hit (and we didn't allow joint limits to be hit)
             errorOccured=true;
-            break;
+            leaveNow=true;
+        }
+        if (res==0)
+        { // Joint variations not within tolerance. Restart from the beginning
+            interpolFact=interpolFact/simReal(2.0);
+            _resetTemporaryParameters();
         }
         if (res==1)
         { // Joint variations within tolerance
-            successNumber++;
-
             // We check if all IK elements are under the required precision and
             // that there are not active joint limitation or avoidance equations
             bool posAndOrAreOk=true;
@@ -595,12 +609,6 @@ int CikGroup::computeGroupIk(bool forInternalFunctionality)
             if (posAndOrAreOk&&(!limitOrAvoidanceNeedMoreCalculation))
                 leaveNow=true; // Everything is fine, we can leave here
         }
-        else
-        { // Joint variations not within tolerance
-            successNumber=0;
-            interpolFact=interpolFact/simReal(2.0);
-            _resetTemporaryParameters();
-        }
 
         // Here we remove all element equations (free memory)
         for (size_t elNb=0;elNb<validElements.size();elNb++)
@@ -611,9 +619,9 @@ int CikGroup::computeGroupIk(bool forInternalFunctionality)
         if (leaveNow)
             break;
     }
-    int returnValue=ik_result_success;
-    if (errorOccured)
-        returnValue=ik_result_fail;
+    int returnValue=ik_result_fail;;
+    if (!errorOccured)
+        returnValue=ik_result_success;
     bool setNewValues=(!errorOccured);
     for (size_t elNb=0;elNb<validElements.size();elNb++)
     {
@@ -1001,6 +1009,50 @@ int CikGroup::performOnePass(std::vector<CikElement*>* validElements,bool& limit
         }
     }
 
+
+    // Measure tip-target distances before applying new values:
+    std::vector<simReal> distBefore;
+    simReal overshootDamp=1.0;
+    if (_forbidOvershoot)
+    {
+        overshootDamp=0.75; // for now hard-coded
+        for (size_t elNb=0;elNb<validElements->size();elNb++)
+        {
+            CikElement* element=validElements->at(elNb);
+            simReal lin,ang;
+            element->getDistances(lin,ang,true);
+            distBefore.push_back(lin);
+            distBefore.push_back(ang);
+        }
+    }
+
+    // Set the computed values
+    for (size_t i=0;i<doF;i++)
+    {
+        CJoint* it=allJoints[i];
+        size_t stage=allJointStages[i];
+        if (it->getJointType()!=ik_jointtype_spherical)
+            it->setPosition(it->getPosition(true)+solution(i,0)*overshootDamp,true);
+        else
+            it->setTempParameterEx(it->getTempParameterEx(stage)+solution(i,0)*overshootDamp,stage);
+    }
+
+    if (_forbidOvershoot)
+    {
+        for (size_t elNb=0;elNb<validElements->size();elNb++)
+        {
+            CikElement* element=validElements->at(elNb);
+            simReal lin,ang;
+            element->getDistances(lin,ang,true);
+            bool linOvershoot=(distBefore[2*elNb+0]<lin)&&(lin>0.01);
+            bool angOvershoot=(distBefore[2*elNb+1]<ang)&&(ang>1.0*piValD2/180.0);
+            if ( linOvershoot&&(angOvershoot||((element->getConstraints()&ik_constraint_orientation)==0)) )
+                return(-1); // we overshot
+            if ( angOvershoot&&(linOvershoot||((element->getConstraints()&ik_constraint_position)==0)) )
+                return(-1); // we overshot
+        }
+    }
+
     // Check which joints hit a joint limit:
     for (size_t i=0;i<doF;i++)
     {
@@ -1018,16 +1070,6 @@ int CikGroup::performOnePass(std::vector<CikElement*>* validElements,bool& limit
     if ( _failOnJointLimits&&(!_jointLimitHits.empty()) )
         return(-1);
 
-    // Now we set the computed values
-    for (size_t i=0;i<doF;i++)
-    {
-        CJoint* it=allJoints[i];
-        size_t stage=allJointStages[i];
-        if (it->getJointType()!=ik_jointtype_spherical)
-            it->setPosition(it->getPosition(true)+solution(i,0),true);
-        else
-            it->setTempParameterEx(it->getTempParameterEx(stage)+solution(i,0),stage);
-    }
     return(1);
 }
 
@@ -1351,6 +1393,7 @@ void CikGroup::serialize(CSerialization &ar)
 
         nothing=0;
         SIM_SET_CLEAR_BIT(nothing,0,_correctJointLimits);
+        SIM_SET_CLEAR_BIT(nothing,1,_forbidOvershoot);
         ar.writeByte(nothing);
 
         ar.writeInt(int(_ikElements.size()));
@@ -1393,6 +1436,7 @@ void CikGroup::serialize(CSerialization &ar)
 
         nothing=ar.readByte();
         _correctJointLimits=SIM_IS_BIT_SET(nothing,0);
+        _forbidOvershoot=SIM_IS_BIT_SET(nothing,1);
 
         int el=ar.readInt();
         for (int i=0;i<el;i++)
