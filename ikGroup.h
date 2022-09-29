@@ -5,6 +5,7 @@
 #include "sceneObject.h"
 #include "joint.h"
 #include "dummy.h"
+#include <map>
 
 class CikGroup  
 {
@@ -69,6 +70,10 @@ public:
     int getCalculationResult() const;
     void setCorrectJointLimits(bool c);
     bool getCorrectJointLimits() const;
+    bool getFailOnJointLimits() const;
+    void setFailOnJointLimits(bool fail);
+    bool getJointLimitHits(std::vector<int>* jointHandles,std::vector<simReal>* underOrOvershots) const;
+
 
     void setActive(bool isActive);
 
@@ -99,6 +104,8 @@ private:
     int calculationMethod;
     bool restoreIfPositionNotReached;
     bool restoreIfOrientationNotReached;
+    bool _failOnJointLimits;
+    std::map<int,simReal> _jointLimitHits;
     int doOnFailOrSuccessOf; // group identifier which success/fail will be evaluated
     bool doOnFail;
     bool doOnPerformed;

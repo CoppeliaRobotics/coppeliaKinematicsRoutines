@@ -46,6 +46,7 @@ td.section { margin: 0; padding: 0; }
 <a href="?#ikGetIkGroupCalculation">ikGetIkGroupCalculation</a>
 <a href="?#ikGetIkGroupFlags">ikGetIkGroupFlags</a>
 <a href="?#ikGetIkGroupHandle">ikGetIkGroupHandle</a>
+<a href="?#ikGetIkGroupJointLimitHits">ikGetIkGroupJointLimitHits</a>
 <a href="?#ikGetJacobian">ikGetJacobian</a>
 <a href="?#ikGetJointDependency">ikGetJointDependency</a>
 <a href="?#ikGetJointIkWeight">ikGetJointIkWeight</a>
@@ -164,6 +165,7 @@ td.section { margin: 0; padding: 0; }
 <a href="?#ikGetIkGroupFlags">ikGetIkGroupFlags</a>
 <a href="?#ikSetIkGroupFlags">ikSetIkGroupFlags</a>
 <a href="?#ikGetIkGroupCalculation">ikGetIkGroupCalculation</a>
+<a href="?#ikGetIkGroupJointLimitHits">ikGetIkGroupJointLimitHits</a>
 <a href="?#ikSetIkGroupCalculation">ikSetIkGroupCalculation</a>
 </pre>
 
@@ -784,7 +786,7 @@ td.section { margin: 0; padding: 0; }
 <td class="apiTableLeftCParam">Arguments</td>
 <td class="apiTableRightCParam">
 <div><strong>ikGroupHandle</strong>: the handle of the IK group.</div>
-<div><strong>flags</strong>: the flags of the IK group, in return. bit0 set (i.e. 1)=group is enabled, bit1 set (i.e. 2)=max. step sizes are ignored, bit2 set (i.e. 4)=restore joints if target position not reached, bit3 set (i.e. 8)=restore joints if target orientation not reached.</div>
+<div><strong>flags</strong>: the flags of the IK group, in return. bit0 set (i.e. 1)=group is enabled, bit1 set (i.e. 2)=max. step sizes are ignored, bit2 set (i.e. 4)=restore joints if target position not reached, bit3 set (i.e. 8)=restore joints if target orientation not reached, bit4 set (i.e. 16)=fail IK computations if a joint limit was hit</div>
 </td>
 </tr>
 <tr class="apiTableTr">
@@ -823,6 +825,36 @@ td.section { margin: 0; padding: 0; }
 <tr class="apiTableTr">
 <td class="apiTableLeftDescr">See also</td>
 <td class="apiTableRightDescr"><a href="#ikDoesIkGroupExist">ikDoesIkGroupExist</a>, <a href="#ikCreateIkGroup">ikCreateIkGroup</a></td>
+</tr>
+</table>
+<br>
+
+<p class="subsectionBar">
+<a name="ikGetIkGroupJointLimitHits" id="ikGetIkGroupJointLimitHits"></a>ikGetIkGroupJointLimitHits</p>
+<table class="apiTable">
+<tr class="apiTableTr">
+<td class="apiTableLeftDescr">Description</td>
+<td class="apiTableRightDescr">Checks which joints of an IK group hit a limit last time that IK group was handled</td>
+</tr>
+<tr class="apiTableTr">
+<td class="apiTableLeftCSyn">Synopsis</td>
+<td class="apiTableRightCSyn">bool ikGetIkGroupJointLimitHits(int ikGroupHandle,std::vector&lt;int&gt;* jointHandles,std::vector&lt;float&gt;* underOrOvershots)</td>
+</tr>
+<tr class="apiTableTr">
+<td class="apiTableLeftCParam">Arguments</td>
+<td class="apiTableRightCParam">
+<div><strong>ikGroupHandle</strong>: the handle of the IK group.</div>
+<div><strong>jointHandles</strong>: the joint handles that that had joint limits under- or overshot. Can be null</div>
+<div><strong>underOrOvershots</strong>: the corresponding under- or overshots, for each of the jointHandles. Can be null</div>
+</td>
+</tr>
+<tr class="apiTableTr">
+<td class="apiTableLeftCRet">Return value</td>
+<td class="apiTableRightCRet">true in case of success.</td>
+</tr>
+<tr class="apiTableTr">
+<td class="apiTableLeftDescr">See also</td>
+<td class="apiTableRightDescr"><a href="#ikSetIkGroupFlags">ikSetIkGroupFlags</a></td>
 </tr>
 </table>
 <br>
@@ -1699,7 +1731,7 @@ td.section { margin: 0; padding: 0; }
 <td class="apiTableLeftCParam">Arguments</td>
 <td class="apiTableRightCParam">
 <div><strong>ikGroupHandle</strong>: the handle of the IK group.</div>
-<div><strong>flags</strong>: the flags of the IK group. bit0 set (i.e. 1)=group is enabled, bit1 set (i.e. 2)=max. step sizes are ignored, bit2 set (i.e. 4)=restore joints if target position not reached, bit3 set (i.e. 8)=restore joints if target orientation not reached.</div>
+<div><strong>flags</strong>: the flags of the IK group. bit0 set (i.e. 1)=group is enabled, bit1 set (i.e. 2)=max. step sizes are ignored, bit2 set (i.e. 4)=restore joints if target position not reached, bit3 set (i.e. 8)=restore joints if target orientation not reached, bit4 set (i.e. 16)=fail IK computations if a joint limit was hit</div>
 </td>
 </tr>
 <tr class="apiTableTr">

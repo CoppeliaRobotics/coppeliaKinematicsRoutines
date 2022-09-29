@@ -118,6 +118,7 @@ bool ikGetIkGroupFlags(int ikGroupHandle,int* flags);
 bool ikSetIkGroupFlags(int ikGroupHandle,int flags);
 bool ikGetIkGroupCalculation(int ikGroupHandle,int* method,simReal* damping,int* maxIterations);
 bool ikSetIkGroupCalculation(int ikGroupHandle,int method,simReal damping,int maxIterations);
+bool ikGetIkGroupJointLimitHits(int ikGroupHandle,std::vector<int>* jointHandles,std::vector<simReal>* underOrOvershots);
 //bool ikGetIkGroupLimitThresholds(int ikGroupHandle,simReal* linearAndAngularThresholds);
 //bool ikSetIkGroupLimitThresholds(int ikGroupHandle,const simReal* linearAndAngularThresholds);
 

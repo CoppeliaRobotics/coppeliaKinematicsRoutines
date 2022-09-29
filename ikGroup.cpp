@@ -10,6 +10,7 @@ CikGroup::CikGroup()
     maxIterations=3;
     active=true;
     ignoreMaxStepSizes=true;
+    _failOnJointLimits=false;
     _lastJacobian=nullptr;
     _explicitHandling=false;
     dlsFactor=simReal(0.1);
@@ -244,6 +245,7 @@ CikGroup* CikGroup::copyYourself() const
     duplicate->jointLimitWeight=jointLimitWeight;
     duplicate->jointTreshholdAngular=jointTreshholdAngular;
     duplicate->jointTreshholdLinear=jointTreshholdLinear;
+    duplicate->_failOnJointLimits=_failOnJointLimits;
     duplicate->ignoreMaxStepSizes=ignoreMaxStepSizes;
     duplicate->_calculationResult=_calculationResult;
     duplicate->_explicitHandling=_explicitHandling;
@@ -335,6 +337,28 @@ bool CikGroup::getIgnoreMaxStepSizes() const
 void CikGroup::setIgnoreMaxStepSizes(bool ignore)
 {
     ignoreMaxStepSizes=ignore;
+}
+
+bool CikGroup::getFailOnJointLimits() const
+{
+    return(_failOnJointLimits);
+}
+
+void CikGroup::setFailOnJointLimits(bool fail)
+{
+    _failOnJointLimits=fail;
+}
+
+bool CikGroup::getJointLimitHits(std::vector<int>* jointHandles,std::vector<simReal>* underOrOvershots) const
+{
+    for (auto it=_jointLimitHits.begin();it!=_jointLimitHits.end();++it)
+    {
+        if (jointHandles!=nullptr)
+            jointHandles->push_back(it->first);
+        if (underOrOvershots!=nullptr)
+            underOrOvershots->push_back(it->second);
+    }
+    return(!_jointLimitHits.empty());
 }
 
 void CikGroup::getAllActiveJoints(std::vector<CJoint*>& jointList) const
@@ -442,6 +466,7 @@ void CikGroup::getTipAndTargetLists(std::vector<CDummy*>& tipList,std::vector<CD
 
 int CikGroup::computeGroupIk(bool forInternalFunctionality)
 { // Return value is one of following: ik_result_not_performed, ik_result_success, ik_result_fail
+    _jointLimitHits.clear();
     if (!active)
         return(ik_result_not_performed); // That group is not active!
     if (!forInternalFunctionality)
@@ -633,8 +658,8 @@ void CikGroup::_applyTemporaryParameters()
 }
 
 int CikGroup::performOnePass(std::vector<CikElement*>* validElements,bool& limitOrAvoidanceNeedMoreCalculation,simReal interpolFact,bool forInternalFunctionality)
-{   // Return value -1 means that an error occured --> keep old configuration
-    // Return value 0 means that the max. angular or linear variation were overpassed.
+{   // Return value -1 means that an error occured or joint limits were hit (with appropriate flag) --> keep old configuration
+    // Return value 0 means that the max. angular or linear variation were overshot
     // Return value 1 means everything went ok
     // In that case the joints temp. values are not actualized. Another pass is needed
     // Here we have the multi-ik solving algorithm:
@@ -975,6 +1000,24 @@ int CikGroup::performOnePass(std::vector<CikElement*>* validElements,bool& limit
                 return(0);
         }
     }
+
+    // Check which joints hit a joint limit:
+    for (size_t i=0;i<doF;i++)
+    {
+        CJoint* it=allJoints[i];
+        if ( (it->getJointType()!=ik_jointtype_spherical)&&(!it->getPositionIsCyclic()) )
+        {
+            simReal nv=it->getPosition(true)+solution(i,0);
+            if ( (solution(i,0)>0.0)&&(nv>it->getPositionIntervalMin()+it->getPositionIntervalRange()) )
+                _jointLimitHits[it->getObjectHandle()]=nv-(it->getPositionIntervalMin()+it->getPositionIntervalRange());
+            if ( (solution(i,0)<0.0)&&(nv<it->getPositionIntervalMin()) )
+                _jointLimitHits[it->getObjectHandle()]=nv-it->getPositionIntervalMin();
+        }
+    }
+
+    if ( _failOnJointLimits&&(!_jointLimitHits.empty()) )
+        return(-1);
+
     // Now we set the computed values
     for (size_t i=0;i<doF;i++)
     {
@@ -1303,6 +1346,7 @@ void CikGroup::serialize(CSerialization &ar)
         SIM_SET_CLEAR_BIT(nothing,4,doOnPerformed);
         SIM_SET_CLEAR_BIT(nothing,5,!ignoreMaxStepSizes);
         SIM_SET_CLEAR_BIT(nothing,6,_explicitHandling);
+        SIM_SET_CLEAR_BIT(nothing,7,_failOnJointLimits);
         ar.writeByte(nothing);
 
         nothing=0;
@@ -1345,6 +1389,7 @@ void CikGroup::serialize(CSerialization &ar)
         doOnPerformed=SIM_IS_BIT_SET(nothing,4);
         ignoreMaxStepSizes=!SIM_IS_BIT_SET(nothing,5);
         _explicitHandling=SIM_IS_BIT_SET(nothing,6);
+        _failOnJointLimits=SIM_IS_BIT_SET(nothing,7);
 
         nothing=ar.readByte();
         _correctJointLimits=SIM_IS_BIT_SET(nothing,0);

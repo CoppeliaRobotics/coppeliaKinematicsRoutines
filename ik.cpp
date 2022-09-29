@@ -1486,6 +1486,24 @@ bool ikGetJointScrewPitch(int jointHandle,simReal* pitch)
     return(retVal);
 }
 
+bool ikGetIkGroupJointLimitHits(int ikGroupHandle,std::vector<int>* jointHandles,std::vector<simReal>* underOrOvershots)
+{
+    debugInfo inf(__FUNCTION__,ikGroupHandle);
+    bool retVal=false;
+    if (hasLaunched())
+    {
+        CikGroup* it=CEnvironment::currentEnvironment->ikGroupContainer->getIkGroup(ikGroupHandle);
+        if (it!=nullptr)
+        {
+            it->getJointLimitHits(jointHandles,underOrOvershots);
+            retVal=true;
+        }
+        else
+            _setLastError("Invalid IK group handle: %i",ikGroupHandle);
+    }
+    return(retVal);
+}
+
 bool ikGetIkGroupCalculation(int ikGroupHandle,int* method,simReal* damping,int* maxIterations)
 {
     debugInfo inf(__FUNCTION__,ikGroupHandle);
@@ -1590,6 +1608,8 @@ bool ikSetIkGroupFlags(int ikGroupHandle,int flags)
                 it->setRestoreIfPositionNotReached((flags&4)!=0);
             if (it->getRestoreIfOrientationNotReached()!=((flags&8)!=0))
                 it->setRestoreIfOrientationNotReached((flags&8)!=0);
+            if (it->getFailOnJointLimits()!=((flags&0x10)!=0))
+                it->setFailOnJointLimits((flags&0x10)!=0);
             retVal=true;
         }
         else
@@ -1619,6 +1639,8 @@ bool ikGetIkGroupFlags(int ikGroupHandle,int* flags)
                 flags[0]=flags[0]|4;
             if (it->getRestoreIfOrientationNotReached())
                 flags[0]=flags[0]|8;
+            if (it->getFailOnJointLimits())
+                flags[0]=flags[0]|0x10;
         }
         else
             _setLastError("Invalid IK group handle: %i",ikGroupHandle);
