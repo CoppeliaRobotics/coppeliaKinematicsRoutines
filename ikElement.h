@@ -47,11 +47,12 @@ public:
     void prepareEquations(simReal interpolationFactor);
     void clearIkEquations();
 
-    CMatrix* matrix;
-    CMatrix* matrix_correctJacobian;
-    CMatrix* errorVector;
-    std::vector<int>* rowJointHandles;
-    std::vector<size_t>* rowJointStages;
+    CMatrix matrix;
+    CMatrix matrix_correctJacobian;
+    CMatrix errorVector;
+
+    std::vector<int> jointHandles_tipToBase;
+    std::vector<size_t> jointStages_tipToBase;
 
 private:
     void _getMatrixError(const C7Vector& frame1,const C7Vector& frame2,simReal& linError,simReal& angError) const;

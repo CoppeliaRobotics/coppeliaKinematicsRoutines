@@ -12,7 +12,6 @@ CikGroup::CikGroup()
     ignoreMaxStepSizes=true;
     _failOnJointLimits=false;
     _forbidOvershoot=false;
-    _lastJacobian=nullptr;
     _explicitHandling=false;
     dlsFactor=simReal(0.1);
     calculationMethod=ik_method_pseudo_inverse;
@@ -33,7 +32,6 @@ CikGroup::~CikGroup()
 {
     while (_ikElements.size()!=0)
         removeIkElement(_ikElements[0]->getIkElementHandle());
-    delete _lastJacobian;
 }
 
 void CikGroup::performObjectLoadingMapping(std::vector<int>* map)
@@ -251,9 +249,7 @@ CikGroup* CikGroup::copyYourself() const
     duplicate->ignoreMaxStepSizes=ignoreMaxStepSizes;
     duplicate->_calculationResult=_calculationResult;
     duplicate->_explicitHandling=_explicitHandling;
-    duplicate->_lastJacobian=nullptr;
-    if (_lastJacobian!=nullptr)
-        duplicate->_lastJacobian=new CMatrix(_lastJacobian[0]);
+    duplicate->_lastJacobian.set(_lastJacobian);
 
     return(duplicate);
 }
@@ -680,11 +676,11 @@ int CikGroup::performOnePass(std::vector<CikElement*>* validElements,bool& limit
     for (size_t elNb=0;elNb<validElements->size();elNb++)
     {
         CikElement* element=validElements->at(elNb);
-        numberOfRows+=element->matrix->rows;
-        for (size_t i=0;i<element->rowJointHandles->size();i++)
+        numberOfRows+=element->matrix.rows;
+        for (size_t i=0;i<element->jointHandles_tipToBase.size();i++)
         {
-            int current=element->rowJointHandles->at(i);
-            size_t currentStage=element->rowJointStages->at(i);
+            int current=element->jointHandles_tipToBase[i];
+            size_t currentStage=element->jointStages_tipToBase[i];
             // We check if that joint is already present:
             bool present=false;
             for (size_t j=0;j<allJoints.size();j++)
@@ -836,21 +832,21 @@ int CikGroup::performOnePass(std::vector<CikElement*>* validElements,bool& limit
     for (size_t elNb=0;elNb<validElements->size();elNb++)
     {
         CikElement* element=validElements->at(elNb);
-        for (size_t i=0;i<element->errorVector->rows;i++)
+        for (size_t i=0;i<element->errorVector.rows;i++)
         { // We go through the rows:
             // We first set the error part:
-            mainErrorVector(currentRow,0)=(*element->errorVector)(i,0);
+            mainErrorVector(currentRow,0)=element->errorVector(i,0);
             // Now we set the delta-parts:
-            for (size_t j=0;j<element->matrix->cols;j++)
+            for (size_t j=0;j<element->matrix.cols;j++)
             { // We go through the columns:
                 // We search for the right entry
-                int jointHandle=element->rowJointHandles->at(j);
-                size_t stage=element->rowJointStages->at(j);
+                int jointHandle=element->jointHandles_tipToBase[j];
+                size_t stage=element->jointStages_tipToBase[j];
                 size_t index=0;
                 while ( (allJoints[index]->getObjectHandle()!=jointHandle)||(allJointStages[index]!=stage) )
                     index++;
-                mainMatrix(currentRow,index)=(*element->matrix)(i,j);
-                mainMatrix_correctJacobian(currentRow,index)=(*element->matrix_correctJacobian)(i,j);
+                mainMatrix(currentRow,index)=element->matrix(i,j);
+                mainMatrix_correctJacobian(currentRow,index)=element->matrix_correctJacobian(i,j);
             }
             currentRow++;
         }
@@ -942,10 +938,7 @@ int CikGroup::performOnePass(std::vector<CikElement*>* validElements,bool& limit
     CMatrix solution(doF,1);
 
     if (!forInternalFunctionality)
-    {
-        delete _lastJacobian;
-        _lastJacobian=new CMatrix(mainMatrix_correctJacobian);
-    }
+        _lastJacobian.set(mainMatrix_correctJacobian);
 
     int calcMethod=calculationMethod;
     simReal dampingFact=dlsFactor;
@@ -1139,11 +1132,11 @@ bool CikGroup::performOnePass_jacobianOnly(std::vector<CikElement*>* validElemen
     for (size_t elNb=0;elNb<validElements->size();elNb++)
     {
         CikElement* element=validElements->at(elNb);
-        numberOfRows+=element->matrix->rows;
-        for (size_t i=0;i<element->rowJointHandles->size();i++)
+        numberOfRows+=element->matrix.rows;
+        for (size_t i=0;i<element->jointHandles_tipToBase.size();i++)
         {
-            int current=element->rowJointHandles->at(i);
-            size_t currentStage=element->rowJointStages->at(i);
+            int current=element->jointHandles_tipToBase[i];
+            size_t currentStage=element->jointStages_tipToBase[i];
             // We check if that joint is already present:
             bool present=false;
             for (size_t j=0;j<allJoints.size();j++)
@@ -1185,21 +1178,21 @@ bool CikGroup::performOnePass_jacobianOnly(std::vector<CikElement*>* validElemen
     for (size_t elNb=0;elNb<validElements->size();elNb++)
     {
         CikElement* element=validElements->at(elNb);
-        for (size_t i=0;i<element->errorVector->rows;i++)
+        for (size_t i=0;i<element->errorVector.rows;i++)
         { // We go through the rows:
             // We first set the error part:
-            mainErrorVector(currentRow,0)=(*element->errorVector)(i,0);
+            mainErrorVector(currentRow,0)=element->errorVector(i,0);
             // Now we set the delta-parts:
-            for (size_t j=0;j<element->matrix->cols;j++)
+            for (size_t j=0;j<element->matrix.cols;j++)
             { // We go through the columns:
                 // We search for the right entry
-                int jointHandle=element->rowJointHandles->at(j);
-                size_t stage=element->rowJointStages->at(j);
+                int jointHandle=element->jointHandles_tipToBase[j];
+                size_t stage=element->jointStages_tipToBase[j];
                 size_t index=0;
                 while ( (allJoints[index]->getObjectHandle()!=jointHandle)||(allJointStages[index]!=stage) )
                     index++;
-                mainMatrix(currentRow,index)=(*element->matrix)(i,j);
-                mainMatrix_correctJacobian(currentRow,index)=(*element->matrix_correctJacobian)(i,j);
+                mainMatrix(currentRow,index)=element->matrix(i,j);
+                mainMatrix_correctJacobian(currentRow,index)=element->matrix_correctJacobian(i,j);
             }
             currentRow++;
         }
@@ -1277,33 +1270,32 @@ bool CikGroup::performOnePass_jacobianOnly(std::vector<CikElement*>* validElemen
         }
     }
 
-    delete _lastJacobian;
-    _lastJacobian=new CMatrix(mainMatrix_correctJacobian);
+    _lastJacobian.set(mainMatrix_correctJacobian);
 
     return(true);
 }
 
-simReal*  CikGroup::getLastJacobianData(size_t matrixSize[2]) const
+const simReal*  CikGroup::getLastJacobianData(size_t matrixSize[2]) const
 {
-    if (_lastJacobian==nullptr)
+    if (_lastJacobian.data.size()==0)
         return(nullptr);
-    matrixSize[0]=_lastJacobian->cols;
-    matrixSize[1]=_lastJacobian->rows;
-    return(_lastJacobian->data);
+    matrixSize[0]=_lastJacobian.cols; // actually inverted, but let's leave it
+    matrixSize[1]=_lastJacobian.rows;
+    return(_lastJacobian.data.data());
 }
 
 
 simReal  CikGroup::getLastManipulabilityValue(bool& ok) const
 {
     simReal retVal=0.0;
-    if (_lastJacobian==nullptr)
+    if (_lastJacobian.data.size()==0)
         ok=false;
     else
     {
         ok=true;
-        CMatrix JT(_lastJacobian[0]);
+        CMatrix JT(_lastJacobian);
         JT.transpose();
-        CMatrix JJT(_lastJacobian[0]*JT);
+        CMatrix JJT(_lastJacobian*JT);
         retVal=sqrt(getDeterminant(JJT,nullptr,nullptr));
     }
     return(retVal);

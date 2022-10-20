@@ -79,7 +79,7 @@ public:
 
     void setActive(bool isActive);
 
-    simReal* getLastJacobianData(size_t matrixSize[2]) const;
+    const simReal* getLastJacobianData(size_t matrixSize[2]) const;
     simReal getLastManipulabilityValue(bool& ok) const;
     simReal getDeterminant(const CMatrix& m,const std::vector<size_t>* activeRows,const std::vector<size_t>* activeColumns) const;
     bool computeOnlyJacobian(int options);
@@ -120,7 +120,7 @@ private:
     bool ignoreMaxStepSizes;
     int _calculationResult;
 
-    CMatrix* _lastJacobian;
+    CMatrix _lastJacobian;
 
     bool _explicitHandling;
 };

@@ -4,11 +4,6 @@
 
 CikElement::CikElement()
 {
-    matrix=nullptr;
-    matrix_correctJacobian=nullptr;
-    errorVector=nullptr;
-    rowJointHandles=nullptr;
-    rowJointStages=nullptr;
 }
 
 CikElement::CikElement(int theTooltip)
@@ -23,11 +18,6 @@ CikElement::CikElement(int theTooltip)
     _positionWeight=1.0;
     _orientationWeight=1.0;
     _ikElementHandle=-1;
-    matrix=nullptr;
-    matrix_correctJacobian=nullptr;
-    errorVector=nullptr;
-    rowJointHandles=nullptr;
-    rowJointStages=nullptr;
 }
 
 CikElement::~CikElement()
@@ -49,27 +39,11 @@ CikElement* CikElement::copyYourself() const
     duplicate->_orientationWeight=_orientationWeight;
     duplicate->_minAngularPrecision=_minAngularPrecision;
     duplicate->_minLinearPrecision=_minLinearPrecision;
-    duplicate->rowJointHandles=nullptr;
-    if (rowJointHandles!=nullptr)
-    {
-        duplicate->rowJointHandles=new std::vector<int>;
-        duplicate->rowJointHandles->assign(rowJointHandles->begin(),rowJointHandles->end());
-    }
-    duplicate->rowJointStages=nullptr;
-    if (rowJointStages!=nullptr)
-    {
-        duplicate->rowJointStages=new std::vector<size_t>;
-        duplicate->rowJointStages->assign(rowJointStages->begin(),rowJointStages->end());
-    }
-    duplicate->matrix=nullptr;
-    if (matrix!=nullptr)
-        duplicate->matrix=new CMatrix(matrix[0]);
-    duplicate->matrix_correctJacobian=nullptr;
-    if (matrix_correctJacobian!=nullptr)
-        duplicate->matrix_correctJacobian=new CMatrix(matrix_correctJacobian[0]);
-    duplicate->errorVector=nullptr;
-    if (errorVector!=nullptr)
-        duplicate->errorVector=new CMatrix(errorVector[0]);
+    duplicate->jointHandles_tipToBase.assign(jointHandles_tipToBase.begin(),jointHandles_tipToBase.end());
+    duplicate->jointStages_tipToBase.assign(jointStages_tipToBase.begin(),jointStages_tipToBase.end());
+    duplicate->matrix.set(matrix);
+    duplicate->matrix_correctJacobian.set(matrix_correctJacobian);
+    duplicate->errorVector.set(errorVector);
 
     return(duplicate);
 }
@@ -287,14 +261,17 @@ void CikElement::isWithinTolerance(bool& position,bool& orientation,bool useTemp
 void CikElement::prepareEquations(simReal interpolationFactor)
 {
     CDummy* targetObject=CEnvironment::currentEnvironment->objectContainer->getDummy(getTargetHandle());
-    rowJointHandles=new std::vector<int>;
-    rowJointStages=new std::vector<size_t>;
+    jointHandles_tipToBase.clear();
+    jointStages_tipToBase.clear();
     C4X4Matrix m;
-    CMatrix* jacobian=CIkRoutines::getJacobian(this,m,rowJointHandles,rowJointStages);
+    CMatrix jacobian=CIkRoutines::getJacobian(this,m,&jointHandles_tipToBase,&jointStages_tipToBase);
+    if (jacobian.data.size()==0)
+        return; // should normally not happen
+
     C7Vector oldFrame(m);
     C7Vector oldFrameInv(oldFrame.getInverse());
     size_t equationNumber=0;
-    size_t doF=jacobian->cols;
+    size_t doF=jacobian.cols;
     C7Vector currentFrame;
     if (targetObject!=nullptr)
     {
@@ -319,9 +296,9 @@ void CikElement::prepareEquations(simReal interpolationFactor)
         if ((_constraints&ik_constraint_gamma)!=0)
             equationNumber++;
     }
-    matrix=new CMatrix(equationNumber,doF);
-    matrix_correctJacobian=new CMatrix(equationNumber,doF);
-    errorVector=new CMatrix(equationNumber,1);
+    matrix.resize(equationNumber,doF);
+    matrix_correctJacobian.resize(equationNumber,doF);
+    errorVector.resize(equationNumber,1);
     if (targetObject!=nullptr)
     {
         size_t pos=0;
@@ -329,48 +306,57 @@ void CikElement::prepareEquations(simReal interpolationFactor)
         {
             for (size_t i=0;i<doF;i++)
             {
-                (*matrix)(pos,i)=(*jacobian)(0,i);
-                (*matrix_correctJacobian)(pos,i)=(*jacobian)(0,i);
+                matrix(pos,i)=jacobian(0,i);
+                matrix_correctJacobian(pos,i)=jacobian(0,i);
             }
-            (*errorVector)(pos,0)=(currentFrame.X(0)-oldFrame.X(0))*_positionWeight;
+            errorVector(pos,0)=(currentFrame.X(0)-oldFrame.X(0))*_positionWeight;
             pos++;
         }
         if ((_constraints&ik_constraint_y)!=0)
         {
             for (size_t i=0;i<doF;i++)
             {
-                (*matrix)(pos,i)=(*jacobian)(1,i);
-                (*matrix_correctJacobian)(pos,i)=(*jacobian)(1,i);
+                matrix(pos,i)=jacobian(1,i);
+                matrix_correctJacobian(pos,i)=jacobian(1,i);
             }
-            (*errorVector)(pos,0)=(currentFrame.X(1)-oldFrame.X(1))*_positionWeight;
+            errorVector(pos,0)=(currentFrame.X(1)-oldFrame.X(1))*_positionWeight;
             pos++;
         }
         if ((_constraints&ik_constraint_z)!=0)
         {
             for (size_t i=0;i<doF;i++)
             {
-                (*matrix)(pos,i)=(*jacobian)(2,i);
-                (*matrix_correctJacobian)(pos,i)=(*jacobian)(2,i);
+                matrix(pos,i)=jacobian(2,i);
+                matrix_correctJacobian(pos,i)=jacobian(2,i);
             }
-            (*errorVector)(pos,0)=(currentFrame.X(2)-oldFrame.X(2))*_positionWeight;
+            errorVector(pos,0)=(currentFrame.X(2)-oldFrame.X(2))*_positionWeight;
             pos++;
         }
         if ( ((_constraints&ik_constraint_alpha_beta)!=0)&&((_constraints&ik_constraint_gamma)!=0) )
         { // full orientation constr.
             for (size_t i=0;i<doF;i++)
             {
-                (*matrix)(pos,i)=(*jacobian)(3,i);
-                (*matrix)(pos+1,i)=(*jacobian)(4,i);
-                (*matrix)(pos+2,i)=(*jacobian)(5,i);
-                (*matrix_correctJacobian)(pos,i)=(*jacobian)(3,i)*IK_DIVISION_FACTOR;
-                (*matrix_correctJacobian)(pos+1,i)=(*jacobian)(4,i)*IK_DIVISION_FACTOR;
-                (*matrix_correctJacobian)(pos+2,i)=(*jacobian)(5,i)*IK_DIVISION_FACTOR;
+                matrix(pos,i)=jacobian(3,i);
+                matrix(pos+1,i)=jacobian(4,i);
+                matrix(pos+2,i)=jacobian(5,i);
+                matrix_correctJacobian(pos,i)=jacobian(3,i)*IK_DIVISION_FACTOR;
+                matrix_correctJacobian(pos+1,i)=jacobian(4,i)*IK_DIVISION_FACTOR;
+                matrix_correctJacobian(pos+2,i)=jacobian(5,i)*IK_DIVISION_FACTOR;
             }
-            C4X4Matrix diff(oldFrameInv*currentFrame);
-            C3Vector euler(diff.M.getEulerAngles());
-            (*errorVector)(pos,0)=euler(0)*_orientationWeight/IK_DIVISION_FACTOR;
-            (*errorVector)(pos+1,0)=euler(1)*_orientationWeight/IK_DIVISION_FACTOR;
-            (*errorVector)(pos+2,0)=euler(2)*_orientationWeight/IK_DIVISION_FACTOR;
+
+            C4Vector q;
+            q.buildInterpolation(oldFrame.Q,currentFrame.Q,1.0/IK_DIVISION_FACTOR);
+            C3X3Matrix diff(oldFrame.Q.getInverse()*q);
+            C3Vector euler(diff.getEulerAngles());
+            euler=euler*1.0;
+            errorVector(pos,0)=euler(0)*_orientationWeight;
+            errorVector(pos+1,0)=euler(1)*_orientationWeight;
+            errorVector(pos+2,0)=euler(2)*_orientationWeight;
+//            C4X4Matrix diff(oldFrameInv*currentFrame);
+//            C3Vector euler(diff.M.getEulerAngles());
+//            errorVector(pos,0)=euler(0)*_orientationWeight/IK_DIVISION_FACTOR;
+//            errorVector(pos+1,0)=euler(1)*_orientationWeight/IK_DIVISION_FACTOR;
+//            errorVector(pos+2,0)=euler(2)*_orientationWeight/IK_DIVISION_FACTOR;
             pos=pos+3;
         }
         else
@@ -379,46 +365,50 @@ void CikElement::prepareEquations(simReal interpolationFactor)
             {
                 for (size_t i=0;i<doF;i++)
                 {
-                    (*matrix)(pos,i)=(*jacobian)(3,i);
-                    (*matrix)(pos+1,i)=(*jacobian)(4,i);
-                    (*matrix_correctJacobian)(pos,i)=(*jacobian)(3,i)*IK_DIVISION_FACTOR;
-                    (*matrix_correctJacobian)(pos+1,i)=(*jacobian)(4,i)*IK_DIVISION_FACTOR;
+                    matrix(pos,i)=jacobian(3,i);
+                    matrix(pos+1,i)=jacobian(4,i);
+                    matrix_correctJacobian(pos,i)=jacobian(3,i)*IK_DIVISION_FACTOR;
+                    matrix_correctJacobian(pos+1,i)=jacobian(4,i)*IK_DIVISION_FACTOR;
                 }
-                C4X4Matrix diff(oldFrameInv*currentFrame);
-                C3Vector euler(diff.M.getEulerAngles());
-                (*errorVector)(pos,0)=euler(0)*_orientationWeight/IK_DIVISION_FACTOR;
-                (*errorVector)(pos+1,0)=euler(1)*_orientationWeight/IK_DIVISION_FACTOR;
+                C4Vector q;
+                q.buildInterpolation(oldFrame.Q,currentFrame.Q,1.0/IK_DIVISION_FACTOR);
+                C3X3Matrix diff(oldFrame.Q.getInverse()*q);
+                C3Vector euler(diff.getEulerAngles());
+                euler=euler*1.0;
+                errorVector(pos,0)=euler(0)*_orientationWeight;
+                errorVector(pos+1,0)=euler(1)*_orientationWeight;
+//                C4X4Matrix diff(oldFrameInv*currentFrame);
+//                C3Vector euler(diff.M.getEulerAngles());
+//                errorVector(pos,0)=euler(0)*_orientationWeight/IK_DIVISION_FACTOR;
+//                errorVector(pos+1,0)=euler(1)*_orientationWeight/IK_DIVISION_FACTOR;
                 pos=pos+2;
             }
             if ((_constraints&ik_constraint_gamma)!=0)
-            { // sim_gamma_constraint can also exist without ik_constraint_alpha_beta
+            { // sim_gamma_constraint can also exist without ik_constraint_alpha_beta, e.g. when working in 2D
                 for (size_t i=0;i<doF;i++)
                 {
-                    (*matrix)(pos,i)=(*jacobian)(5,i);
-                    (*matrix_correctJacobian)(pos,i)=(*jacobian)(5,i)*IK_DIVISION_FACTOR;
+                    matrix(pos,i)=jacobian(5,i);
+                    matrix_correctJacobian(pos,i)=jacobian(5,i)*IK_DIVISION_FACTOR;
                 }
-                C4X4Matrix diff(oldFrameInv*currentFrame);
-                C3Vector euler(diff.M.getEulerAngles());
-                (*errorVector)(pos,0)=euler(2)*_orientationWeight/IK_DIVISION_FACTOR;
+                C4Vector q;
+                q.buildInterpolation(oldFrame.Q,currentFrame.Q,1.0/IK_DIVISION_FACTOR);
+                C3X3Matrix diff(oldFrame.Q.getInverse()*q);
+                C3Vector euler(diff.getEulerAngles());
+                euler=euler*1.0;
+                errorVector(pos,0)=euler(2)*_orientationWeight;
+//                C4X4Matrix diff(oldFrameInv*currentFrame);
+//                C3Vector euler(diff.M.getEulerAngles());
+//                errorVector(pos,0)=euler(2)*_orientationWeight/IK_DIVISION_FACTOR;
                 pos++;
             }
         }
     }
-    delete jacobian;
 }
 
 void CikElement::clearIkEquations()
 {
-    delete matrix;
-    matrix=nullptr;
-    delete matrix_correctJacobian;
-    matrix_correctJacobian=nullptr;
-    delete errorVector;
-    errorVector=nullptr;
-    delete rowJointHandles;
-    rowJointHandles=nullptr;
-    delete rowJointStages;
-    rowJointStages=nullptr;
+    jointHandles_tipToBase.clear();
+    jointStages_tipToBase.clear();
 }
 
 void CikElement::_getMatrixError(const C7Vector& frame1,const C7Vector& frame2,simReal& linError,simReal& angError) const
@@ -435,8 +425,8 @@ void CikElement::_getMatrixError(const C7Vector& frame1,const C7Vector& frame2,s
     linError=sqrt(displ(0)*displ(0)*constr[0]+displ(1)*displ(1)*constr[1]+displ(2)*displ(2)*constr[2]);
 
     // Angular:
-    if ( (_constraints&ik_constraint_gamma)!=0 )
-    { // means implicitely also ik_constraint_alpha_beta constraint
+    if ( ((_constraints&ik_constraint_alpha_beta)!=0)&&((_constraints&ik_constraint_gamma)!=0) )
+    {
         C4Vector aa((frame1.getInverse()*frame2).Q.getAngleAndAxis());
         angError=aa(0);
     }
@@ -448,6 +438,11 @@ void CikElement::_getMatrixError(const C7Vector& frame1,const C7Vector& frame2,s
         if (z>simOne)
             z=simOne;
         angError=fabs(CMath::robustAcos(z));
+    }
+    else if ( (_constraints&ik_constraint_gamma)!=0 )
+    { // gamma constraint can exist also without alpha/beta constraint, e.g. in 2D
+        C3Vector e((frame1.getInverse()*frame2).Q.getEulerAngles());
+        angError=fabs(e(2));
     }
     else
         angError=simZero; // No ang. constraints

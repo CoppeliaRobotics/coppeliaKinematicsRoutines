@@ -41,10 +41,10 @@ void CIkRoutines::buildDeltaZTranslation(C4X4FullMatrix& d0,C4X4FullMatrix& dp)
     dp(2,3)=simOne;
 }
 
-CMatrix* CIkRoutines::getJacobian(CikElement* ikElement,C4X4Matrix& tooltipTransf,std::vector<int>* rowJointHandles,std::vector<size_t>* rowJointStages)
-{   // rowJointHandles is nullptr by default. If not nullptr, it will contain the handles of the joints
+CMatrix CIkRoutines::getJacobian(CikElement* ikElement,C4X4Matrix& tooltipTransf,std::vector<int>* jointHandles_tipToBase,std::vector<size_t>* jointStages_tipToBase)
+{   // jointHandles_tipToBase is nullptr by default. If not nullptr, it will contain the handles of the joints
     // corresponding to the rows of the jacobian.
-    // Return value nullptr means that is ikElement is either inactive, either invalid
+    // A zero return matrix means that is ikElement is either inactive, either invalid
     // tooltipTransf is the cumulative transformation matrix of the tooltip,
     // computed relative to the base!
     // We check if the ikElement's base is in the chain and that tooltip is valid!
@@ -52,17 +52,17 @@ CMatrix* CIkRoutines::getJacobian(CikElement* ikElement,C4X4Matrix& tooltipTrans
     if (tooltip==nullptr)
     { // Should normally never happen!
         ikElement->setIsActive(false);
-        return(nullptr);
+        return(CMatrix());
     }
     CSceneObject* base=CEnvironment::currentEnvironment->objectContainer->getObject(ikElement->getBaseHandle());
     if ( (base!=nullptr)&&(!tooltip->isObjectAffiliatedWith(base)) )
     { // This case can happen (when the base's parenting was changed for instance)
         ikElement->setBaseHandle(-1);
         ikElement->setIsActive(false);
-        return(nullptr);
+        return(CMatrix());
     }
 
-    // We check the number of degrees of freedom and prepare the rowJointHandles vector:
+    // We check the number of degrees of freedom and prepare the jointHandles_tipToBase vector:
     CSceneObject* iterat=tooltip;
     size_t doF=0;
     while (iterat!=base)
@@ -77,10 +77,10 @@ CMatrix* CIkRoutines::getJacobian(CikElement* ikElement,C4X4Matrix& tooltipTrans
                     size_t d=(static_cast<CJoint*>(iterat))->getDoFs();
                     for (int i=int(d-1);i>=0;i--)
                     {
-                        if (rowJointHandles!=nullptr)
+                        if (jointHandles_tipToBase!=nullptr)
                         {
-                            rowJointHandles->push_back(iterat->getObjectHandle());
-                            rowJointStages->push_back(size_t(i));
+                            jointHandles_tipToBase->push_back(iterat->getObjectHandle());
+                            jointStages_tipToBase->push_back(size_t(i));
                         }
                     }
                     doF+=d;
@@ -88,7 +88,6 @@ CMatrix* CIkRoutines::getJacobian(CikElement* ikElement,C4X4Matrix& tooltipTrans
             }
         }
     }
-    CMatrix* J=new CMatrix(6,doF);
     std::vector<C4X4FullMatrix*> jMatrices;
     for (size_t i=0;i<doF+1;i++)
     {
@@ -140,7 +139,7 @@ CMatrix* CIkRoutines::getJacobian(CikElement* ikElement,C4X4Matrix& tooltipTrans
         buff=C4X4FullMatrix(local.getMatrix())*buff;
         iterat=nextIterat;
         bool activeJoint=false;
-        if (iterat!=nullptr) // Following lines recently changed!
+        if (iterat!=nullptr)
         {
             if (iterat->getObjectType()==ik_objecttype_joint)
                 activeJoint=( ((static_cast<CJoint*>(iterat))->getJointMode()==ik_jointmode_ik)||((static_cast<CJoint*>(iterat))->getJointMode()==ik_jointmode_reserved_previously_ikdependent)||((static_cast<CJoint*>(iterat))->getJointMode()==ik_jointmode_dependent) );
@@ -158,23 +157,21 @@ CMatrix* CIkRoutines::getJacobian(CikElement* ikElement,C4X4Matrix& tooltipTrans
                 if (lastJoint->getJointType()==ik_jointtype_revolute)
                 {
                     buildDeltaZRotation(d0,dp,lastJoint->getScrewPitch());
-                    multiply(d0,dp,positionCounter,jMatrices);
                     paramPart.buildZRotation(lastJoint->getPosition(true));
                 }
                 else if (lastJoint->getJointType()==ik_jointtype_prismatic)
                 {
                     buildDeltaZTranslation(d0,dp);
-                    multiply(d0,dp,positionCounter,jMatrices);
                     paramPart.buildTranslation(0.0,0.0,lastJoint->getPosition(true));
                 }
                 else 
                 { // Spherical joint part!
                     buildDeltaZRotation(d0,dp,0.0);
-                    multiply(d0,dp,positionCounter,jMatrices);
                     if (indexCntLast==-1)
                         indexCntLast=int(lastJoint->getDoFs())-1;
                     paramPart.buildZRotation(lastJoint->getTempParameterEx(size_t(indexCntLast--)));
                 }
+                multiply(d0,dp,positionCounter,jMatrices);
                 d0=buff*paramPart;
                 dp.clear();
                 multiply(d0,dp,0,jMatrices);
@@ -185,6 +182,7 @@ CMatrix* CIkRoutines::getJacobian(CikElement* ikElement,C4X4Matrix& tooltipTrans
         }
     }
 
+//    printf("jMatrices0: %f\n",(*jMatrices[1])(0,0));
     int alternativeBaseForConstraints=ikElement->getAltBaseHandleForConstraints();
     if (alternativeBaseForConstraints!=-1)
     {
@@ -202,34 +200,42 @@ CMatrix* CIkRoutines::getJacobian(CikElement* ikElement,C4X4Matrix& tooltipTrans
         }
     }
 
+    CMatrix J(6,doF);
     // The x-, y- and z-component:
     for (size_t i=0;i<doF;i++)
     {
-        (*J)(0,i)=(*jMatrices[1+i])(0,3);
-        (*J)(1,i)=(*jMatrices[1+i])(1,3);
-        (*J)(2,i)=(*jMatrices[1+i])(2,3);
+        J(0,i)=(*jMatrices[1+i])(0,3);
+        J(1,i)=(*jMatrices[1+i])(1,3);
+        J(2,i)=(*jMatrices[1+i])(2,3);
     }
+//    printf("jMatrices1: %f\n",(*jMatrices[1])(0,0));
     // We divide all delta components (to avoid distorsions)...
     for (size_t i=0;i<doF;i++)
         (*jMatrices[1+i])/=IK_DIVISION_FACTOR;
     // ...and add the cumulative transform to the delta-components:
+//    printf("jMatrices2: %f\n",(*jMatrices[1])(0,0));
     for (size_t i=0;i<doF;i++)
         (*jMatrices[1+i])+=(*jMatrices[0]);
+//    printf("jMatrices3: %f\n",(*jMatrices[1])(0,0));
     // We also copy the cumulative transform to 'tooltipTransf':
     tooltipTransf=(*jMatrices[0]);
     // Now we extract the delta Euler components:
-    C4X4FullMatrix mainInverse(*jMatrices[0]);
-    mainInverse.invert();
-    C4X4FullMatrix tmp;
+    C4Vector q((*jMatrices[0]).getMatrix().M.getQuaternion());
+    C4Vector qInv(q.getInverse());
     // Alpha-, Beta- and Gamma-components:
     for (size_t i=0;i<doF;i++)
     {
-        tmp=mainInverse*(*jMatrices[1+i]);
-        C3Vector euler(tmp.getEulerAngles());
-        (*J)(3,i)=euler(0); // here we would have to multiply the euler angle with IK_DIVISION_FACTOR to get the "correct" Jacobian
-        (*J)(4,i)=euler(1); // here we would have to multiply the euler angle with IK_DIVISION_FACTOR to get the "correct" Jacobian
-        (*J)(5,i)=euler(2); // here we would have to multiply the euler angle with IK_DIVISION_FACTOR to get the "correct" Jacobian
+        C4Vector qq;
+        qq.buildInterpolation(q,(*jMatrices[1+i]).getMatrix().M.getQuaternion(),1.0);///IK_DIVISION_FACTOR);
+        C3X3Matrix diff(qInv*qq);
+        C3Vector euler(diff.getEulerAngles());
+        euler=euler*1.0;
+        J(3,i)=euler(0); // here we would have to multiply the euler angle with IK_DIVISION_FACTOR to get the "correct" Jacobian
+        J(4,i)=euler(1); // here we would have to multiply the euler angle with IK_DIVISION_FACTOR to get the "correct" Jacobian
+        J(5,i)=euler(2); // here we would have to multiply the euler angle with IK_DIVISION_FACTOR to get the "correct" Jacobian
     }
+
+//    printf("J(5,0): %f\n",J(5,0));
 
     // We free the memory allocated for each joint variable:
     for (size_t i=0;i<jMatrices.size();i++)

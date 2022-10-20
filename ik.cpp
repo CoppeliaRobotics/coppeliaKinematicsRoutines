@@ -918,7 +918,7 @@ simReal* ikGetJacobian(int ikGroupHandle,size_t* matrixSize)
         CikGroup* it=CEnvironment::currentEnvironment->ikGroupContainer->getIkGroup(ikGroupHandle);
         if (it!=nullptr)
         {
-            simReal* b=it->getLastJacobianData(matrixSize);
+            const simReal* b=it->getLastJacobianData(matrixSize);
             if (b!=nullptr)
             {
                 retVal=new simReal[size_t(matrixSize[0]*matrixSize[1])];
