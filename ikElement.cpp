@@ -41,6 +41,7 @@ CikElement* CikElement::copyYourself() const
     duplicate->_minLinearPrecision=_minLinearPrecision;
     duplicate->jointHandles_tipToBase.assign(jointHandles_tipToBase.begin(),jointHandles_tipToBase.end());
     duplicate->jointStages_tipToBase.assign(jointStages_tipToBase.begin(),jointStages_tipToBase.end());
+    duplicate->rowConstraints.assign(rowConstraints.begin(),rowConstraints.end());
     duplicate->matrix.set(matrix);
     duplicate->matrix_correctJacobian.set(matrix_correctJacobian);
     duplicate->errorVector.set(errorVector);
@@ -296,9 +297,10 @@ void CikElement::prepareEquations(simReal interpolationFactor)
         if ((_constraints&ik_constraint_gamma)!=0)
             equationNumber++;
     }
-    matrix.resize(equationNumber,doF);
-    matrix_correctJacobian.resize(equationNumber,doF);
-    errorVector.resize(equationNumber,1);
+    matrix.resize(equationNumber,doF,0.0);
+    matrix_correctJacobian.resize(equationNumber,doF,0.0);
+    errorVector.resize(equationNumber,1,0.0);
+    rowConstraints.clear();
     if (targetObject!=nullptr)
     {
         size_t pos=0;
@@ -310,6 +312,7 @@ void CikElement::prepareEquations(simReal interpolationFactor)
                 matrix_correctJacobian(pos,i)=jacobian(0,i);
             }
             errorVector(pos,0)=(currentFrame.X(0)-oldFrame.X(0))*_positionWeight;
+            rowConstraints.push_back(0);
             pos++;
         }
         if ((_constraints&ik_constraint_y)!=0)
@@ -320,6 +323,7 @@ void CikElement::prepareEquations(simReal interpolationFactor)
                 matrix_correctJacobian(pos,i)=jacobian(1,i);
             }
             errorVector(pos,0)=(currentFrame.X(1)-oldFrame.X(1))*_positionWeight;
+            rowConstraints.push_back(1);
             pos++;
         }
         if ((_constraints&ik_constraint_z)!=0)
@@ -330,6 +334,7 @@ void CikElement::prepareEquations(simReal interpolationFactor)
                 matrix_correctJacobian(pos,i)=jacobian(2,i);
             }
             errorVector(pos,0)=(currentFrame.X(2)-oldFrame.X(2))*_positionWeight;
+            rowConstraints.push_back(2);
             pos++;
         }
         if ( ((_constraints&ik_constraint_alpha_beta)!=0)&&((_constraints&ik_constraint_gamma)!=0) )
@@ -352,6 +357,9 @@ void CikElement::prepareEquations(simReal interpolationFactor)
             errorVector(pos,0)=euler(0)*_orientationWeight;
             errorVector(pos+1,0)=euler(1)*_orientationWeight;
             errorVector(pos+2,0)=euler(2)*_orientationWeight;
+            rowConstraints.push_back(3);
+            rowConstraints.push_back(4);
+            rowConstraints.push_back(5);
 //            C4X4Matrix diff(oldFrameInv*currentFrame);
 //            C3Vector euler(diff.M.getEulerAngles());
 //            errorVector(pos,0)=euler(0)*_orientationWeight/IK_DIVISION_FACTOR;
@@ -377,6 +385,8 @@ void CikElement::prepareEquations(simReal interpolationFactor)
                 euler=euler*1.0;
                 errorVector(pos,0)=euler(0)*_orientationWeight;
                 errorVector(pos+1,0)=euler(1)*_orientationWeight;
+                rowConstraints.push_back(3);
+                rowConstraints.push_back(4);
 //                C4X4Matrix diff(oldFrameInv*currentFrame);
 //                C3Vector euler(diff.M.getEulerAngles());
 //                errorVector(pos,0)=euler(0)*_orientationWeight/IK_DIVISION_FACTOR;
@@ -396,6 +406,7 @@ void CikElement::prepareEquations(simReal interpolationFactor)
                 C3Vector euler(diff.getEulerAngles());
                 euler=euler*1.0;
                 errorVector(pos,0)=euler(2)*_orientationWeight;
+                rowConstraints.push_back(5);
 //                C4X4Matrix diff(oldFrameInv*currentFrame);
 //                C3Vector euler(diff.M.getEulerAngles());
 //                errorVector(pos,0)=euler(2)*_orientationWeight/IK_DIVISION_FACTOR;

@@ -106,7 +106,7 @@ int CIkGroupContainer::computeAllIkGroups(bool exceptExplicitHandling)
             if ((!exceptExplicitHandling)||(!ikGroups[i]->getExplicitHandling()))
             {
                 int res=0;
-                res=ikGroups[i]->computeGroupIk(false);
+                res=ikGroups[i]->computeGroupIk(false,nullptr);
                 ikGroups[i]->setCalculationResult(res);
                 if (res!=ik_result_not_performed)
                     performedCount++;

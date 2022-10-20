@@ -59,7 +59,7 @@ public:
     simReal getJointTreshholdLinear() const;
     void setJointTreshholdAngular(simReal t);
     void setJointTreshholdLinear(simReal t);
-    int computeGroupIk(bool forInternalFunctionality);
+    int computeGroupIk(bool forInternalFunctionality,int(*cb)(const int*,simReal*,const int*,const int*,const int*,const int*,simReal*,simReal*));
     void getAllActiveJoints(std::vector<CJoint*>& jointList) const;
     void getTipAndTargetLists(std::vector<CDummy*>& tipList,std::vector<CDummy*>& targetList) const;
 
@@ -93,7 +93,7 @@ private:
     void _resetTemporaryParameters();
     void _applyTemporaryParameters();
 
-    int performOnePass(std::vector<CikElement*>* validElements,bool& limitOrAvoidanceNeedMoreCalculation,simReal interpolFact,bool forInternalFunctionality);
+    int performOnePass(std::vector<CikElement*>* validElements,bool& limitOrAvoidanceNeedMoreCalculation,simReal interpolFact,bool forInternalFunctionality,int(*cb)(const int*,simReal*,const int*,const int*,const int*,const int*,simReal*,simReal*));
     bool performOnePass_jacobianOnly(std::vector<CikElement*>* validElements,int options);
 
     // Variables which need to be serialized and copied:

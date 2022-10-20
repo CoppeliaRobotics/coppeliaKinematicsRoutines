@@ -50,6 +50,7 @@ public:
     CMatrix matrix;
     CMatrix matrix_correctJacobian;
     CMatrix errorVector;
+    std::vector<int> rowConstraints;
 
     std::vector<int> jointHandles_tipToBase;
     std::vector<size_t> jointStages_tipToBase;

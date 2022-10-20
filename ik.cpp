@@ -951,7 +951,7 @@ bool ikGetManipulability(int ikGroupHandle,simReal* manip)
     return(retVal);
 }
 
-bool ikHandleIkGroup(int ikGroupHandle/*=ik_handle_all*/,int* result/*=nullptr*/)
+bool ikHandleIkGroup(int ikGroupHandle/*=ik_handle_all*/,int* result/*=nullptr*/,int(*cb)(const int*,simReal*,const int*,const int*,const int*,const int*,simReal*,simReal*)/*=nullptr*/)
 {
     debugInfo inf(__FUNCTION__,ikGroupHandle);
     bool retVal=false;
@@ -966,7 +966,7 @@ bool ikHandleIkGroup(int ikGroupHandle/*=ik_handle_all*/,int* result/*=nullptr*/
             { // explicit handling
                 if (it->getExplicitHandling())
                 {
-                    int res=it->computeGroupIk(false);
+                    int res=it->computeGroupIk(false,cb);
                     if (result!=nullptr)
                         result[0]=res;
                     retVal=true;
@@ -1772,7 +1772,7 @@ int ikFindConfig(int ikGroupHandle,size_t jointCnt,const int* jointHandles,simRe
         // 3. If distance<=threshold, try to perform IK:
         if (cumulatedDist<=thresholdDist)
         {
-            if (ik_result_success==ikGroup->computeGroupIk(true))
+            if (ik_result_success==ikGroup->computeGroupIk(true,nullptr)) // allow here also the Jacobian callback, at a later stage
             { // 3.1 We found a configuration that works!
                 /*
                 // 3.2 Check joint limits:
@@ -2028,7 +2028,7 @@ int ikGetConfigForTipPose(int ikGroupHandle,size_t jointCnt,const int* jointHand
                     // 3. If distance<=threshold, try to perform IK:
                     if (cumulatedDist<=thresholdDist)
                     {
-                        if (ik_result_success==ikGroup->computeGroupIk(true))
+                        if (ik_result_success==ikGroup->computeGroupIk(true,nullptr))
                         { // 3.1 We found a configuration that works!
                             // 3.2 Check joint limits:
                             bool limitsOk=true;
