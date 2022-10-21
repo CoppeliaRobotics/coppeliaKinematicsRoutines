@@ -6,6 +6,8 @@
 #include "4X4Matrix.h"
 #include "MMatrix.h"
 
+class CSceneObject;
+
 class CikElement
 {
 public:
@@ -47,7 +49,7 @@ public:
     void prepareEquations(simReal interpolationFactor);
     void clearIkEquations();
 
-    CMatrix matrix;
+    CMatrix jacobian;
     CMatrix matrix_correctJacobian;
     CMatrix errorVector;
     std::vector<int> rowConstraints;
@@ -57,6 +59,8 @@ public:
 
 private:
     void _getMatrixError(const C7Vector& frame1,const C7Vector& frame2,simReal& linError,simReal& angError) const;
+    CMatrix _getJacobian(const CSceneObject* tip,const CSceneObject* base,const CSceneObject* constrBase,std::vector<int>* jointHandles_tipToBase,std::vector<size_t>* jointStages_tipToBase) const;
+
 
     int _ikElementHandle;
     int _tipHandle;

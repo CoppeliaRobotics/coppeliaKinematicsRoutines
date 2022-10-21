@@ -1,6 +1,6 @@
 #include "ikElement.h"
-#include "ikRoutines.h"
 #include "environment.h"
+#include "MyMath.h"
 
 CikElement::CikElement()
 {
@@ -42,7 +42,7 @@ CikElement* CikElement::copyYourself() const
     duplicate->jointHandles_tipToBase.assign(jointHandles_tipToBase.begin(),jointHandles_tipToBase.end());
     duplicate->jointStages_tipToBase.assign(jointStages_tipToBase.begin(),jointStages_tipToBase.end());
     duplicate->rowConstraints.assign(rowConstraints.begin(),rowConstraints.end());
-    duplicate->matrix.set(matrix);
+    duplicate->jacobian.set(jacobian);
     duplicate->matrix_correctJacobian.set(matrix_correctJacobian);
     duplicate->errorVector.set(errorVector);
 
@@ -261,157 +261,66 @@ void CikElement::isWithinTolerance(bool& position,bool& orientation,bool useTemp
 
 void CikElement::prepareEquations(simReal interpolationFactor)
 {
-    CDummy* targetObject=CEnvironment::currentEnvironment->objectContainer->getDummy(getTargetHandle());
     jointHandles_tipToBase.clear();
     jointStages_tipToBase.clear();
-    C4X4Matrix m;
-    CMatrix jacobian=CIkRoutines::getJacobian(this,m,&jointHandles_tipToBase,&jointStages_tipToBase);
-    if (jacobian.data.size()==0)
-        return; // should normally not happen
-
-    C7Vector oldFrame(m);
-    C7Vector oldFrameInv(oldFrame.getInverse());
-    size_t equationNumber=0;
-    size_t doF=jacobian.cols;
-    C7Vector currentFrame;
-    if (targetObject!=nullptr)
-    {
-        CSceneObject* baseObject=CEnvironment::currentEnvironment->objectContainer->getObject(_baseHandle);
-        C7Vector baseTrInv(C7Vector::identityTransformation);
-        if (baseObject!=nullptr)
-            baseTrInv=baseObject->getCumulativeTransformation(true).getInverse();
-        CSceneObject* altBaseObject=CEnvironment::currentEnvironment->objectContainer->getObject(_altBaseHandleForConstraints);
-        if (altBaseObject!=nullptr)
-            baseTrInv=altBaseObject->getCumulativeTransformation(true).getInverse();
-        C7Vector targetTr=targetObject->getCumulativeTransformationPart1(true);
-        targetTr=baseTrInv*targetTr;
-        currentFrame.buildInterpolation(oldFrame,targetTr,interpolationFactor);
-        if ((_constraints&ik_constraint_x)!=0)
-            equationNumber++;
-        if ((_constraints&ik_constraint_y)!=0)
-            equationNumber++;
-        if ((_constraints&ik_constraint_z)!=0)
-            equationNumber++;
-        if ((_constraints&ik_constraint_alpha_beta)!=0)
-            equationNumber+=2;
-        if ((_constraints&ik_constraint_gamma)!=0)
-            equationNumber++;
-    }
-    matrix.resize(equationNumber,doF,0.0);
-    matrix_correctJacobian.resize(equationNumber,doF,0.0);
-    errorVector.resize(equationNumber,1,0.0);
     rowConstraints.clear();
-    if (targetObject!=nullptr)
-    {
-        size_t pos=0;
-        if ((_constraints&ik_constraint_x)!=0)
-        {
-            for (size_t i=0;i<doF;i++)
-            {
-                matrix(pos,i)=jacobian(0,i);
-                matrix_correctJacobian(pos,i)=jacobian(0,i);
-            }
-            errorVector(pos,0)=(currentFrame.X(0)-oldFrame.X(0))*_positionWeight;
-            rowConstraints.push_back(0);
-            pos++;
-        }
-        if ((_constraints&ik_constraint_y)!=0)
-        {
-            for (size_t i=0;i<doF;i++)
-            {
-                matrix(pos,i)=jacobian(1,i);
-                matrix_correctJacobian(pos,i)=jacobian(1,i);
-            }
-            errorVector(pos,0)=(currentFrame.X(1)-oldFrame.X(1))*_positionWeight;
-            rowConstraints.push_back(1);
-            pos++;
-        }
-        if ((_constraints&ik_constraint_z)!=0)
-        {
-            for (size_t i=0;i<doF;i++)
-            {
-                matrix(pos,i)=jacobian(2,i);
-                matrix_correctJacobian(pos,i)=jacobian(2,i);
-            }
-            errorVector(pos,0)=(currentFrame.X(2)-oldFrame.X(2))*_positionWeight;
-            rowConstraints.push_back(2);
-            pos++;
-        }
-        if ( ((_constraints&ik_constraint_alpha_beta)!=0)&&((_constraints&ik_constraint_gamma)!=0) )
-        { // full orientation constr.
-            for (size_t i=0;i<doF;i++)
-            {
-                matrix(pos,i)=jacobian(3,i);
-                matrix(pos+1,i)=jacobian(4,i);
-                matrix(pos+2,i)=jacobian(5,i);
-                matrix_correctJacobian(pos,i)=jacobian(3,i)*IK_DIVISION_FACTOR;
-                matrix_correctJacobian(pos+1,i)=jacobian(4,i)*IK_DIVISION_FACTOR;
-                matrix_correctJacobian(pos+2,i)=jacobian(5,i)*IK_DIVISION_FACTOR;
-            }
+    CDummy* tip=CEnvironment::currentEnvironment->objectContainer->getDummy(_tipHandle);
+    CSceneObject* base=CEnvironment::currentEnvironment->objectContainer->getObject(_baseHandle);
+    if ( (tip==nullptr)||((base!=nullptr)&&(!tip->isObjectAffiliatedWith(base))) )
+        return;
+    CSceneObject* constrBase=base;
+    CSceneObject* altBase=CEnvironment::currentEnvironment->objectContainer->getObject(_altBaseHandleForConstraints);
+    if (altBase!=nullptr)
+        constrBase=altBase;
+    jacobian=_getJacobian(tip,base,constrBase,&jointHandles_tipToBase,&jointStages_tipToBase);
+    matrix_correctJacobian=jacobian;
+    if ( (jacobian.rows==0)||(jacobian.cols==0) )
+        return;
+    errorVector.resize(jacobian.rows,1,0.0);
 
-            C4Vector q;
-            q.buildInterpolation(oldFrame.Q,currentFrame.Q,1.0/IK_DIVISION_FACTOR);
-            C3X3Matrix diff(oldFrame.Q.getInverse()*q);
-            C3Vector euler(diff.getEulerAngles());
-            euler=euler*1.0;
-            errorVector(pos,0)=euler(0)*_orientationWeight;
-            errorVector(pos+1,0)=euler(1)*_orientationWeight;
-            errorVector(pos+2,0)=euler(2)*_orientationWeight;
-            rowConstraints.push_back(3);
-            rowConstraints.push_back(4);
-            rowConstraints.push_back(5);
-//            C4X4Matrix diff(oldFrameInv*currentFrame);
-//            C3Vector euler(diff.M.getEulerAngles());
-//            errorVector(pos,0)=euler(0)*_orientationWeight/IK_DIVISION_FACTOR;
-//            errorVector(pos+1,0)=euler(1)*_orientationWeight/IK_DIVISION_FACTOR;
-//            errorVector(pos+2,0)=euler(2)*_orientationWeight/IK_DIVISION_FACTOR;
-            pos=pos+3;
-        }
-        else
+    CDummy* target=CEnvironment::currentEnvironment->objectContainer->getDummy(getTargetHandle());
+    if (target==nullptr)
+        return;
+    C7Vector constrBaseTrInverse;
+    constrBaseTrInverse.setIdentity();
+    if (constrBase!=nullptr)
+        constrBaseTrInverse=constrBase->getCumulativeTransformation(true).getInverse();
+    C7Vector tipRelConstrBase(constrBaseTrInverse*tip->getCumulativeTransformationPart1(true));
+    C7Vector targetRelConstrBase(constrBaseTrInverse*target->getCumulativeTransformationPart1(true));
+    C7Vector interpolTargetRelConstrBase;
+    simReal dq=0.1; // not that relevant apparently
+    interpolTargetRelConstrBase.buildInterpolation(tipRelConstrBase,targetRelConstrBase,interpolationFactor*dq);
+    C7Vector dx(tipRelConstrBase.getInverse()*interpolTargetRelConstrBase);
+    size_t rowIndex=0;
+    if ((_constraints&ik_constraint_x)!=0)
+    {
+        errorVector(rowIndex++,0)=dx(0)*_positionWeight/dq;
+        rowConstraints.push_back(0);
+    }
+    if ((_constraints&ik_constraint_y)!=0)
+    {
+        errorVector(rowIndex++,0)=dx(1)*_positionWeight/dq;
+        rowConstraints.push_back(1);
+    }
+    if ((_constraints&ik_constraint_z)!=0)
+    {
+        errorVector(rowIndex++,0)=dx(2)*_positionWeight/dq;
+        rowConstraints.push_back(2);
+    }
+    if ((_constraints&(ik_constraint_alpha_beta|ik_constraint_gamma))!=0)
+    {
+        C3Vector euler(dx.Q.getEulerAngles());
+        if ((_constraints&ik_constraint_alpha_beta)!=0)
         {
-            if ((_constraints&ik_constraint_alpha_beta)!=0)
-            {
-                for (size_t i=0;i<doF;i++)
-                {
-                    matrix(pos,i)=jacobian(3,i);
-                    matrix(pos+1,i)=jacobian(4,i);
-                    matrix_correctJacobian(pos,i)=jacobian(3,i)*IK_DIVISION_FACTOR;
-                    matrix_correctJacobian(pos+1,i)=jacobian(4,i)*IK_DIVISION_FACTOR;
-                }
-                C4Vector q;
-                q.buildInterpolation(oldFrame.Q,currentFrame.Q,1.0/IK_DIVISION_FACTOR);
-                C3X3Matrix diff(oldFrame.Q.getInverse()*q);
-                C3Vector euler(diff.getEulerAngles());
-                euler=euler*1.0;
-                errorVector(pos,0)=euler(0)*_orientationWeight;
-                errorVector(pos+1,0)=euler(1)*_orientationWeight;
-                rowConstraints.push_back(3);
-                rowConstraints.push_back(4);
-//                C4X4Matrix diff(oldFrameInv*currentFrame);
-//                C3Vector euler(diff.M.getEulerAngles());
-//                errorVector(pos,0)=euler(0)*_orientationWeight/IK_DIVISION_FACTOR;
-//                errorVector(pos+1,0)=euler(1)*_orientationWeight/IK_DIVISION_FACTOR;
-                pos=pos+2;
-            }
-            if ((_constraints&ik_constraint_gamma)!=0)
-            { // sim_gamma_constraint can also exist without ik_constraint_alpha_beta, e.g. when working in 2D
-                for (size_t i=0;i<doF;i++)
-                {
-                    matrix(pos,i)=jacobian(5,i);
-                    matrix_correctJacobian(pos,i)=jacobian(5,i)*IK_DIVISION_FACTOR;
-                }
-                C4Vector q;
-                q.buildInterpolation(oldFrame.Q,currentFrame.Q,1.0/IK_DIVISION_FACTOR);
-                C3X3Matrix diff(oldFrame.Q.getInverse()*q);
-                C3Vector euler(diff.getEulerAngles());
-                euler=euler*1.0;
-                errorVector(pos,0)=euler(2)*_orientationWeight;
-                rowConstraints.push_back(5);
-//                C4X4Matrix diff(oldFrameInv*currentFrame);
-//                C3Vector euler(diff.M.getEulerAngles());
-//                errorVector(pos,0)=euler(2)*_orientationWeight/IK_DIVISION_FACTOR;
-                pos++;
-            }
+            errorVector(rowIndex++,0)=euler(0)/dq;
+            rowConstraints.push_back(3);
+            errorVector(rowIndex++,0)=euler(1)/dq;
+            rowConstraints.push_back(4);
+        }
+        if ((_constraints&ik_constraint_gamma)!=0)
+        {
+            errorVector(rowIndex++,0)=euler(2)/dq;
+            rowConstraints.push_back(5);
         }
     }
 }
@@ -459,3 +368,88 @@ void CikElement::_getMatrixError(const C7Vector& frame1,const C7Vector& frame2,s
         angError=simZero; // No ang. constraints
 }
 
+CMatrix CikElement::_getJacobian(const CSceneObject* tip,const CSceneObject* base,const CSceneObject* constrBase,std::vector<int>* jointHandles_tipToBase,std::vector<size_t>* jointStages_tipToBase) const
+{
+    size_t rows=0;
+    if ((_constraints&ik_constraint_x)!=0)
+        rows++;
+    if ((_constraints&ik_constraint_y)!=0)
+        rows++;
+    if ((_constraints&ik_constraint_z)!=0)
+        rows++;
+    if ((_constraints&ik_constraint_alpha_beta)!=0)
+        rows+=2;
+    if ((_constraints&ik_constraint_gamma)!=0)
+        rows++;
+
+    CMatrix jacobian(rows,0);
+    CSceneObject* object=tip->getParentObject();
+    C7Vector constrBaseTrInverse;
+    constrBaseTrInverse.setIdentity();
+    if (constrBase!=nullptr)
+        constrBaseTrInverse=constrBase->getCumulativeTransformation(true).getInverse();
+    C7Vector tipRelConstrBase_inv((constrBaseTrInverse*tip->getCumulativeTransformationPart1(true)).getInverse());
+    int dofIndex=0;
+    while (object!=base)
+    {
+        if (object->getObjectType()==ik_objecttype_joint)
+        {
+            CJoint* joint=(CJoint*)object;
+            if ( (joint->getJointMode()==ik_jointmode_ik)||(joint->getJointMode()==ik_jointmode_reserved_previously_ikdependent)||(joint->getJointMode()==ik_jointmode_dependent) )
+            {
+                jointHandles_tipToBase->push_back(joint->getObjectHandle());
+                jointStages_tipToBase->push_back(dofIndex);
+                int colIndex=jacobian.cols;
+                jacobian.resize(rows,jacobian.cols+1,0.0);
+                C7Vector jbabs(joint->getCumulativeTransformation(true));
+                C7Vector jb(constrBaseTrInverse*jbabs);
+                C7Vector x(jbabs.getInverse()*tip->getCumulativeTransformationPart1(true));
+                C7Vector dj;
+                dj.setIdentity();
+                simReal dq=0.01; // starts breaking at dj>0.05 or at dj<0.01
+                if (joint->getJointType()==ik_jointtype_prismatic)
+                    dj(2)=dq;
+                if (joint->getJointType()==ik_jointtype_revolute)
+                {
+                    dj(2)=joint->getScrewPitch()*dq;
+                    dj.Q.setAngleAndAxis(dq,C3Vector(0.0,0.0,1.0));
+                }
+                if (joint->getJointType()==ik_jointtype_spherical)
+                {
+                    if (dofIndex==0)
+                        dj.Q.setAngleAndAxis(dq,C3Vector(1.0,0.0,0.0));
+                    if (dofIndex==1)
+                        dj.Q.setAngleAndAxis(dq,C3Vector(0.0,1.0,0.0));
+                    if (dofIndex==2)
+                        dj.Q.setAngleAndAxis(dq,C3Vector(0.0,0.0,1.0));
+                    dofIndex++;
+                }
+                C7Vector tipRelConstrBase_changed(jb*dj*x);
+                C7Vector dx(tipRelConstrBase_inv*tipRelConstrBase_changed);
+                size_t rowIndex=0;
+                if ((_constraints&ik_constraint_x)!=0)
+                    jacobian(rowIndex++,colIndex)=dx(0)/dq;
+                if ((_constraints&ik_constraint_y)!=0)
+                    jacobian(rowIndex++,colIndex)=dx(1)/dq;
+                if ((_constraints&ik_constraint_z)!=0)
+                    jacobian(rowIndex++,colIndex)=dx(2)/dq;
+                if ((_constraints&(ik_constraint_alpha_beta|ik_constraint_gamma))!=0)
+                {
+                    C3Vector euler(dx.Q.getEulerAngles());
+                    if ((_constraints&ik_constraint_alpha_beta)!=0)
+                    {
+                        jacobian(rowIndex++,colIndex)=euler(0)/dq;
+                        jacobian(rowIndex++,colIndex)=euler(1)/dq;
+                    }
+                    if ((_constraints&ik_constraint_gamma)!=0)
+                        jacobian(rowIndex++,colIndex)=euler(2)/dq;
+                }
+            }
+        }
+        if (dofIndex==3)
+            dofIndex=0;
+        if (dofIndex==0)
+            object=object->getParentObject();
+    }
+    return(jacobian);
+}

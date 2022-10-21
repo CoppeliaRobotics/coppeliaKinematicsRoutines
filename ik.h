@@ -10,8 +10,6 @@
     typedef float simReal;
 #endif
 
-const simReal IK_DIVISION_FACTOR=simReal(100.0); // make sure we can linearize where ang. end-eff. movements are large
-
 #define SIM_IS_BIT_SET(var,bit) (((var) & (1<<(bit)))!=0)
 #define SIM_SET_BIT(var,bit) ((var) |= (1<<(bit)))
 #define SIM_CLEAR_BIT(var,bit) ((var) &= (~(1<<(bit))))

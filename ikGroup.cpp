@@ -1,5 +1,4 @@
 #include "ikGroup.h"
-#include "ikRoutines.h"
 #include "environment.h"
 #include <algorithm>
 
@@ -722,7 +721,7 @@ int CikGroup::performOnePass(std::vector<CikElement*>* validElements,bool& limit
             callback_rowType.push_back(element->rowConstraints[i]);
             mainErrorVector(currentRow,0)=element->errorVector(i,0);
             // Now we set the delta-parts:
-            for (size_t j=0;j<element->matrix.cols;j++)
+            for (size_t j=0;j<element->jacobian.cols;j++)
             { // We go through the columns:
                 // We search for the right entry
                 int jointHandle=element->jointHandles_tipToBase[j];
@@ -730,7 +729,7 @@ int CikGroup::performOnePass(std::vector<CikElement*>* validElements,bool& limit
                 size_t index=0;
                 while ( (allJoints[index]->getObjectHandle()!=jointHandle)||(allJointStages[index]!=stage) )
                     index++;
-                mainMatrix(currentRow,index)=element->matrix(i,j);
+                mainMatrix(currentRow,index)=element->jacobian(i,j);
                 mainMatrix_correctJacobian(currentRow,index)=element->matrix_correctJacobian(i,j);
             }
         }
@@ -1103,7 +1102,7 @@ bool CikGroup::performOnePass_jacobianOnly(std::vector<CikElement*>* validElemen
     for (size_t elNb=0;elNb<validElements->size();elNb++)
     {
         CikElement* element=validElements->at(elNb);
-        numberOfRows+=element->matrix.rows;
+        numberOfRows+=element->jacobian.rows;
         for (size_t i=0;i<element->jointHandles_tipToBase.size();i++)
         {
             int current=element->jointHandles_tipToBase[i];
@@ -1154,7 +1153,7 @@ bool CikGroup::performOnePass_jacobianOnly(std::vector<CikElement*>* validElemen
             // We first set the error part:
             mainErrorVector(currentRow,0)=element->errorVector(i,0);
             // Now we set the delta-parts:
-            for (size_t j=0;j<element->matrix.cols;j++)
+            for (size_t j=0;j<element->jacobian.cols;j++)
             { // We go through the columns:
                 // We search for the right entry
                 int jointHandle=element->jointHandles_tipToBase[j];
@@ -1162,8 +1161,8 @@ bool CikGroup::performOnePass_jacobianOnly(std::vector<CikElement*>* validElemen
                 size_t index=0;
                 while ( (allJoints[index]->getObjectHandle()!=jointHandle)||(allJointStages[index]!=stage) )
                     index++;
-                mainMatrix(currentRow,index)=element->matrix(i,j);
-                mainMatrix_correctJacobian(currentRow,index)=element->matrix_correctJacobian(i,j);
+                mainMatrix(currentRow,index)=element->jacobian(i,j);
+                mainMatrix_correctJacobian(currentRow,index)=element->jacobian(i,j);
             }
             currentRow++;
         }
