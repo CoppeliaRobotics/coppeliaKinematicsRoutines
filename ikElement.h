@@ -47,19 +47,16 @@ public:
     void isWithinTolerance(bool& position,bool& orientation,bool useTempValues) const;
     void getDistances(simReal& linDist,simReal& angDist,bool useTempValues) const;
     void prepareEquations(simReal interpolationFactor);
-    void clearIkEquations();
 
     CMatrix jacobian;
-    CMatrix matrix_correctJacobian;
     CMatrix errorVector;
     std::vector<int> rowConstraints;
-
-    std::vector<int> jointHandles_tipToBase;
-    std::vector<size_t> jointStages_tipToBase;
+    std::vector<int> jointHandles;
+    std::vector<size_t> jointStages;
 
 private:
     void _getMatrixError(const C7Vector& frame1,const C7Vector& frame2,simReal& linError,simReal& angError) const;
-    CMatrix _getJacobian(const CSceneObject* tip,const CSceneObject* base,const CSceneObject* constrBase,std::vector<int>* jointHandles_tipToBase,std::vector<size_t>* jointStages_tipToBase) const;
+    CMatrix _getJacobian(const CSceneObject* tip,const CSceneObject* base,const CSceneObject* constrBase);
 
 
     int _ikElementHandle;

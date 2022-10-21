@@ -93,8 +93,7 @@ private:
     void _resetTemporaryParameters();
     void _applyTemporaryParameters();
 
-    int performOnePass(std::vector<CikElement*>* validElements,bool& limitOrAvoidanceNeedMoreCalculation,simReal interpolFact,bool forInternalFunctionality,int(*cb)(const int*,simReal*,const int*,const int*,const int*,const int*,simReal*,simReal*));
-    bool performOnePass_jacobianOnly(std::vector<CikElement*>* validElements,int options);
+    int performOnePass(std::vector<CikElement*>* validElements,bool& limitOrAvoidanceNeedMoreCalculation,simReal interpolFact,bool forInternalFunctionality,bool computeOnlyJacobian,int(*cb)(const int*,simReal*,const int*,const int*,const int*,const int*,simReal*,simReal*));
 
     // Variables which need to be serialized and copied:
     int objectHandle;
