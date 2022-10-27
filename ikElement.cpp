@@ -39,8 +39,8 @@ CikElement* CikElement::copyYourself() const
     duplicate->_minAngularPrecision=_minAngularPrecision;
     duplicate->_minLinearPrecision=_minLinearPrecision;
     duplicate->jointHandles.assign(jointHandles.begin(),jointHandles.end());
-    duplicate->jointStages.assign(jointStages.begin(),jointStages.end());
-    duplicate->rowConstraints.assign(rowConstraints.begin(),rowConstraints.end());
+    duplicate->jointDofIndex.assign(jointDofIndex.begin(),jointDofIndex.end());
+    duplicate->equationTypes.assign(equationTypes.begin(),equationTypes.end());
     duplicate->jacobian.set(jacobian);
     duplicate->errorVector.set(errorVector);
 
@@ -216,35 +216,35 @@ void CikElement::setConstraints(int constraints)
     _constraints=constraints;
 }
 
-void CikElement::getDistances(simReal& linDist,simReal& angDist,bool useTempValues) const
+void CikElement::getDistances(simReal& linDist,simReal& angDist) const
 { // returns the tip-target lin./ang. distances, taking into account the constraint settings
     linDist=simZero;
     angDist=simZero;
     CDummy* targetObject=CEnvironment::currentEnvironment->objectContainer->getDummy(getTargetHandle());
     if (targetObject!=nullptr)
     {
-        C7Vector targetTr(targetObject->getCumulativeTransformationPart1(useTempValues));
+        C7Vector targetTr(targetObject->getCumulativeTransformationPart1());
         CDummy* tooltipObject=CEnvironment::currentEnvironment->objectContainer->getDummy(_tipHandle);
-        C7Vector tooltipTr(tooltipObject->getCumulativeTransformationPart1(useTempValues));
+        C7Vector tooltipTr(tooltipObject->getCumulativeTransformationPart1());
         C7Vector baseTrInv(C7Vector::identityTransformation);
         CDummy* baseObject=CEnvironment::currentEnvironment->objectContainer->getDummy(_baseHandle);
         if (baseObject!=nullptr)
-            baseTrInv=baseObject->getCumulativeTransformationPart1(useTempValues).getInverse();
+            baseTrInv=baseObject->getCumulativeTransformationPart1().getInverse();
         CDummy* altBaseObject=CEnvironment::currentEnvironment->objectContainer->getDummy(_altBaseHandleForConstraints);
         if (altBaseObject!=nullptr)
-            baseTrInv=altBaseObject->getCumulativeTransformationPart1(useTempValues).getInverse();
+            baseTrInv=altBaseObject->getCumulativeTransformationPart1().getInverse();
         tooltipTr=baseTrInv*tooltipTr;
         targetTr=baseTrInv*targetTr;
         _getMatrixError(targetTr,tooltipTr,linDist,angDist);
     }
 }
 
-void CikElement::isWithinTolerance(bool& position,bool& orientation,bool useTempValues) const
+void CikElement::isWithinTolerance(bool& position,bool& orientation) const
 {
     position=true;
     orientation=true;
     simReal linDist,angDist;
-    getDistances(linDist,angDist,useTempValues);
+    getDistances(linDist,angDist);
     if ( (_constraints&(ik_constraint_x|ik_constraint_y|ik_constraint_z))!=0 )
     {
         if (_minLinearPrecision<linDist)
@@ -259,67 +259,124 @@ void CikElement::isWithinTolerance(bool& position,bool& orientation,bool useTemp
 
 void CikElement::prepareEquations(simReal interpolationFactor)
 {
-    jointHandles.clear();
-    jointStages.clear();
-    rowConstraints.clear();
-    CDummy* tip=CEnvironment::currentEnvironment->objectContainer->getDummy(_tipHandle);
-    CSceneObject* base=CEnvironment::currentEnvironment->objectContainer->getObject(_baseHandle);
+    int tipBaseAltBase[3]={_tipHandle,_baseHandle,_altBaseHandleForConstraints};
+    simReal weights[2]={_positionWeight,_orientationWeight};
+    getJacobian(jacobian,errorVector,weights,tipBaseAltBase,_constraints,interpolationFactor,&equationTypes,&jointHandles,&jointDofIndex);
+}
+
+bool CikElement::getJacobian(CMatrix& jacob,CMatrix& errVect,const simReal weights[2],const int tipBaseAltBase[3],int constraints,simReal interpolationFactor,std::vector<int>* equTypes,std::vector<int>* jHandles,std::vector<int>* jDofIndex)
+{ // equTypes, jHandles and jDofIndex can be nullptr
+    if (jHandles!=nullptr)
+        jHandles->clear();
+    if (jDofIndex!=nullptr)
+        jDofIndex->clear();
+    if (equTypes!=nullptr)
+        equTypes->clear();
+    errVect.resize(0,1,0.0);
+    CDummy* tip=CEnvironment::currentEnvironment->objectContainer->getDummy(tipBaseAltBase[0]);
+    C7Vector tr(tip->getCumulativeTransformation());
+
+    CSceneObject* base=CEnvironment::currentEnvironment->objectContainer->getObject(tipBaseAltBase[1]);
     if ( (tip==nullptr)||((base!=nullptr)&&(!tip->isObjectAffiliatedWith(base))) )
-        return;
+        return(false);
     CSceneObject* constrBase=base;
-    CSceneObject* altBase=CEnvironment::currentEnvironment->objectContainer->getObject(_altBaseHandleForConstraints);
+    CSceneObject* altBase=CEnvironment::currentEnvironment->objectContainer->getObject(tipBaseAltBase[2]);
     if (altBase!=nullptr)
         constrBase=altBase;
-    jacobian=_getJacobian(tip,base,constrBase);
-    if ( (jacobian.rows==0)||(jacobian.cols==0) )
-        return;
-    errorVector.resize(jacobian.rows,1,0.0);
+    std::vector<simReal> mem;
+    jacob=_getNakedJacobian(tip,base,constrBase,constraints,jHandles,jDofIndex);
+    bool retVal=false;
+    if ( (jacob.rows!=0)&&(jacob.cols!=0) )
+    {
+        retVal=true;
+        CDummy* target=nullptr;
+        if (tip->getLinkType()==ik_linktype_ik_tip_target)
+            target=CEnvironment::currentEnvironment->objectContainer->getDummy(tip->getLinkedDummyHandle());
+        if (target!=nullptr)
+        {
+            errVect.resize(jacob.rows,1,0.0);
+            C7Vector constrBaseTrInverse;
+            constrBaseTrInverse.setIdentity();
+            if (constrBase!=nullptr)
+                constrBaseTrInverse=constrBase->getCumulativeTransformation().getInverse();
+            C7Vector tipTrRel(constrBaseTrInverse*tip->getCumulativeTransformationPart1());
+            C7Vector targetTrRel(constrBaseTrInverse*target->getCumulativeTransformationPart1());
+            if ((constraints&(ik_constraint_alpha_beta|ik_constraint_gamma))==ik_constraint_alpha_beta)
+            { // We need to reorient the target around its z-axis to "ressemble" most the tip orientation
+                C3Vector tipXaxisProj(targetTrRel.Q.getInverse()*tipTrRel.Q.getMatrix().axis[0]);
+                simReal angle=tipXaxisProj.getAngle(C3Vector::unitXVector);
+                if (fabs(angle)>0.001)
+                {
+                    if (tipXaxisProj(1)<0.0)
+                        angle=-angle;
+                    C4Vector q(angle,C3Vector::unitZVector);
+                    targetTrRel.Q*=q;
+                }
+            }
+            if ((constraints&(ik_constraint_alpha_beta|ik_constraint_gamma))==ik_constraint_gamma)
+            { // We need to reorient the target with a rotation that brings both z-axes together
+                C3Vector tipZaxis(tipTrRel.Q.getMatrix().axis[2]);
+                C3Vector targetZaxis(targetTrRel.Q.getMatrix().axis[2]);
+                simReal angle=targetZaxis.getAngle(tipZaxis);
+                if (angle>0.001)
+                {
+                    C4Vector q(angle,(targetZaxis^tipZaxis).getNormalized());
+                    targetTrRel.Q=q*targetTrRel.Q;
+                }
+            }
+            C7Vector interpolTargetRel;
+            simReal dq=0.01; // not that relevant apparently
+            interpolTargetRel.buildInterpolation(tipTrRel,targetTrRel,interpolationFactor*dq);
 
-    CDummy* target=CEnvironment::currentEnvironment->objectContainer->getDummy(getTargetHandle());
-    if (target==nullptr)
-        return;
-    C7Vector constrBaseTrInverse;
-    constrBaseTrInverse.setIdentity();
-    if (constrBase!=nullptr)
-        constrBaseTrInverse=constrBase->getCumulativeTransformation(true).getInverse();
-    C7Vector tipRelConstrBase(constrBaseTrInverse*tip->getCumulativeTransformationPart1(true));
-    C7Vector targetRelConstrBase(constrBaseTrInverse*target->getCumulativeTransformationPart1(true));
-    C7Vector interpolTargetRelConstrBase;
-    simReal dq=0.1; // not that relevant apparently
-    interpolTargetRelConstrBase.buildInterpolation(tipRelConstrBase,targetRelConstrBase,interpolationFactor*dq);
-    C7Vector dx(tipRelConstrBase.getInverse()*interpolTargetRelConstrBase);
-    size_t rowIndex=0;
-    if ((_constraints&ik_constraint_x)!=0)
-    {
-        errorVector(rowIndex++,0)=dx(0)*_positionWeight/dq;
-        rowConstraints.push_back(0);
-    }
-    if ((_constraints&ik_constraint_y)!=0)
-    {
-        errorVector(rowIndex++,0)=dx(1)*_positionWeight/dq;
-        rowConstraints.push_back(1);
-    }
-    if ((_constraints&ik_constraint_z)!=0)
-    {
-        errorVector(rowIndex++,0)=dx(2)*_positionWeight/dq;
-        rowConstraints.push_back(2);
-    }
-    if ((_constraints&(ik_constraint_alpha_beta|ik_constraint_gamma))!=0)
-    {
-        C3Vector euler(dx.Q.getEulerAngles());
-        if ((_constraints&ik_constraint_alpha_beta)!=0)
-        {
-            errorVector(rowIndex++,0)=euler(0)/dq;
-            rowConstraints.push_back(3);
-            errorVector(rowIndex++,0)=euler(1)/dq;
-            rowConstraints.push_back(4);
+            C4Vector dx_q(tipTrRel.Q.getInverse()*interpolTargetRel.Q);
+            C4Vector aaxis(dx_q.getAngleAndAxis()); // angle and axis relative to tipTrRel
+            C3Vector axisRel=tipTrRel.Q*C3Vector(aaxis(1),aaxis(2),aaxis(3)); // axis relative to constrBase
+            C4Vector dx_q2(aaxis(0),axisRel);
+            C3Vector euler(dx_q2.getEulerAngles());
+            C3Vector dx_x(interpolTargetRel.X-tipTrRel.X);
+
+            size_t rowIndex=0;
+            if ((constraints&ik_constraint_x)!=0)
+            {
+                errVect(rowIndex++,0)=dx_x(0)*weights[0]/dq;
+                if (equTypes!=nullptr)
+                    equTypes->push_back(0);
+            }
+            if ((constraints&ik_constraint_y)!=0)
+            {
+                errVect(rowIndex++,0)=dx_x(1)*weights[0]/dq;
+                if (equTypes!=nullptr)
+                    equTypes->push_back(1);
+            }
+            if ((constraints&ik_constraint_z)!=0)
+            {
+                errVect(rowIndex++,0)=dx_x(2)*weights[0]/dq;
+                if (equTypes!=nullptr)
+                    equTypes->push_back(2);
+            }
+            if ((constraints&(ik_constraint_alpha_beta|ik_constraint_gamma))!=0)
+            {
+                if ((constraints&ik_constraint_alpha_beta)!=0)
+                {
+                    errVect(rowIndex++,0)=euler(0)*weights[1]/dq;
+                    errVect(rowIndex++,0)=euler(1)*weights[1]/dq;
+                    if (equTypes!=nullptr)
+                    {
+                        equTypes->push_back(3);
+                        equTypes->push_back(4);
+                    }
+                }
+                if ((constraints&ik_constraint_gamma)!=0)
+                {
+                    errVect(rowIndex++,0)=euler(2)*weights[1]/dq;
+                    if (equTypes!=nullptr)
+                        equTypes->push_back(5);
+                }
+            }
         }
-        if ((_constraints&ik_constraint_gamma)!=0)
-        {
-            errorVector(rowIndex++,0)=euler(2)/dq;
-            rowConstraints.push_back(5);
-        }
     }
+
+    return(retVal);
 }
 
 void CikElement::_getMatrixError(const C7Vector& frame1,const C7Vector& frame2,simReal& linError,simReal& angError) const
@@ -359,18 +416,18 @@ void CikElement::_getMatrixError(const C7Vector& frame1,const C7Vector& frame2,s
         angError=simZero; // No ang. constraints
 }
 
-CMatrix CikElement::_getJacobian(const CSceneObject* tip,const CSceneObject* base,const CSceneObject* constrBase)
-{
+CMatrix CikElement::_getNakedJacobian(const CSceneObject* tip,const CSceneObject* base,const CSceneObject* constrBase,int constraints,std::vector<int>* jHandles,std::vector<int>* jDofIndex)
+{ // jHandles and jDofIndex can be nullptr
     size_t rows=0;
-    if ((_constraints&ik_constraint_x)!=0)
+    if ((constraints&ik_constraint_x)!=0)
         rows++;
-    if ((_constraints&ik_constraint_y)!=0)
+    if ((constraints&ik_constraint_y)!=0)
         rows++;
-    if ((_constraints&ik_constraint_z)!=0)
+    if ((constraints&ik_constraint_z)!=0)
         rows++;
-    if ((_constraints&ik_constraint_alpha_beta)!=0)
+    if ((constraints&ik_constraint_alpha_beta)!=0)
         rows+=2;
-    if ((_constraints&ik_constraint_gamma)!=0)
+    if ((constraints&ik_constraint_gamma)!=0)
         rows++;
 
     std::vector<CJoint*> joints;
@@ -390,21 +447,23 @@ CMatrix CikElement::_getJacobian(const CSceneObject* tip,const CSceneObject* bas
     C7Vector constrBaseTrInverse;
     constrBaseTrInverse.setIdentity();
     if (constrBase!=nullptr)
-        constrBaseTrInverse=constrBase->getCumulativeTransformation(true).getInverse();
-    C7Vector tipRelConstrBase_inv((constrBaseTrInverse*tip->getCumulativeTransformationPart1(true)).getInverse());
+        constrBaseTrInverse=constrBase->getCumulativeTransformation().getInverse();
+    C7Vector tipRelConstrBase(constrBaseTrInverse*tip->getCumulativeTransformationPart1());
 
     int dofIndex=0;
     size_t jointIndex=0;
     while (jointIndex<joints.size())
     {
         CJoint* joint=joints[jointIndex];
-        jointHandles.push_back(joint->getObjectHandle());
-        jointStages.push_back(dofIndex);
-        int colIndex=jacobian.cols;
+        if (jHandles!=nullptr)
+            jHandles->push_back(joint->getObjectHandle());
+        if (jDofIndex!=nullptr)
+            jDofIndex->push_back(dofIndex);
+        int colIndex=int(jacobian.cols);
         jacobian.resize(rows,jacobian.cols+1,0.0);
-        C7Vector jbabs(joint->getCumulativeTransformation(true));
+        C7Vector jbabs(joint->getCumulativeTransformation());
         C7Vector jb(constrBaseTrInverse*jbabs);
-        C7Vector x(jbabs.getInverse()*tip->getCumulativeTransformationPart1(true));
+        C7Vector x(jbabs.getInverse()*tip->getCumulativeTransformationPart1());
         C7Vector dj;
         dj.setIdentity();
         simReal dq=0.01; // starts breaking at dj>0.05 or at dj<0.01
@@ -426,23 +485,29 @@ CMatrix CikElement::_getJacobian(const CSceneObject* tip,const CSceneObject* bas
             dofIndex++;
         }
         C7Vector tipRelConstrBase_changed(jb*dj*x);
-        C7Vector dx(tipRelConstrBase_inv*tipRelConstrBase_changed);
+
+        C4Vector dx_q(tipRelConstrBase.Q.getInverse()*tipRelConstrBase_changed.Q);
+        C4Vector aaxis(dx_q.getAngleAndAxis()); // angle and axis relative to tipRelConstrBase
+        C3Vector axisRel=tipRelConstrBase.Q*C3Vector(aaxis(1),aaxis(2),aaxis(3)); // axis relative to constrBase
+        C4Vector dx_q2(aaxis(0),axisRel);
+        C3Vector euler(dx_q2.getEulerAngles());
+        C3Vector dx_x(tipRelConstrBase_changed.X-tipRelConstrBase.X);
+
         size_t rowIndex=0;
-        if ((_constraints&ik_constraint_x)!=0)
-            jacobian(rowIndex++,colIndex)=dx(0)/dq;
-        if ((_constraints&ik_constraint_y)!=0)
-            jacobian(rowIndex++,colIndex)=dx(1)/dq;
-        if ((_constraints&ik_constraint_z)!=0)
-            jacobian(rowIndex++,colIndex)=dx(2)/dq;
-        if ((_constraints&(ik_constraint_alpha_beta|ik_constraint_gamma))!=0)
+        if ((constraints&ik_constraint_x)!=0)
+            jacobian(rowIndex++,colIndex)=dx_x(0)/dq;
+        if ((constraints&ik_constraint_y)!=0)
+            jacobian(rowIndex++,colIndex)=dx_x(1)/dq;
+        if ((constraints&ik_constraint_z)!=0)
+            jacobian(rowIndex++,colIndex)=dx_x(2)/dq;
+        if ((constraints&(ik_constraint_alpha_beta|ik_constraint_gamma))!=0)
         {
-            C3Vector euler(dx.Q.getEulerAngles());
-            if ((_constraints&ik_constraint_alpha_beta)!=0)
+            if ((constraints&ik_constraint_alpha_beta)!=0)
             {
                 jacobian(rowIndex++,colIndex)=euler(0)/dq;
                 jacobian(rowIndex++,colIndex)=euler(1)/dq;
             }
-            if ((_constraints&ik_constraint_gamma)!=0)
+            if ((constraints&ik_constraint_gamma)!=0)
                 jacobian(rowIndex++,colIndex)=euler(2)/dq;
         }
 

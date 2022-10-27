@@ -23,11 +23,11 @@ public:
     void serializeMain(CSerialization& ar);
 
     virtual CSceneObject* copyYourself() const;
-    C7Vector getParentCumulativeTransformation(bool tempVals=false) const;
-    C7Vector getCumulativeTransformation(bool tempVals=false) const;
-    C7Vector getLocalTransformation(bool tempVals=false) const;
-    C7Vector getCumulativeTransformationPart1(bool tempVals=false) const;
-    C7Vector getLocalTransformationPart1(bool tempVals=false) const;
+    C7Vector getParentCumulativeTransformation() const;
+    C7Vector getCumulativeTransformation() const;
+    C7Vector getLocalTransformation() const;
+    C7Vector getCumulativeTransformationPart1() const;
+    C7Vector getLocalTransformationPart1() const;
 
     void setLocalTransformation(const C7Vector& v);
     void setLocalTransformation(const C4Vector& q);

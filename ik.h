@@ -133,10 +133,12 @@ bool ikSetIkElementPrecision(int ikGroupHandle,int ikElementHandle,simReal linea
 bool ikGetIkElementWeights(int ikGroupHandle,int ikElementHandle,simReal* linearWeight,simReal* angularWeight);
 bool ikSetIkElementWeights(int ikGroupHandle,int ikElementHandle,simReal linearWeight,simReal angularWeight);
 
-bool ikHandleIkGroup(int ikGroupHandle=ik_handle_all,int* result=nullptr,int(*cb)(const int*,simReal*,const int*,const int*,const int*,const int*,simReal*,simReal*)=nullptr);
-bool ikComputeJacobian(int ikGroupHandle,int options,bool* success=nullptr);
-simReal* ikGetJacobian(int ikGroupHandle,size_t* matrixSize);
-bool ikGetManipulability(int ikGroupHandle,simReal* manip);
+bool ikHandleIkGroup(int ikGroupHandle=ik_handle_all,int* result=nullptr,int(*cb)(const int*,std::vector<simReal>*,const int*,const int*,const int*,const int*,std::vector<simReal>*,simReal*)=nullptr);
+bool ikComputeJacobian(int handles[3],int constraints,const C7Vector* tipPose,const C7Vector* targetPose,std::vector<simReal>* jacobian,std::vector<simReal>* errorVect);
+
+bool ikComputeJacobian_old(int ikGroupHandle,int options,bool* success=nullptr);
+simReal* ikGetJacobian_old(int ikGroupHandle,size_t* matrixSize);
+bool ikGetManipulability_old(int ikGroupHandle,simReal* manip);
 
 int ikFindConfig(int ikGroupHandle,size_t jointCnt,const int* jointHandles,simReal thresholdDist,int maxTimeInMs,simReal* retConfig,const simReal* metric=nullptr,bool(*validationCallback)(simReal*)=nullptr);
 int ikGetConfigForTipPose(int ikGroupHandle,size_t jointCnt,const int* jointHandles,simReal thresholdDist,int maxIterations,simReal* retConfig,const simReal* metric=nullptr,bool(*validationCallback)(simReal*)=nullptr,const int* jointOptions=nullptr,const simReal* lowLimits=nullptr,const simReal* ranges=nullptr);

@@ -61,9 +61,6 @@ bool CObjectContainer::makeObjectChildOf(CSceneObject* childObject,CSceneObject*
     C7Vector parentInverse(parentObject->getCumulativeTransformation().getInverse());
     childObject->setLocalTransformation(parentInverse*oldAbsoluteTransf);
     childObject->setParentObject(parentObject);
-
-    
-
     actualizeObjectInformation();
     return(true);
 }
@@ -524,5 +521,47 @@ void CObjectContainer::addObjectToScene(CSceneObject* newObject,bool keepAllCurr
 
         // Actualize the object information
         actualizeObjectInformation();
+    }
+}
+
+void CObjectContainer::memorizeJointConfig(std::vector<int>& jointHandles,std::vector<simReal>& jointValues)
+{
+    jointHandles.clear();
+    jointValues.clear();
+    for (size_t i=0;i<jointList.size();i++)
+    {
+        jointHandles.push_back(jointList[i]);
+        CJoint* it=getJoint(jointList[i]);
+        if (it->getJointType()==ik_jointtype_spherical)
+        { // we memorize the 4 quaternion vals
+            C4Vector q(it->getSphericalTransformation());
+            for (size_t j=0;j<4;j++)
+                jointValues.push_back(q(j));
+        }
+        else
+            jointValues.push_back(it->getPosition());
+    }
+}
+
+void CObjectContainer::restoreJointConfig(const std::vector<int>& jointHandles,const std::vector<simReal>& jointValues)
+{
+    size_t ind=0;
+    for (size_t i=0;i<jointHandles.size();i++)
+    {
+        CJoint* it=getJoint(jointHandles[i]);
+        if (it!=nullptr)
+        {
+            if (it->getJointType()==ik_jointtype_spherical)
+            { // we memorize the 4 quaternion vals
+                C4Vector q;
+                for (size_t j=0;j<4;j++)
+                    q(j)=jointValues[ind++];
+                it->setSphericalTransformation(q);
+            }
+            else
+                it->setPosition(jointValues[ind++]);
+        }
+        else
+            ind++; // should not happen
     }
 }

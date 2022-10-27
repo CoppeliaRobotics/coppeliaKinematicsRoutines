@@ -47,6 +47,9 @@ public:
     void importExportKinematicsData(CSerialization& ar);
     void addObjectToScene(CSceneObject* newObject,bool keepAllCurrentSettings);
 
+    void memorizeJointConfig(std::vector<int>& jointHandles,std::vector<simReal>& jointValues);
+    void restoreJointConfig(const std::vector<int>& jointHandles,const std::vector<simReal>& jointValues);
+
 private:
     void _updateJointDependencies();
 

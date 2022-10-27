@@ -59,9 +59,7 @@ public:
     simReal getJointTreshholdLinear() const;
     void setJointTreshholdAngular(simReal t);
     void setJointTreshholdLinear(simReal t);
-    int computeGroupIk(bool forInternalFunctionality,int(*cb)(const int*,simReal*,const int*,const int*,const int*,const int*,simReal*,simReal*));
-    void getAllActiveJoints(std::vector<CJoint*>& jointList) const;
-    void getTipAndTargetLists(std::vector<CDummy*>& tipList,std::vector<CDummy*>& targetList) const;
+    int computeGroupIk(bool forInternalFunctionality,int(*cb)(const int*,std::vector<simReal>*,const int*,const int*,const int*,const int*,std::vector<simReal>*,simReal*));
 
     bool getIgnoreMaxStepSizes() const;
     void setIgnoreMaxStepSizes(bool ignore);
@@ -75,25 +73,20 @@ public:
     bool getJointLimitHits(std::vector<int>* jointHandles,std::vector<simReal>* underOrOvershots) const;
     bool getForbidOvershoot() const;
     void setForbidOvershoot(bool forbid);
-
-
     void setActive(bool isActive);
 
-    const simReal* getLastJacobianData(size_t matrixSize[2]) const;
-    simReal getLastManipulabilityValue(bool& ok) const;
-    simReal getDeterminant(const CMatrix& m,const std::vector<size_t>* activeRows,const std::vector<size_t>* activeColumns) const;
-    bool computeOnlyJacobian(int options);
 
+    const simReal* getLastJacobianData_old(size_t matrixSize[2]);
+    simReal getLastManipulabilityValue_old(bool& ok) const;
+    simReal getDeterminant_old(const CMatrix& m,const std::vector<size_t>* activeRows,const std::vector<size_t>* activeColumns) const;
+    bool computeOnlyJacobian_old(int options);
 
 
 private:
     // Variables which need to be serialized and copied:
     std::vector<CikElement*> _ikElements;
 
-    void _resetTemporaryParameters();
-    void _applyTemporaryParameters();
-
-    int performOnePass(std::vector<CikElement*>* validElements,bool& limitOrAvoidanceNeedMoreCalculation,simReal interpolFact,bool forInternalFunctionality,bool computeOnlyJacobian,int(*cb)(const int*,simReal*,const int*,const int*,const int*,const int*,simReal*,simReal*));
+    int performOnePass(std::vector<CikElement*>* validElements,bool& limitOrAvoidanceNeedMoreCalculation,simReal interpolFact,bool forInternalFunctionality,bool computeOnlyJacobian,int(*cb)(const int*,std::vector<simReal>*,const int*,const int*,const int*,const int*,std::vector<simReal>*,simReal*));
 
     // Variables which need to be serialized and copied:
     int objectHandle;
@@ -120,6 +113,12 @@ private:
     int _calculationResult;
 
     CMatrix _lastJacobian;
+    CMatrix _lastJacobian_flipped; // for backw. compatibility. Cols are from tip to base
+    std::vector<int> jointHandles; // going through the Jacobian cols
+    std::vector<int> jointDofIndex; // going through the Jacobian cols
+    std::vector<int> elementHandles; // going through the Jacobian rows
+    std::vector<int> equationType; // going through the Jacobian rows
+
 
     bool _explicitHandling;
 };

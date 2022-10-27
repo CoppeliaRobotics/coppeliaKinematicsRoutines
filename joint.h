@@ -17,16 +17,8 @@ public:
     void serialize(CSerialization& ar);
 
     CSceneObject* copyYourself() const;
-    simReal getPosition(bool tempVals=false) const;
-    void setPosition(simReal parameter,bool tempVals=false);
-
-    void initializeParametersForIK(simReal angularJointLimitationThreshold);
-    size_t getDoFs() const;
-    void getLocalTransformationExPart1(C7Vector& mTr,size_t index) const;
-    simReal getTempParameterEx(size_t index) const;
-    void setTempParameterEx(simReal parameter,size_t index);
-    void applyTempParametersEx();
-    int getTempSphericalJointLimitations() const;
+    simReal getPosition() const;
+    void setPosition(simReal parameter);
 
     simReal getScrewPitch() const;
     void setScrewPitch(simReal p);
@@ -63,7 +55,7 @@ public:
 
 protected:
     int _jointType;
-    C4Vector _sphericalTransformation;
+    C4Vector _sphericalTransformation; // spherical joints don't have a range anymore since 22.10.22
     bool _positionIsCyclic;
     simReal _screwPitch;
     simReal _jointMinPosition;
@@ -79,10 +71,4 @@ protected:
     int _dependencyJointHandle;
     simReal _dependencyJointMult;
     simReal _dependencyJointAdd;
-
-    simReal _jointPosition_tempForIK;
-    simReal _sphericalTransformation_euler1TempForIK;
-    simReal _sphericalTransformation_euler2TempForIK;
-    simReal _sphericalTransformation_euler3TempForIK;
-    int _sphericalTransformation_eulerLockTempForIK; // bit-coded, bit0--> _sphericalTransformation_euler1TempForIK, bit1--> _sphericalTransformation_euler2TempForIK, etc.
 };

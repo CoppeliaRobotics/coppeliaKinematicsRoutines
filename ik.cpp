@@ -889,7 +889,42 @@ bool ikGetIkElementWeights(int ikGroupHandle,int ikElementHandle,simReal* linear
     return(retVal);
 }
 
-bool ikComputeJacobian(int ikGroupHandle,int options,bool* success/*=nullptr*/)
+bool ikComputeJacobian(int handles[3],int constraints,const C7Vector* tipPose,const C7Vector* targetPose,std::vector<simReal>* jacobian,std::vector<simReal>* errorVect)
+{
+    bool retVal=false;
+    if (hasLaunched())
+    {
+        CMatrix jacob;
+        CMatrix errVect;
+        simReal w[2]={1.0,1.0};
+        CDummy* tip=CEnvironment::currentEnvironment->objectContainer->getDummy(CEnvironment::currentEnvironment->objectContainer->createDummy(nullptr));
+        CDummy* target=CEnvironment::currentEnvironment->objectContainer->getDummy(CEnvironment::currentEnvironment->objectContainer->createDummy(nullptr));
+        tip->setLocalTransformation(*tipPose);
+        target->setLocalTransformation(*targetPose);
+        tip->setLinkedDummyHandle(target->getObjectHandle(),true);
+        CJoint* tipJoint=CEnvironment::currentEnvironment->objectContainer->getJoint(handles[0]);
+        if (tipJoint!=nullptr)
+        {
+            CEnvironment::currentEnvironment->objectContainer->makeObjectChildOf(tip,tipJoint);
+            int tipBaseAltBase[3]={tip->getObjectHandle(),handles[1],handles[2]};
+            if (CikElement::getJacobian(jacob,errVect,w,tipBaseAltBase,constraints,1.0,nullptr,nullptr,nullptr))
+            {
+                jacobian->assign(jacob.data.begin(),jacob.data.end());
+                errorVect->assign(errVect.data.begin(),errVect.data.end());
+                retVal=true;
+            }
+            else
+                _setLastError("Failed getting the Jacobian. Are handles valid?");
+        }
+        else
+            _setLastError("Failed getting the Jacobian. Are handles valid?");
+        CEnvironment::currentEnvironment->objectContainer->eraseObject(target);
+        CEnvironment::currentEnvironment->objectContainer->eraseObject(tip);
+    }
+    return(retVal);
+}
+
+bool ikComputeJacobian_old(int ikGroupHandle,int options,bool* success/*=nullptr*/)
 {
     debugInfo inf(__FUNCTION__,ikGroupHandle,options);
     bool retVal=false;
@@ -898,7 +933,7 @@ bool ikComputeJacobian(int ikGroupHandle,int options,bool* success/*=nullptr*/)
         CikGroup* it=CEnvironment::currentEnvironment->ikGroupContainer->getIkGroup(ikGroupHandle);
         if (it!=nullptr)
         {
-            bool succ=it->computeOnlyJacobian(options);
+            bool succ=it->computeOnlyJacobian_old(options);
             retVal=true;
             if (success!=nullptr)
                 success[0]=succ;
@@ -909,7 +944,7 @@ bool ikComputeJacobian(int ikGroupHandle,int options,bool* success/*=nullptr*/)
     return(retVal);
 }
 
-simReal* ikGetJacobian(int ikGroupHandle,size_t* matrixSize)
+simReal* ikGetJacobian_old(int ikGroupHandle,size_t* matrixSize)
 {
     debugInfo inf(__FUNCTION__,ikGroupHandle);
     simReal* retVal=nullptr;
@@ -918,7 +953,7 @@ simReal* ikGetJacobian(int ikGroupHandle,size_t* matrixSize)
         CikGroup* it=CEnvironment::currentEnvironment->ikGroupContainer->getIkGroup(ikGroupHandle);
         if (it!=nullptr)
         {
-            const simReal* b=it->getLastJacobianData(matrixSize);
+            const simReal* b=it->getLastJacobianData_old(matrixSize);
             if (b!=nullptr)
             {
                 retVal=new simReal[size_t(matrixSize[0]*matrixSize[1])];
@@ -932,7 +967,7 @@ simReal* ikGetJacobian(int ikGroupHandle,size_t* matrixSize)
     return(retVal);
 }
 
-bool ikGetManipulability(int ikGroupHandle,simReal* manip)
+bool ikGetManipulability_old(int ikGroupHandle,simReal* manip)
 {
     debugInfo inf(__FUNCTION__,ikGroupHandle);
     bool retVal=false;
@@ -941,7 +976,7 @@ bool ikGetManipulability(int ikGroupHandle,simReal* manip)
         CikGroup* it=CEnvironment::currentEnvironment->ikGroupContainer->getIkGroup(ikGroupHandle);
         if (it!=nullptr)
         {
-            simReal b=it->getLastManipulabilityValue(retVal);
+            simReal b=it->getLastManipulabilityValue_old(retVal);
             if (retVal)
                 manip[0]=b;
         }
@@ -951,7 +986,7 @@ bool ikGetManipulability(int ikGroupHandle,simReal* manip)
     return(retVal);
 }
 
-bool ikHandleIkGroup(int ikGroupHandle/*=ik_handle_all*/,int* result/*=nullptr*/,int(*cb)(const int*,simReal*,const int*,const int*,const int*,const int*,simReal*,simReal*)/*=nullptr*/)
+bool ikHandleIkGroup(int ikGroupHandle/*=ik_handle_all*/,int* result/*=nullptr*/,int(*cb)(const int*,std::vector<simReal>*,const int*,const int*,const int*,const int*,std::vector<simReal>*,simReal*)/*=nullptr*/)
 {
     debugInfo inf(__FUNCTION__,ikGroupHandle);
     bool retVal=false;

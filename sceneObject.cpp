@@ -71,51 +71,47 @@ CSceneObject* CSceneObject::copyYourself() const
 
     duplicate->_parentObject=nullptr;
 
-    // Following are taken care of in the copyYourself function of the objectContainer:
-    // duplicate->childList=...
-    // duplicate->_parentObject=_parentObject;
-
     return(duplicate);
 }
 
-C7Vector CSceneObject::getParentCumulativeTransformation(bool tempVals) const
+C7Vector CSceneObject::getParentCumulativeTransformation() const
 {
     if (getParentObject()==nullptr)
         return(C7Vector::identityTransformation);
     else
-        return(getParentObject()->getCumulativeTransformation(tempVals));
+        return(getParentObject()->getCumulativeTransformation());
 }
 
-C7Vector CSceneObject::getCumulativeTransformation(bool tempVals) const
+C7Vector CSceneObject::getCumulativeTransformation() const
 {
     if (getParentObject()==nullptr)
-        return(getLocalTransformation(tempVals));
+        return(getLocalTransformation());
     else
-        return(getParentCumulativeTransformation(tempVals)*getLocalTransformation(tempVals));
+        return(getParentCumulativeTransformation()*getLocalTransformation());
 }
 
-C7Vector CSceneObject::getCumulativeTransformationPart1(bool tempVals) const
+C7Vector CSceneObject::getCumulativeTransformationPart1() const
 {
     if (getObjectType()==ik_objecttype_joint)
     {
         if (getParentObject()==nullptr)
-            return(getLocalTransformationPart1(tempVals));
+            return(getLocalTransformationPart1());
         else
-            return(getParentCumulativeTransformation(tempVals)*getLocalTransformationPart1(tempVals));
+            return(getParentCumulativeTransformation()*getLocalTransformationPart1());
     }
     else
-        return(getCumulativeTransformation(tempVals));
+        return(getCumulativeTransformation());
 }
 
-C7Vector CSceneObject::getLocalTransformation(bool tempVals) const
+C7Vector CSceneObject::getLocalTransformation() const
 {
+    C7Vector retVal=_transformation;
     if (getObjectType()==ik_objecttype_joint)
     {
         const CJoint* it=dynamic_cast<const CJoint*>(this);
         C7Vector jointTr;
         jointTr.setIdentity();
-        simReal val;
-        val=it->getPosition(tempVals);
+        simReal val=it->getPosition();
         if (it->getJointType()==ik_jointtype_revolute)
         {
             jointTr.Q.setAngleAndAxis(val,C3Vector(simZero,simZero,simOne));
@@ -124,54 +120,13 @@ C7Vector CSceneObject::getLocalTransformation(bool tempVals) const
         if (it->getJointType()==ik_jointtype_prismatic)
             jointTr.X(2)=val;
         if (it->getJointType()==ik_jointtype_spherical)
-        {
-            if (tempVals)
-            {
-                if (it->getTempSphericalJointLimitations()==0)
-                { // Used by the IK routine when away from joint limitations
-                    jointTr.Q.setEulerAngles(simZero,simZero,it->getTempParameterEx(2));
-                    C4Vector q2;
-                    q2.setEulerAngles(piValD2,simZero,simZero);
-                    jointTr.Q=q2*jointTr.Q;
-
-                    q2.setEulerAngles(simZero,simZero,it->getTempParameterEx(1));
-                    jointTr.Q=q2*jointTr.Q;
-                    q2.setEulerAngles(-piValD2,simZero,-piValD2);
-                    jointTr.Q=q2*jointTr.Q;
-
-                    q2.setEulerAngles(simZero,simZero,it->getTempParameterEx(0));
-                    jointTr.Q=q2*jointTr.Q;
-                    q2.setEulerAngles(simZero,piValD2,simZero);
-                    jointTr.Q=q2*jointTr.Q;
-                    q2=it->getSphericalTransformation();
-                    jointTr.Q=q2*jointTr.Q;
-                }
-                else
-                { // Used by the IK routine when close to joint limitations
-                    jointTr.Q.setEulerAngles(simZero,simZero,it->getTempParameterEx(2));
-                    C4Vector q2;
-                    q2.setEulerAngles(simZero,-piValD2,simZero);
-                    jointTr.Q=q2*jointTr.Q;
-
-                    q2.setEulerAngles(simZero,simZero,it->getTempParameterEx(1));
-                    jointTr.Q=q2*jointTr.Q;
-                    q2.setEulerAngles(simZero,piValD2,simZero);
-                    jointTr.Q=q2*jointTr.Q;
-
-                    q2.setEulerAngles(simZero,simZero,it->getTempParameterEx(0));
-                    jointTr.Q=q2*jointTr.Q;
-                }
-            }
-            else
-                jointTr.Q=it->getSphericalTransformation();
-        }
-        return(_transformation*jointTr);
+            jointTr.Q=it->getSphericalTransformation();
+        retVal=_transformation*jointTr;
     }
-    else
-        return(_transformation);
+    return(retVal);
 }
 
-C7Vector CSceneObject::getLocalTransformationPart1(bool tempVals) const
+C7Vector CSceneObject::getLocalTransformationPart1() const
 {
     return(_transformation);
 }
