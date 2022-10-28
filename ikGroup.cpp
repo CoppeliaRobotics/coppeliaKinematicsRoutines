@@ -368,7 +368,7 @@ bool CikGroup::getJointLimitHits(std::vector<int>* jointHandles,std::vector<simR
     return(!_jointLimitHits.empty());
 }
 
-int CikGroup::computeGroupIk(bool forInternalFunctionality,int(*cb)(const int*,std::vector<simReal>*,const int*,const int*,const int*,const int*,std::vector<simReal>*,simReal*))
+int CikGroup::computeGroupIk(bool forInternalFunctionality,bool(*cb)(const int*,std::vector<simReal>*,const int*,const int*,const int*,const int*,std::vector<simReal>*,simReal*))
 { // Return value is one of following: ik_result_not_performed, ik_result_success, ik_result_fail
     _jointLimitHits.clear();
     if (!active)
@@ -530,7 +530,7 @@ int CikGroup::computeGroupIk(bool forInternalFunctionality,int(*cb)(const int*,s
     return(returnValue);
 }
 
-int CikGroup::performOnePass(std::vector<CikElement*>* validElements,bool& limitOrAvoidanceNeedMoreCalculation,simReal interpolFact,bool forInternalFunctionality,bool computeOnlyJacobian,int(*cb)(const int*,std::vector<simReal>*,const int*,const int*,const int*,const int*,std::vector<simReal>*,simReal*))
+int CikGroup::performOnePass(std::vector<CikElement*>* validElements,bool& limitOrAvoidanceNeedMoreCalculation,simReal interpolFact,bool forInternalFunctionality,bool computeOnlyJacobian,bool(*cb)(const int*,std::vector<simReal>*,const int*,const int*,const int*,const int*,std::vector<simReal>*,simReal*))
 {   // Return value -1 means that an error occured or joint limits were hit (with appropriate flag) --> keep old configuration
     // Return value 0 means that the max. angular or linear variation were overshot
     // Return value 1 means everything went ok
@@ -727,10 +727,10 @@ int CikGroup::performOnePass(std::vector<CikElement*>* validElements,bool& limit
     if (cb)
     {
         int js[2]={int(mainJacobian.rows),int(mainJacobian.cols)};
-        int res=cb(js,&mainJacobian.data,equationType.data(),elementHandles.data(),jointHandles.data(),jointDofIndex.data(),&mainErrorVector.data,solution.data.data());
+        bool res=cb(js,&mainJacobian.data,equationType.data(),elementHandles.data(),jointHandles.data(),jointDofIndex.data(),&mainErrorVector.data,solution.data.data());
         mainJacobian.rows=mainJacobian.data.size()/mainJacobian.cols;
         mainErrorVector.rows=mainJacobian.rows;
-        if (res==2)
+        if (res)
             computeHere=false;
         else
         {

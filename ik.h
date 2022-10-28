@@ -133,7 +133,7 @@ bool ikSetIkElementPrecision(int ikGroupHandle,int ikElementHandle,simReal linea
 bool ikGetIkElementWeights(int ikGroupHandle,int ikElementHandle,simReal* linearWeight,simReal* angularWeight);
 bool ikSetIkElementWeights(int ikGroupHandle,int ikElementHandle,simReal linearWeight,simReal angularWeight);
 
-bool ikHandleIkGroup(int ikGroupHandle=ik_handle_all,int* result=nullptr,int(*cb)(const int*,std::vector<simReal>*,const int*,const int*,const int*,const int*,std::vector<simReal>*,simReal*)=nullptr);
+bool ikHandleIkGroup(int ikGroupHandle=ik_handle_all,int* result=nullptr,bool(*cb)(const int*,std::vector<simReal>*,const int*,const int*,const int*,const int*,std::vector<simReal>*,simReal*)=nullptr);
 bool ikComputeJacobian(int baseHandle,int altBaseHandle,int jointHandle,int constraints,const C7Vector* tipPose,const C7Vector* targetPose,std::vector<simReal>* jacobian,std::vector<simReal>* errorVect);
 
 bool ikComputeJacobian_old(int ikGroupHandle,int options,bool* success=nullptr);

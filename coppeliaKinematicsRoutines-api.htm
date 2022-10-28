@@ -47,7 +47,6 @@ td.section { margin: 0; padding: 0; }
 <a href="?#ikGetIkGroupFlags">ikGetIkGroupFlags</a>
 <a href="?#ikGetIkGroupHandle">ikGetIkGroupHandle</a>
 <a href="?#ikGetIkGroupJointLimitHits">ikGetIkGroupJointLimitHits</a>
-<a href="?#ikGetJacobian">ikGetJacobian</a>
 <a href="?#ikGetJointDependency">ikGetJointDependency</a>
 <a href="?#ikGetJointIkWeight">ikGetJointIkWeight</a>
 <a href="?#ikGetJointInterval">ikGetJointInterval</a>
@@ -60,7 +59,6 @@ td.section { margin: 0; padding: 0; }
 <a href="?#ikGetJointType">ikGetJointType</a>
 <a href="?#ikGetLastError">ikGetLastError</a>
 <a href="?#ikGetLinkedDummy">ikGetLinkedDummy</a>
-<a href="?#ikGetManipulability">ikGetManipulability</a>
 <a href="?#ikGetObjectHandle">ikGetObjectHandle</a>
 <a href="?#ikGetObjectMatrix">ikGetObjectMatrix</a>
 <a href="?#ikGetObjectParent">ikGetObjectParent</a>
@@ -191,8 +189,6 @@ td.section { margin: 0; padding: 0; }
 <a href="?#ikHandleIkGroup">ikHandleIkGroup</a>
 <a href="?#ikFindConfig">ikFindConfig</a>
 <a href="?#ikComputeJacobian">ikComputeJacobian</a>
-<a href="?#ikGetJacobian">ikGetJacobian</a>
-<a href="?#ikGetManipulability">ikGetManipulability</a>
 </pre>
 </td></tr>
 
@@ -232,18 +228,23 @@ td.section { margin: 0; padding: 0; }
 <table class="apiTable">
 <tr class="apiTableTr">
 <td class="apiTableLeftDescr">Description</td>
-<td class="apiTableRightDescr">Computes the Jacobian for an IK group.</td>
+<td class="apiTableRightDescr">Computes the Jacobian and error vector for a kinematic chain</td>
 </tr>
 <tr class="apiTableTr">
 <td class="apiTableLeftCSyn">Synopsis</td>
-<td class="apiTableRightCSyn">bool ikComputeJacobian(int ikGroupHandle,int options,bool* success=nullptr)</td>
+<td class="apiTableRightCSyn">bool ikComputeJacobian(int baseHandle,int altBaseHandle,int jointHandle,int constraints,const C7Vector* tipPose,const C7Vector* targetPose,std::vector<simReal>* jacobian,std::vector<simReal>* errorVect)</td>
 </tr>
 <tr class="apiTableTr">
 <td class="apiTableLeftCParam">Arguments</td>
 <td class="apiTableRightCParam">
-<div><strong>ikGroupHandle</strong>: the handle of the IK group.</div>
-<div><strong>options</strong>: options flag, bit-coded. bit0 set (i.e. 1): takes joint weights into account.</div>
-<div><strong>success</strong>: whether the Jacobian could successfully be computed, in return.</div>
+<div><strong>baseHandle</strong>: the handle of the base of the kinematic chain, or -1 for the world</div>
+<div><strong>altBaseHandle</strong>: the handle of an object, that should serve as the reference frame, or -1 to use baseHandle as reference frame</div>
+<div><strong>jointHandle</strong>: the handle of the last joint in the kinematic chain, when going from base to tip</div>
+<div><strong>constraints</strong>: a combination of following is possible: ik_constraint_x, ik_constraint_y, ik_constraint_z, ik_constraint_alpha_beta, ik_constraint_gamma. For convenience we also have ik_constraint_position=ik_constraint_x|ik_constraint_y|ik_constraint_z, ik_constraint_orientation=ik_constraint_alpha_beta|ik_constraint_gamma, and ik_constraint_pose=ik_constraint_position|ik_constraint_orientation.</div>
+<div><strong>tipPose</strong>: the pose of the tip object, relative to the world</div>
+<div><strong>targetPose</strong>: the pose of the target object, relative to the world. Can be nullptr, in which case the targetPose is the same as the tipPose</div>
+<div><strong>jacobian</strong>: the jacobian in return (row major order). Each row corresponds to one constraint in following order: x, y, z, alpha, beta, gamma. Each column corresponds to one joint, from base to tip. Can be nullptr</div>
+<div><strong>errorVect</strong>: the error vector between the target and the tip. Can be nullptr</div>
 </td>
 </tr>
 <tr class="apiTableTr">
@@ -252,7 +253,7 @@ td.section { margin: 0; padding: 0; }
 </tr>
 <tr class="apiTableTr">
 <td class="apiTableLeftDescr">See also</td>
-<td class="apiTableRightDescr"><a href="#ikGetJacobian">ikGetJacobian</a>, <a href="#ikGetManipulability">ikGetManipulability</a></td>
+<td class="apiTableRightDescr"><a href="#ikHandleIkGroup">ikHandleIkGroup</a></td>
 </tr>
 </table>
 <br>
@@ -544,7 +545,7 @@ td.section { margin: 0; padding: 0; }
 </tr>
 <tr class="apiTableTr">
 <td class="apiTableLeftDescr">See also</td>
-<td class="apiTableRightDescr"><a href="#ikComputeJacobian">ikComputeJacobian</a>, <a href="#ikGetJacobian">ikGetJacobian</a>, <a href="#ikDuplicateEnvironment">ikDuplicateEnvironment</a></td>
+<td class="apiTableRightDescr"><a href="#ikComputeJacobian">ikComputeJacobian</a>, <a href="#ikDuplicateEnvironment">ikDuplicateEnvironment</a></td>
 </tr>
 </table>
 <br>
@@ -582,7 +583,7 @@ td.section { margin: 0; padding: 0; }
 </tr>
 <tr class="apiTableTr">
 <td class="apiTableLeftDescr">See also</td>
-<td class="apiTableRightDescr"><a href="#ikComputeJacobian">ikComputeJacobian</a>, <a href="#ikGetJacobian">ikGetJacobian</a>, <a href="#ikDuplicateEnvironment">ikDuplicateEnvironment</a></td>
+<td class="apiTableRightDescr"><a href="#ikComputeJacobian">ikComputeJacobian</a>, <a href="#ikDuplicateEnvironment">ikDuplicateEnvironment</a></td>
 </tr>
 </table>
 <br>
@@ -855,35 +856,6 @@ td.section { margin: 0; padding: 0; }
 <tr class="apiTableTr">
 <td class="apiTableLeftDescr">See also</td>
 <td class="apiTableRightDescr"><a href="#ikSetIkGroupFlags">ikSetIkGroupFlags</a></td>
-</tr>
-</table>
-<br>
-
-<p class="subsectionBar">
-<a name="ikGetJacobian" id="ikGetJacobian"></a>ikGetJacobian</p>
-<table class="apiTable">
-<tr class="apiTableTr">
-<td class="apiTableLeftDescr">Description</td>
-<td class="apiTableRightDescr">Retrieves the Jacobian previously computed via <a href="#ikComputeJacobian">ikComputeJacobian</a>.</td>
-</tr>
-<tr class="apiTableTr">
-<td class="apiTableLeftCSyn">Synopsis</td>
-<td class="apiTableRightCSyn">simReal* ikGetJacobian(int ikGroupHandle,size_t* matrixSize)</td>
-</tr>
-<tr class="apiTableTr">
-<td class="apiTableLeftCParam">Arguments</td>
-<td class="apiTableRightCParam">
-<div><strong>ikGroupHandle</strong>: the handle of the IK group.</div>
-<div><strong>matrixSize</strong>: a pointer to two values for the size (row count (i.e. number of DoFs) and column count) of the Jacobian matrix, in return.</div>
-</td>
-</tr>
-<tr class="apiTableTr">
-<td class="apiTableLeftCRet">Return value</td>
-<td class="apiTableRightCRet">a pointer to the matrix. Use <a href="#ikReleaseBuffer">ikReleaseBuffer</a> to release the memory when done.</td>
-</tr>
-<tr class="apiTableTr">
-<td class="apiTableLeftDescr">See also</td>
-<td class="apiTableRightDescr"><a href="#ikComputeJacobian">ikComputeJacobian</a>, <a href="#ikGetManipulability">ikGetManipulability</a></td>
 </tr>
 </table>
 <br>
@@ -1240,35 +1212,6 @@ td.section { margin: 0; padding: 0; }
 <br>
 
 <p class="subsectionBar">
-<a name="ikGetManipulability" id="ikGetManipulability"></a>ikGetManipulability</p>
-<table class="apiTable">
-<tr class="apiTableTr">
-<td class="apiTableLeftDescr">Description</td>
-<td class="apiTableRightDescr">Retrieves the manipulability value ( sqrt(det(J*JT)) ) of the Jacobian previously computed via <a href="#ikComputeJacobian">ikComputeJacobian</a>.</td>
-</tr>
-<tr class="apiTableTr">
-<td class="apiTableLeftCSyn">Synopsis</td>
-<td class="apiTableRightCSyn">bool ikGetManipulability(int ikGroupHandle,simReal* manip)</td>
-</tr>
-<tr class="apiTableTr">
-<td class="apiTableLeftCParam">Arguments</td>
-<td class="apiTableRightCParam">
-<div><strong>ikGroupHandle</strong>: the handle of the IK group.</div>
-<div><strong>manip</strong>: the manipulability value, in return.</div>
-</td>
-</tr>
-<tr class="apiTableTr">
-<td class="apiTableLeftCRet">Return value</td>
-<td class="apiTableRightCRet">true in case of success.</td>
-</tr>
-<tr class="apiTableTr">
-<td class="apiTableLeftDescr">See also</td>
-<td class="apiTableRightDescr"><a href="#ikComputeJacobian">ikComputeJacobian</a>, <a href="#ikGetJacobian">ikGetJacobian</a></td>
-</tr>
-</table>
-<br>
-
-<p class="subsectionBar">
 <a name="ikGetObjectHandle" id="ikGetObjectHandle"></a>ikGetObjectHandle</p>
 <table class="apiTable">
 <tr class="apiTableTr">
@@ -1427,13 +1370,17 @@ td.section { margin: 0; padding: 0; }
 </tr>
 <tr class="apiTableTr">
 <td class="apiTableLeftCSyn">Synopsis</td>
-<td class="apiTableRightCSyn">bool ikHandleIkGroup(int ikGroupHandle=ik_handle_all,int* result=nullptr)</td>
+<td class="apiTableRightCSyn">bool ikHandleIkGroup(int ikGroupHandle=ik_handle_all,int* result=nullptr,int(*cb)(const int*,std::vector&lt;simReal&gt;*,const int*,const int*,const int*,const int*,std::vector&lt;simReal&gt;*,simReal*)=nullptr)</td>
 </tr>
 <tr class="apiTableTr">
 <td class="apiTableLeftCParam">Arguments</td>
 <td class="apiTableRightCParam">
 <div><strong>ikGroupHandle</strong>: the handle of the IK group (in that case make sure the IK group is flagged as explicit handling (default when creating a new IK group)), or ik_handle_all to handle all IK groups.</div>
 <div><strong>result</strong>: the resolution result, in return. Possible values are ik_result_not_performed, ik_result_success, ik_result_fail</div>
+<div><strong>cb</strong>: an optional callback address that allows to inspect and manipulate the generated jacobians and error vector:</div>
+<div>bool jacobianCallback(const int jacobianSize[2],std::vector&lt;simReal&gt;* jacobian,const simInt* rowConstraints,const simInt* rowIkElements,const simInt* colHandles,const simInt* colStages,std::vector&lt;simReal&gt;* errorVector,simReal* qVector)</div>
+<div></div>
+<div>The returned jacobian and errorVector can be modified, also in size, but must be consistent with each other and the joints involved. Returning true expects the computed joint errors in qVector. Otherwise, the jacobian and error vector will be used to compute the corresponding joint errors as usual.</div>
 </td>
 </tr>
 <tr class="apiTableTr">

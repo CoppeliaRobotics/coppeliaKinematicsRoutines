@@ -59,7 +59,7 @@ public:
     simReal getJointTreshholdLinear() const;
     void setJointTreshholdAngular(simReal t);
     void setJointTreshholdLinear(simReal t);
-    int computeGroupIk(bool forInternalFunctionality,int(*cb)(const int*,std::vector<simReal>*,const int*,const int*,const int*,const int*,std::vector<simReal>*,simReal*));
+    int computeGroupIk(bool forInternalFunctionality,bool(*cb)(const int*,std::vector<simReal>*,const int*,const int*,const int*,const int*,std::vector<simReal>*,simReal*));
 
     bool getIgnoreMaxStepSizes() const;
     void setIgnoreMaxStepSizes(bool ignore);
@@ -86,7 +86,7 @@ private:
     // Variables which need to be serialized and copied:
     std::vector<CikElement*> _ikElements;
 
-    int performOnePass(std::vector<CikElement*>* validElements,bool& limitOrAvoidanceNeedMoreCalculation,simReal interpolFact,bool forInternalFunctionality,bool computeOnlyJacobian,int(*cb)(const int*,std::vector<simReal>*,const int*,const int*,const int*,const int*,std::vector<simReal>*,simReal*));
+    int performOnePass(std::vector<CikElement*>* validElements,bool& limitOrAvoidanceNeedMoreCalculation,simReal interpolFact,bool forInternalFunctionality,bool computeOnlyJacobian,bool(*cb)(const int*,std::vector<simReal>*,const int*,const int*,const int*,const int*,std::vector<simReal>*,simReal*));
 
     // Variables which need to be serialized and copied:
     int objectHandle;

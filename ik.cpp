@@ -909,8 +909,10 @@ bool ikComputeJacobian(int baseHandle,int altBaseHandle,int jointHandle,int cons
             int tipBaseAltBase[3]={tip->getObjectHandle(),baseHandle,altBaseHandle};
             if (CikElement::getJacobian(jacob,errVect,w,tipBaseAltBase,constraints,1.0,nullptr,nullptr,nullptr))
             {
-                jacobian->assign(jacob.data.begin(),jacob.data.end());
-                errorVect->assign(errVect.data.begin(),errVect.data.end());
+                if (jacobian!=nullptr)
+                    jacobian->assign(jacob.data.begin(),jacob.data.end());
+                if (errorVect!=nullptr)
+                    errorVect->assign(errVect.data.begin(),errVect.data.end());
                 retVal=true;
             }
             else
@@ -986,7 +988,7 @@ bool ikGetManipulability_old(int ikGroupHandle,simReal* manip)
     return(retVal);
 }
 
-bool ikHandleIkGroup(int ikGroupHandle/*=ik_handle_all*/,int* result/*=nullptr*/,int(*cb)(const int*,std::vector<simReal>*,const int*,const int*,const int*,const int*,std::vector<simReal>*,simReal*)/*=nullptr*/)
+bool ikHandleIkGroup(int ikGroupHandle/*=ik_handle_all*/,int* result/*=nullptr*/,bool(*cb)(const int*,std::vector<simReal>*,const int*,const int*,const int*,const int*,std::vector<simReal>*,simReal*)/*=nullptr*/)
 {
     debugInfo inf(__FUNCTION__,ikGroupHandle);
     bool retVal=false;
