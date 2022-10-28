@@ -6,7 +6,6 @@ CDummy::CDummy()
     _objectType=ik_objecttype_dummy;
     _objectName="dummy";
     _linkedDummyHandle=-1;
-    _linkType=ik_linktype_ik_tip_target;
 }
 
 CDummy::~CDummy()
@@ -38,12 +37,12 @@ void CDummy::serialize(CSerialization& ar)
     if (ar.isWriting())
     {
         ar.writeInt(_linkedDummyHandle);
-        ar.writeInt(_linkType);
+        ar.writeInt(_linkedDummyHandle); // previously link type
     }
     else
     {
         _linkedDummyHandle=ar.readInt();
-        _linkType=ar.readInt();
+        ar.readInt(); // previously link type
     }
 }
 
@@ -52,7 +51,6 @@ CSceneObject* CDummy::copyYourself() const
     CDummy* duplicate=(CDummy*)CSceneObject::copyYourself();
 
     duplicate->_linkedDummyHandle=_linkedDummyHandle;
-    duplicate->_linkType=_linkType;
 
     return(duplicate);
 }
@@ -79,13 +77,6 @@ void CDummy::setLinkedDummyHandle(int theHandle,bool setDirectly)
                 newLinkedDummy->setLinkedDummyHandle(-1,false);
                 _linkedDummyHandle=theHandle;
                 newLinkedDummy->setLinkedDummyHandle(_objectHandle,true);
-                if ( (_linkType==ik_linktype_ik_tip_target)||(_linkType==ik_linktype_gcs_loop_closure)||(_linkType==ik_linktype_dynamics_loop_closure)||(_linkType==ik_linktype_dynamics_force_constraint) )
-                    newLinkedDummy->setLinkType(_linkType,true);
-                // Deprecated:
-                if (_linkType==ik_linktype_gcs_tip)
-                    newLinkedDummy->setLinkType(ik_linktype_gcs_target,true);
-                if (_linkType==ik_linktype_gcs_target)
-                    newLinkedDummy->setLinkType(ik_linktype_gcs_tip,true);
             }
             else
                 _linkedDummyHandle=-1;
@@ -93,26 +84,3 @@ void CDummy::setLinkedDummyHandle(int theHandle,bool setDirectly)
     }
 }
 
-int CDummy::getLinkType() const
-{
-    return(_linkType);
-}
-
-void CDummy::setLinkType(int theLinkType,bool setDirectly)
-{
-    _linkType=theLinkType;
-    if ( (_linkedDummyHandle!=-1)&&(!setDirectly) )
-    {
-        CDummy* linkedDummy=CEnvironment::currentEnvironment->objectContainer->getDummy(_linkedDummyHandle);
-        if (linkedDummy!=nullptr)
-        {
-            if ( (theLinkType==ik_linktype_ik_tip_target)||(theLinkType==ik_linktype_gcs_loop_closure)||(theLinkType==ik_linktype_dynamics_loop_closure)||(theLinkType==ik_linktype_dynamics_force_constraint) )
-                linkedDummy->setLinkType(theLinkType,true);
-            // Deprecated:
-            if (theLinkType==ik_linktype_gcs_tip)
-                linkedDummy->setLinkType(ik_linktype_gcs_target,true);
-            if (theLinkType==ik_linktype_gcs_target)
-                linkedDummy->setLinkType(ik_linktype_gcs_tip,true);
-        }
-    }
-}

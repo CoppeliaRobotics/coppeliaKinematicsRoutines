@@ -437,7 +437,7 @@ int CikGroup::computeGroupIk(bool forInternalFunctionality,bool(*cb)(const int*,
                 }
                 if ( (iterat!=base)&&(iterat!=nullptr)&&(iterat->getObjectType()==ik_objecttype_joint) )
                 { 
-                    if ( ((static_cast<CJoint*>(iterat))->getJointMode()==ik_jointmode_ik)||((static_cast<CJoint*>(iterat))->getJointMode()==ik_jointmode_reserved_previously_ikdependent)||((static_cast<CJoint*>(iterat))->getJointMode()==ik_jointmode_dependent) )
+                    if ((static_cast<CJoint*>(iterat))->getJointMode()==ik_jointmode_ik)
                         jointPresent=true;
                 }
             }
@@ -665,7 +665,8 @@ int CikGroup::performOnePass(std::vector<CikElement*>* validElements,bool& limit
 
     for (size_t i=0;i<allJoints.size();i++)
     { // handle joint dependencies:
-        if ( ((allJoints[i]->getJointMode()==ik_jointmode_dependent)||(allJoints[i]->getJointMode()==ik_jointmode_reserved_previously_ikdependent))&&(allJoints[i]->getJointType()!=ik_jointtype_spherical) )
+        int dependenceHandle=allJoints[i]->getDependencyJointHandle();
+        if ( ((dependenceHandle!=-1)&&(allJoints[i]->getJointMode()==ik_jointmode_ik))&&(allJoints[i]->getJointType()!=ik_jointtype_spherical) )
         {
             size_t rows=mainJacobian.rows+1;
             size_t currentRow=rows-1;
@@ -674,11 +675,10 @@ int CikGroup::performOnePass(std::vector<CikElement*>* validElements,bool& limit
             elementHandles.push_back(-1);
             equationType.push_back(7);
 
-            int dependenceHandle=allJoints[i]->getDependencyJointHandle();
             if (dependenceHandle!=-1)
             {
-                simReal coeff=allJoints[i]->getDependencyJointMult();
-                simReal fact=allJoints[i]->getDependencyJointAdd();
+                simReal mult=allJoints[i]->getDependencyJointMult();
+                simReal off=allJoints[i]->getDependencyJointAdd();
                 bool found=false;
                 size_t depJointIndex;
                 for (depJointIndex=0;depJointIndex<allJoints.size();depJointIndex++)
@@ -692,26 +692,9 @@ int CikGroup::performOnePass(std::vector<CikElement*>* validElements,bool& limit
                 if (found)
                 {
                     mainJacobian(currentRow,i)=-simOne;
-                    mainJacobian(currentRow,depJointIndex)=coeff;
-                    mainErrorVector(currentRow,0)=((allJoints[i]->getPosition()-fact)-
-                                    coeff*allJoints[depJointIndex]->getPosition())*interpolFact;
+                    mainJacobian(currentRow,depJointIndex)=mult;
+                    mainErrorVector(currentRow,0)=simZero;
                 }
-                else
-                {   // joint of dependenceHandle is not part of this group calculation:
-                    // therefore we take its current value --> WRONG! Since all temp params are initialized!
-                    CJoint* dependentJoint=CEnvironment::currentEnvironment->objectContainer->getJoint(dependenceHandle);
-                    if (dependentJoint!=nullptr)
-                    {
-                        mainJacobian(currentRow,i)=-simOne;
-                        mainErrorVector(currentRow,0)=((allJoints[i]->getPosition()-fact)-
-                                        coeff*dependentJoint->getPosition())*interpolFact;
-                    }
-                }
-            }
-            else
-            {  // there is no dependent counterpart joint. We keep the joint fixed:
-                mainJacobian(currentRow,i)=-simOne;
-                mainErrorVector(currentRow,0)=interpolFact*(allJoints[i]->getPosition()-allJoints[i]->getDependencyJointAdd());
             }
         }
     }
@@ -921,7 +904,7 @@ bool CikGroup::computeOnlyJacobian_old(int options)
                 }
                 if ( (iterat!=base)&&(iterat!=nullptr)&&(iterat->getObjectType()==ik_objecttype_joint) )
                 {
-                    if ( ((static_cast<CJoint*>(iterat))->getJointMode()==ik_jointmode_ik)||((static_cast<CJoint*>(iterat))->getJointMode()==ik_jointmode_reserved_previously_ikdependent)||((static_cast<CJoint*>(iterat))->getJointMode()==ik_jointmode_dependent) )
+                    if ((static_cast<CJoint*>(iterat))->getJointMode()==ik_jointmode_ik)
                         jointPresent=true;
                 }
             }

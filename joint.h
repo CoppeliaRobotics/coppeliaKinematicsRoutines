@@ -18,7 +18,7 @@ public:
 
     CSceneObject* copyYourself() const;
     simReal getPosition() const;
-    void setPosition(simReal parameter);
+    void setPosition(simReal parameter,const CJoint* masterJoint=nullptr);
 
     simReal getScrewPitch() const;
     void setScrewPitch(simReal p);
@@ -38,8 +38,6 @@ public:
 
     simReal getMaxStepSize() const;
     void setMaxStepSize(simReal stepS) ;
-
-    void _rectifyDependentJoints();
 
     void setJointMode(int theMode);
     int getJointMode() const;

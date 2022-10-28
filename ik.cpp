@@ -1174,10 +1174,7 @@ bool ikSetLinkedDummy(int dummyHandle,int linkedDummyHandle)
                 if (it2==nullptr)
                     it->setLinkedDummyHandle(-1,false);
                 else
-                {
                     it->setLinkedDummyHandle(linkedDummyHandle,false);
-                    it->setLinkType(ik_linktype_ik_tip_target,false);
-                }
                 retVal=true;
             }
             else
@@ -1199,8 +1196,6 @@ bool ikGetLinkedDummy(int dummyHandle,int* linkedDummyHandle)
         if (it!=nullptr)
         {
             linkedDummyHandle[0]=it->getLinkedDummyHandle();
-            if (it->getLinkType()!=ik_linktype_ik_tip_target)
-                linkedDummyHandle[0]=-1;
             retVal=true;
         }
         else
@@ -2027,7 +2022,7 @@ int ikGetConfigForTipPose(int ikGroupHandle,size_t jointCnt,const int* jointHand
                             joints[i]->setJointMode(ik_jointmode_ik);
                     }
                     else
-                        joints[i]->setJointMode(ik_jointmode_dependent);
+                        joints[i]->setJointMode(ik_jointmode_ik);
                 }
 
                 // do the calculation:

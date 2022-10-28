@@ -55,25 +55,8 @@ void CJoint::performSceneObjectLoadingMapping(const std::vector<int>* map)
 
 void CJoint::setJointMode(int theMode)
 {
-    _jointMode=theMode;
-    if ( (theMode!=ik_jointmode_dependent)&&(theMode!=ik_jointmode_reserved_previously_ikdependent) )
-    {
-        bool d=(_dependencyJointHandle!=-1);
-        _dependencyJointHandle=-1;
-        if (d)
-            CEnvironment::currentEnvironment->objectContainer->actualizeObjectInformation();
-    }
-    setPosition(getPosition());
-    setSphericalTransformation(getSphericalTransformation());
-}
-
-void CJoint::_rectifyDependentJoints()
-{
-    for (size_t i=0;i<dependentJoints.size();i++)
-    {
-        if (dependentJoints[i]->getJointMode()==ik_jointmode_dependent)
-            dependentJoints[i]->setPosition(simZero);
-    }
+    if (theMode!=_jointMode)
+        _jointMode=theMode;
 }
 
 int CJoint::getJointMode() const
@@ -98,30 +81,26 @@ simReal CJoint::getDependencyJointAdd() const
 
 void CJoint::setDependencyJointHandle(int jointHandle)
 {
-    _dependencyJointHandle=jointHandle;
-    if (jointHandle!=-1)
+    if (_dependencyJointHandle!=jointHandle)
     {
-        // Illegal loop check:
-        CJoint* it=CEnvironment::currentEnvironment->objectContainer->getJoint(jointHandle);
-        CJoint* iterat=it;
-        while (iterat->getDependencyJointHandle()!=-1)
+        _dependencyJointHandle=jointHandle;
+        if (jointHandle!=-1)
         {
-            if (iterat->getJointMode()!=_jointMode)
-                break;
-            int joint=iterat->getDependencyJointHandle();
-            if (joint==getObjectHandle())
+            // Illegal loop check:
+            CJoint* it=CEnvironment::currentEnvironment->objectContainer->getJoint(_dependencyJointHandle);
+            CJoint* iterat=it;
+            while (iterat->getDependencyJointHandle()!=-1)
             {
-                iterat->setDependencyJointHandle(-1);
-                break;
+                int joint=iterat->getDependencyJointHandle();
+                if (joint==_objectHandle)
+                {
+                    iterat->setDependencyJointHandle(-1);
+                    break;
+                }
+                iterat=CEnvironment::currentEnvironment->objectContainer->getJoint(joint);
             }
-            iterat=CEnvironment::currentEnvironment->objectContainer->getJoint(joint);
+            setPosition(getPosition());
         }
-        CEnvironment::currentEnvironment->objectContainer->actualizeObjectInformation();
-        setPosition(getPosition());
-    }
-    else
-    {
-        _dependencyJointHandle=-1;
         CEnvironment::currentEnvironment->objectContainer->actualizeObjectInformation();
     }
 }
@@ -157,10 +136,7 @@ simReal CJoint::getScrewPitch() const
 void CJoint::setScrewPitch(simReal p)
 {
     if (_jointType==ik_jointtype_revolute)
-    {
-        if (_jointMode!=ik_jointmode_force)
-            _screwPitch=p;
-    }
+        _screwPitch=p;
 }
 
 void CJoint::setSphericalTransformation(const C4Vector& tr)
@@ -219,31 +195,37 @@ void CJoint::setIkWeight(simReal newWeight)
     _ikWeight=newWeight;
 }
 
-void CJoint::setPosition(simReal parameter)
+void CJoint::setPosition(simReal parameter,const CJoint* masterJoint/*=nullptr*/)
 {
-    if (_positionIsCyclic)
-        parameter=atan2(sin(parameter),cos(parameter));
+    if (masterJoint!=nullptr)
+    {
+        if (_dependencyJointHandle==masterJoint->getObjectHandle())
+        {
+            _jointPosition=_dependencyJointAdd+_dependencyJointMult*masterJoint->getPosition();
+            for (size_t i=0;i<dependentJoints.size();i++)
+                dependentJoints[i]->setPosition(simZero,this);
+        }
+    }
     else
     {
-        if (parameter>(getPositionIntervalMin()+getPositionIntervalRange()))
-            parameter=getPositionIntervalMin()+getPositionIntervalRange();
-        if (parameter<getPositionIntervalMin())
-            parameter=getPositionIntervalMin();
-    }
-    _jointPosition=parameter;
-
-    if (_jointMode==ik_jointmode_dependent)
-    {
-        simReal linked=simZero;
-        if (_dependencyJointHandle!=-1)
+        if (_dependencyJointHandle==-1)
         {
-            CJoint* anAct=CEnvironment::currentEnvironment->objectContainer->getJoint(_dependencyJointHandle);
-            if (anAct!=nullptr)
-                linked=_dependencyJointMult*anAct->getPosition();
+            if (_positionIsCyclic)
+                parameter=atan2(sin(parameter),cos(parameter));
+            else
+            {
+                if (parameter>(getPositionIntervalMin()+getPositionIntervalRange()))
+                    parameter=getPositionIntervalMin()+getPositionIntervalRange();
+                if (parameter<getPositionIntervalMin())
+                    parameter=getPositionIntervalMin();
+            }
+            _jointPosition=parameter;
+
+            for (size_t i=0;i<dependentJoints.size();i++)
+                dependentJoints[i]->setPosition(simZero,this);
         }
-        _jointPosition=linked+_dependencyJointAdd;
     }
-    _rectifyDependentJoints();
+
 }
 
 simReal CJoint::getPositionIntervalMin() const

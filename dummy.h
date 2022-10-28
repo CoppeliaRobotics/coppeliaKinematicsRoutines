@@ -18,10 +18,7 @@ public:
     CSceneObject* copyYourself() const;
     int getLinkedDummyHandle() const;
     void setLinkedDummyHandle(int theHandle,bool setDirectly);
-    int getLinkType() const;
-    void setLinkType(int theLinkType,bool setDirectly);
 
 protected:
     int _linkedDummyHandle;
-    int _linkType;
 };

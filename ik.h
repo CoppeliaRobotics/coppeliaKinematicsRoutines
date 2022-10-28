@@ -22,9 +22,6 @@
 
 #define ik_jointmode_passive 0
 #define ik_jointmode_ik 2
-#define ik_jointmode_reserved_previously_ikdependent 3
-#define ik_jointmode_dependent 4
-#define ik_jointmode_force 5
 
 #define ik_jointtype_revolute 10
 #define ik_jointtype_prismatic 11
@@ -33,13 +30,6 @@
 #define ik_handle_world -1
 #define ik_handle_all -2
 #define ik_handle_parent -11
-
-#define ik_linktype_dynamics_loop_closure 0
-#define ik_linktype_dynamics_force_constraint 1
-#define ik_linktype_gcs_loop_closure 2
-#define ik_linktype_gcs_tip 3
-#define ik_linktype_gcs_target 4
-#define ik_linktype_ik_tip_target 5
 
 #define ik_constraint_x 1
 #define ik_constraint_y 2

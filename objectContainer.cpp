@@ -89,15 +89,9 @@ void CObjectContainer::_updateJointDependencies()
         it->dependentJoints.clear();
         for (size_t j=0;j<jointList.size();j++)
         {
-            CJoint* anAct=getJoint(jointList[j]);
-            if (anAct!=it)
-            {
-                if (anAct->getJointMode()==ik_jointmode_dependent)
-                {
-                    if (anAct->getDependencyJointHandle()==it->getObjectHandle())
-                        it->dependentJoints.push_back(anAct);
-                }
-            }
+            CJoint* it2=getJoint(jointList[j]);
+            if (it2->getDependencyJointHandle()==it->getObjectHandle())
+                it->dependentJoints.push_back(it2);
         }
     }
 }

@@ -112,11 +112,7 @@ int CikElement::getTargetHandle() const
     int retVal=-1;
     CDummy* tip=CEnvironment::currentEnvironment->objectContainer->getDummy(_tipHandle);
     if (tip!=nullptr)
-    {
-        int linkedDummyHandle=tip->getLinkedDummyHandle();
-        if (tip->getLinkType()==ik_linktype_ik_tip_target)
-            retVal=linkedDummyHandle;
-    }
+        retVal=tip->getLinkedDummyHandle();
     return(retVal);
 }
 
@@ -266,9 +262,7 @@ bool CikElement::getJacobian(CMatrix& jacob,CMatrix& errVect,const simReal weigh
     if ( (jacob.rows!=0)&&(jacob.cols!=0) )
     {
         retVal=true;
-        CDummy* target=nullptr;
-        if (tip->getLinkType()==ik_linktype_ik_tip_target)
-            target=CEnvironment::currentEnvironment->objectContainer->getDummy(tip->getLinkedDummyHandle());
+        CDummy* target=CEnvironment::currentEnvironment->objectContainer->getDummy(tip->getLinkedDummyHandle());
         if (target!=nullptr)
         {
             errVect.resize(jacob.rows,1,0.0);
@@ -420,7 +414,7 @@ CMatrix CikElement::_getNakedJacobian(const CSceneObject* tip,const CSceneObject
         if (object->getObjectType()==ik_objecttype_joint)
         {
             CJoint* joint=(CJoint*)object;
-            if ( (joint->getJointMode()==ik_jointmode_ik)||(joint->getJointMode()==ik_jointmode_reserved_previously_ikdependent)||(joint->getJointMode()==ik_jointmode_dependent) )
+            if (joint->getJointMode()==ik_jointmode_ik)
                 joints.insert(joints.begin(),joint);
         }
         object=object->getParentObject();
