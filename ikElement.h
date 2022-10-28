@@ -45,7 +45,7 @@ public:
     void setConstraints(int constraints);
 
     void isWithinTolerance(bool& position,bool& orientation) const;
-    void getDistances(simReal& linDist,simReal& angDist) const;
+    void getTipTargetDistance(simReal& linDist,simReal& angDist) const;
     static bool getJacobian(CMatrix& jacob,CMatrix& errVect,const simReal weights[2],const int tipBaseAltBase[3],int constraints,simReal interpolationFactor,std::vector<int>* equTypes,std::vector<int>* jHandles,std::vector<int>* jDofIndex);
     void prepareEquations(simReal interpolationFactor);
 
@@ -56,7 +56,6 @@ public:
     std::vector<int> jointDofIndex;
 
 private:
-    void _getMatrixError(const C7Vector& frame1,const C7Vector& frame2,simReal& linError,simReal& angError) const;
     static CMatrix _getNakedJacobian(const CSceneObject* tip,const CSceneObject* base,const CSceneObject* constrBase,int constraints,std::vector<int>* jHandles,std::vector<int>* jDofIndex);
 
 

@@ -831,7 +831,7 @@ int CikGroup::performOnePass(std::vector<CikElement*>* validElements,bool& limit
         {
             CikElement* element=validElements->at(elNb);
             simReal lin,ang;
-            element->getDistances(lin,ang);
+            element->getTipTargetDistance(lin,ang);
             distBefore.push_back(lin);
             distBefore.push_back(ang);
         }
@@ -858,7 +858,7 @@ int CikGroup::performOnePass(std::vector<CikElement*>* validElements,bool& limit
         {
             CikElement* element=validElements->at(elNb);
             simReal lin,ang;
-            element->getDistances(lin,ang);
+            element->getTipTargetDistance(lin,ang);
             bool linOvershoot=(distBefore[2*elNb+0]<lin)&&(lin>0.01);
             bool angOvershoot=(distBefore[2*elNb+1]<ang)&&(ang>1.0*piValD2/180.0);
             if ( linOvershoot&&(angOvershoot||((element->getConstraints()&ik_constraint_orientation)==0)) )

@@ -889,7 +889,7 @@ bool ikGetIkElementWeights(int ikGroupHandle,int ikElementHandle,simReal* linear
     return(retVal);
 }
 
-bool ikComputeJacobian(int handles[3],int constraints,const C7Vector* tipPose,const C7Vector* targetPose,std::vector<simReal>* jacobian,std::vector<simReal>* errorVect)
+bool ikComputeJacobian(int baseHandle,int altBaseHandle,int jointHandle,int constraints,const C7Vector* tipPose,const C7Vector* targetPose,std::vector<simReal>* jacobian,std::vector<simReal>* errorVect)
 {
     bool retVal=false;
     if (hasLaunched())
@@ -902,11 +902,11 @@ bool ikComputeJacobian(int handles[3],int constraints,const C7Vector* tipPose,co
         tip->setLocalTransformation(*tipPose);
         target->setLocalTransformation(*targetPose);
         tip->setLinkedDummyHandle(target->getObjectHandle(),true);
-        CJoint* tipJoint=CEnvironment::currentEnvironment->objectContainer->getJoint(handles[0]);
+        CJoint* tipJoint=CEnvironment::currentEnvironment->objectContainer->getJoint(jointHandle);
         if (tipJoint!=nullptr)
         {
             CEnvironment::currentEnvironment->objectContainer->makeObjectChildOf(tip,tipJoint);
-            int tipBaseAltBase[3]={tip->getObjectHandle(),handles[1],handles[2]};
+            int tipBaseAltBase[3]={tip->getObjectHandle(),baseHandle,altBaseHandle};
             if (CikElement::getJacobian(jacob,errVect,w,tipBaseAltBase,constraints,1.0,nullptr,nullptr,nullptr))
             {
                 jacobian->assign(jacob.data.begin(),jacob.data.end());

@@ -216,35 +216,12 @@ void CikElement::setConstraints(int constraints)
     _constraints=constraints;
 }
 
-void CikElement::getDistances(simReal& linDist,simReal& angDist) const
-{ // returns the tip-target lin./ang. distances, taking into account the constraint settings
-    linDist=simZero;
-    angDist=simZero;
-    CDummy* targetObject=CEnvironment::currentEnvironment->objectContainer->getDummy(getTargetHandle());
-    if (targetObject!=nullptr)
-    {
-        C7Vector targetTr(targetObject->getCumulativeTransformationPart1());
-        CDummy* tooltipObject=CEnvironment::currentEnvironment->objectContainer->getDummy(_tipHandle);
-        C7Vector tooltipTr(tooltipObject->getCumulativeTransformationPart1());
-        C7Vector baseTrInv(C7Vector::identityTransformation);
-        CDummy* baseObject=CEnvironment::currentEnvironment->objectContainer->getDummy(_baseHandle);
-        if (baseObject!=nullptr)
-            baseTrInv=baseObject->getCumulativeTransformationPart1().getInverse();
-        CDummy* altBaseObject=CEnvironment::currentEnvironment->objectContainer->getDummy(_altBaseHandleForConstraints);
-        if (altBaseObject!=nullptr)
-            baseTrInv=altBaseObject->getCumulativeTransformationPart1().getInverse();
-        tooltipTr=baseTrInv*tooltipTr;
-        targetTr=baseTrInv*targetTr;
-        _getMatrixError(targetTr,tooltipTr,linDist,angDist);
-    }
-}
-
 void CikElement::isWithinTolerance(bool& position,bool& orientation) const
 {
     position=true;
     orientation=true;
     simReal linDist,angDist;
-    getDistances(linDist,angDist);
+    getTipTargetDistance(linDist,angDist);
     if ( (_constraints&(ik_constraint_x|ik_constraint_y|ik_constraint_z))!=0 )
     {
         if (_minLinearPrecision<linDist)
@@ -379,41 +356,47 @@ bool CikElement::getJacobian(CMatrix& jacob,CMatrix& errVect,const simReal weigh
     return(retVal);
 }
 
-void CikElement::_getMatrixError(const C7Vector& frame1,const C7Vector& frame2,simReal& linError,simReal& angError) const
-{
-    // Linear:
-    simReal constr[3]={simZero,simZero,simZero};
-    if ( (_constraints&ik_constraint_x)!=0 )
-        constr[0]=simOne;
-    if ( (_constraints&ik_constraint_y)!=0 )
-        constr[1]=simOne;
-    if ( (_constraints&ik_constraint_z)!=0 )
-        constr[2]=simOne;
-    C3Vector displ(frame2.X-frame1.X);
-    linError=sqrt(displ(0)*displ(0)*constr[0]+displ(1)*displ(1)*constr[1]+displ(2)*displ(2)*constr[2]);
-
-    // Angular:
-    if ( ((_constraints&ik_constraint_alpha_beta)!=0)&&((_constraints&ik_constraint_gamma)!=0) )
+void CikElement::getTipTargetDistance(simReal& linDist,simReal& angDist) const
+{ // returns the tip-target lin./ang. distances, taking into account the constraint settings
+    linDist=simZero;
+    angDist=simZero;
+    CDummy* targetObject=CEnvironment::currentEnvironment->objectContainer->getDummy(getTargetHandle());
+    if (targetObject!=nullptr)
     {
-        C4Vector aa((frame1.getInverse()*frame2).Q.getAngleAndAxis());
-        angError=aa(0);
+        C7Vector targetTr(targetObject->getCumulativeTransformationPart1());
+        CDummy* tooltipObject=CEnvironment::currentEnvironment->objectContainer->getDummy(_tipHandle);
+        C7Vector tooltipTr(tooltipObject->getCumulativeTransformationPart1());
+        C7Vector baseTrInv(C7Vector::identityTransformation);
+        CDummy* baseObject=CEnvironment::currentEnvironment->objectContainer->getDummy(_baseHandle);
+        if (baseObject!=nullptr)
+            baseTrInv=baseObject->getCumulativeTransformationPart1().getInverse();
+        CDummy* altBaseObject=CEnvironment::currentEnvironment->objectContainer->getDummy(_altBaseHandleForConstraints);
+        if (altBaseObject!=nullptr)
+            baseTrInv=altBaseObject->getCumulativeTransformationPart1().getInverse();
+        tooltipTr=baseTrInv*tooltipTr;
+        targetTr=baseTrInv*targetTr;
+
+        // Linear:
+        simReal constr[3]={simZero,simZero,simZero};
+        if ( (_constraints&ik_constraint_x)!=0 )
+            constr[0]=simOne;
+        if ( (_constraints&ik_constraint_y)!=0 )
+            constr[1]=simOne;
+        if ( (_constraints&ik_constraint_z)!=0 )
+            constr[2]=simOne;
+        C3Vector displ(tooltipTr.X-targetTr.X);
+        linDist=sqrt(displ(0)*displ(0)*constr[0]+displ(1)*displ(1)*constr[1]+displ(2)*displ(2)*constr[2]);
+
+        // Angular:
+        if ( ((_constraints&ik_constraint_alpha_beta)!=0)&&((_constraints&ik_constraint_gamma)!=0) )
+            (targetTr.getInverse()*tooltipTr).Q.getAngleAndAxis(angDist);
+        else if ( (_constraints&ik_constraint_alpha_beta)!=0 )
+            angDist=targetTr.getMatrix().M.axis[2].getAngle(tooltipTr.getMatrix().M.axis[2]);
+        else if ( (_constraints&ik_constraint_gamma)!=0 ) // gamma constraint can exist also without alpha/beta constraint, e.g. in 2D
+            angDist=fabs((targetTr.getInverse()*tooltipTr).Q.getEulerAngles()(2));
+        else
+            angDist=simZero;
     }
-    else if ( (_constraints&ik_constraint_alpha_beta)!=0 )
-    { // Free around Z
-        simReal z=frame1.getMatrix().M.axis[2]*frame2.getMatrix().M.axis[2];
-        if (z<-simOne)
-            z=-simOne;
-        if (z>simOne)
-            z=simOne;
-        angError=fabs(CMath::robustAcos(z));
-    }
-    else if ( (_constraints&ik_constraint_gamma)!=0 )
-    { // gamma constraint can exist also without alpha/beta constraint, e.g. in 2D
-        C3Vector e((frame1.getInverse()*frame2).Q.getEulerAngles());
-        angError=fabs(e(2));
-    }
-    else
-        angError=simZero; // No ang. constraints
 }
 
 CMatrix CikElement::_getNakedJacobian(const CSceneObject* tip,const CSceneObject* base,const CSceneObject* constrBase,int constraints,std::vector<int>* jHandles,std::vector<int>* jDofIndex)
