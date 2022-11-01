@@ -17,37 +17,40 @@ public:
     void serialize(CSerialization& ar);
 
     CSceneObject* copyYourself() const;
-    simReal getPosition() const;
-    void setPosition(simReal parameter,const CJoint* masterJoint=nullptr);
+    double getPosition() const;
+    void setPosition(double parameter,const CJoint* masterJoint=nullptr);
 
-    simReal getScrewPitch() const;
-    void setScrewPitch(simReal p);
+    double getScrewPitch() const;
+    void setScrewPitch(double p);
     void setSphericalTransformation(const C4Vector& tr);
     C4Vector getSphericalTransformation() const;
     int getJointType() const;
-    simReal getPositionIntervalMin() const;
-    void setPositionIntervalMin(simReal m);
-    simReal getPositionIntervalRange() const;
-    void setPositionIntervalRange(simReal r);
+    double getPositionIntervalMin() const;
+    void setPositionIntervalMin(double m);
+    double getPositionIntervalRange() const;
+    void setPositionIntervalRange(double r);
 
     bool getPositionIsCyclic() const;
     void setPositionIsCyclic(bool c);
 
-    simReal getIkWeight() const;
-    void setIkWeight(simReal newWeight);
+    double getIkWeight() const;
+    void setIkWeight(double newWeight);
 
-    simReal getMaxStepSize() const;
-    void setMaxStepSize(simReal stepS) ;
+    double getLimitMargin() const;
+    void setLimitMargin(double newMargin);
+
+    double getMaxStepSize() const;
+    void setMaxStepSize(double stepS) ;
 
     void setJointMode(int theMode);
     int getJointMode() const;
 
     int getDependencyJointHandle() const;
-    simReal getDependencyJointMult() const;
-    simReal getDependencyJointAdd() const;
+    double getDependencyJointMult() const;
+    double getDependencyJointAdd() const;
     void setDependencyJointHandle(int jointHandle);
-    void setDependencyJointMult(simReal m);
-    void setDependencyJointAdd(simReal off);
+    void setDependencyJointMult(double m);
+    void setDependencyJointAdd(double off);
 
     std::vector<CJoint*> dependentJoints;
 
@@ -55,18 +58,19 @@ protected:
     int _jointType;
     C4Vector _sphericalTransformation; // spherical joints don't have a range anymore since 22.10.22
     bool _positionIsCyclic;
-    simReal _screwPitch;
-    simReal _jointMinPosition;
-    simReal _jointPositionRange;
+    double _screwPitch;
+    double _jointMinPosition;
+    double _jointPositionRange;
 
-    simReal _jointPosition;
+    double _jointPosition;
 
-    simReal _maxStepSize;
+    double _maxStepSize;
 
-    simReal _ikWeight;
+    double _ikWeight;
+    double _limitMargin;
 
     int _jointMode;
     int _dependencyJointHandle;
-    simReal _dependencyJointMult;
-    simReal _dependencyJointAdd;
+    double _dependencyJointMult;
+    double _dependencyJointAdd;
 };

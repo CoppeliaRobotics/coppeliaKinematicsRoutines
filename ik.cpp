@@ -247,7 +247,7 @@ bool ikEraseEnvironment(int* switchedEnvironmentHandle/*=nullptr*/)
 void ikReleaseBuffer(void* buffer)
 {
     debugInfo inf(__FUNCTION__);
-    delete[] static_cast<simReal*>(buffer);
+    delete[] static_cast<double*>(buffer);
 }
 
 bool ikSwitchEnvironment(int handle,bool allowAlsoProtectedEnvironment/*=false*/)
@@ -461,7 +461,7 @@ bool ikSetObjectMatrix(int objectHandle,int relativeToObjectHandle,const C4X4Mat
     return(ikSetObjectTransformation(objectHandle,relativeToObjectHandle,&transf));
 }
 
-bool ikGetJointPosition(int jointHandle,simReal* position)
+bool ikGetJointPosition(int jointHandle,double* position)
 {
     debugInfo inf(__FUNCTION__,jointHandle);
     bool retVal=false;
@@ -484,7 +484,7 @@ bool ikGetJointPosition(int jointHandle,simReal* position)
     return(retVal);
 }
 
-bool ikSetJointPosition(int jointHandle,simReal position)
+bool ikSetJointPosition(int jointHandle,double position)
 {
     debugInfo inf(__FUNCTION__,jointHandle);
     bool retVal=false;
@@ -563,7 +563,6 @@ bool ikCreateIkGroup(const char* ikGroupName/*=nullptr*/,int* ikGroupHandle)
 
             CikGroup* it=new CikGroup();
             it->setObjectName(dn.c_str());
-            it->setExplicitHandling(true);
             CEnvironment::currentEnvironment->ikGroupContainer->addIkGroup(it,false);
             ikGroupHandle[0]=it->getObjectHandle();
             retVal=true;
@@ -793,7 +792,7 @@ bool ikGetIkElementConstraints(int ikGroupHandle,int ikElementHandle,int* constr
     return(retVal);
 }
 
-bool ikSetIkElementPrecision(int ikGroupHandle,int ikElementHandle,simReal linearPrecision,simReal angularPrecision)
+bool ikSetIkElementPrecision(int ikGroupHandle,int ikElementHandle,double linearPrecision,double angularPrecision)
 {
     debugInfo inf(__FUNCTION__,ikGroupHandle,ikElementHandle);
     bool retVal=false;
@@ -805,10 +804,8 @@ bool ikSetIkElementPrecision(int ikGroupHandle,int ikElementHandle,simReal linea
             CikElement* ikElement=getIkElementFromHandleOrTipDummy(ikGroup,ikElementHandle);
             if (ikElement!=nullptr)
             {
-                if ( fabs(ikElement->getMinLinearPrecision()-linearPrecision)>simReal(0.0001) )
-                    ikElement->setMinLinearPrecision(linearPrecision);
-                if ( fabs(ikElement->getMinAngularPrecision()-angularPrecision)>simReal(0.01)*degToRad )
-                    ikElement->setMinAngularPrecision(angularPrecision);
+                double p[2]={linearPrecision,angularPrecision};
+                ikElement->setPrecisions(p);
                 retVal=true;
             }
         }
@@ -818,7 +815,7 @@ bool ikSetIkElementPrecision(int ikGroupHandle,int ikElementHandle,simReal linea
     return(retVal);
 }
 
-bool ikGetIkElementPrecision(int ikGroupHandle,int ikElementHandle,simReal* linearPrecision,simReal* angularPrecision)
+bool ikGetIkElementPrecision(int ikGroupHandle,int ikElementHandle,double* linearPrecision,double* angularPrecision)
 {
     debugInfo inf(__FUNCTION__,ikGroupHandle,ikElementHandle);
     bool retVal=false;
@@ -830,8 +827,10 @@ bool ikGetIkElementPrecision(int ikGroupHandle,int ikElementHandle,simReal* line
             CikElement* ikElement=getIkElementFromHandleOrTipDummy(ikGroup,ikElementHandle);
             if (ikElement!=nullptr)
             {
-                linearPrecision[0]=ikElement->getMinLinearPrecision();
-                angularPrecision[0]=ikElement->getMinAngularPrecision();
+                double p[2];
+                ikElement->getPrecisions(p);
+                linearPrecision[0]=p[0];
+                angularPrecision[0]=p[1];
                 retVal=true;
             }
         }
@@ -841,7 +840,7 @@ bool ikGetIkElementPrecision(int ikGroupHandle,int ikElementHandle,simReal* line
     return(retVal);
 }
 
-bool ikSetIkElementWeights(int ikGroupHandle,int ikElementHandle,simReal linearWeight,simReal angularWeight)
+bool ikSetIkElementWeights(int ikGroupHandle,int ikElementHandle,double linearWeight,double angularWeight)
 {
     debugInfo inf(__FUNCTION__,ikGroupHandle,ikElementHandle);
     bool retVal=false;
@@ -853,10 +852,8 @@ bool ikSetIkElementWeights(int ikGroupHandle,int ikElementHandle,simReal linearW
             CikElement* ikElement=getIkElementFromHandleOrTipDummy(ikGroup,ikElementHandle);
             if (ikElement!=nullptr)
             {
-                if ( fabs(ikElement->getPositionWeight()-linearWeight)>simReal(0.001) )
-                    ikElement->setPositionWeight(linearWeight);
-                if ( fabs(ikElement->getOrientationWeight()-angularWeight)>simReal(0.001) )
-                    ikElement->setOrientationWeight(angularWeight);
+                double w[2]={linearWeight,angularWeight};
+                ikElement->setWeights(w);
                 retVal=true;
             }
         }
@@ -866,7 +863,7 @@ bool ikSetIkElementWeights(int ikGroupHandle,int ikElementHandle,simReal linearW
     return(retVal);
 }
 
-bool ikGetIkElementWeights(int ikGroupHandle,int ikElementHandle,simReal* linearWeight,simReal* angularWeight)
+bool ikGetIkElementWeights(int ikGroupHandle,int ikElementHandle,double* linearWeight,double* angularWeight)
 {
     debugInfo inf(__FUNCTION__,ikGroupHandle,ikElementHandle);
     bool retVal=false;
@@ -878,8 +875,10 @@ bool ikGetIkElementWeights(int ikGroupHandle,int ikElementHandle,simReal* linear
             CikElement* ikElement=getIkElementFromHandleOrTipDummy(ikGroup,ikElementHandle);
             if (ikElement!=nullptr)
             {
-                linearWeight[0]=ikElement->getPositionWeight();
-                angularWeight[0]=ikElement->getOrientationWeight();
+                double w[2];
+                ikElement->getWeights(w);
+                linearWeight[0]=w[0];
+                angularWeight[0]=w[1];
                 retVal=true;
             }
         }
@@ -889,14 +888,13 @@ bool ikGetIkElementWeights(int ikGroupHandle,int ikElementHandle,simReal* linear
     return(retVal);
 }
 
-bool ikComputeJacobian(int baseHandle,int altBaseHandle,int jointHandle,int constraints,const C7Vector* tipPose,const C7Vector* targetPose,std::vector<simReal>* jacobian,std::vector<simReal>* errorVect)
+bool ikComputeJacobian(int baseHandle,int altBaseHandle,int jointHandle,int constraints,const C7Vector* tipPose,const C7Vector* targetPose,std::vector<double>* jacobian,std::vector<double>* errorVect)
 {
     bool retVal=false;
     if (hasLaunched())
     {
         CMatrix jacob;
         CMatrix errVect;
-        simReal w[2]={1.0,1.0};
         CDummy* tip=CEnvironment::currentEnvironment->objectContainer->getDummy(CEnvironment::currentEnvironment->objectContainer->createDummy(nullptr));
         CDummy* target=CEnvironment::currentEnvironment->objectContainer->getDummy(CEnvironment::currentEnvironment->objectContainer->createDummy(nullptr));
         tip->setLocalTransformation(*tipPose);
@@ -907,7 +905,7 @@ bool ikComputeJacobian(int baseHandle,int altBaseHandle,int jointHandle,int cons
         {
             CEnvironment::currentEnvironment->objectContainer->makeObjectChildOf(tip,tipJoint);
             int tipBaseAltBase[3]={tip->getObjectHandle(),baseHandle,altBaseHandle};
-            if (CikElement::getJacobian(jacob,errVect,w,tipBaseAltBase,constraints,1.0,nullptr,nullptr,nullptr))
+            if (CikElement::getJacobian(jacob,errVect,tipBaseAltBase,constraints,1.0,nullptr,nullptr,nullptr))
             {
                 if (jacobian!=nullptr)
                     jacobian->assign(jacob.data.begin(),jacob.data.end());
@@ -946,19 +944,19 @@ bool ikComputeJacobian_old(int ikGroupHandle,int options,bool* success/*=nullptr
     return(retVal);
 }
 
-simReal* ikGetJacobian_old(int ikGroupHandle,size_t* matrixSize)
+double* ikGetJacobian_old(int ikGroupHandle,size_t* matrixSize)
 {
     debugInfo inf(__FUNCTION__,ikGroupHandle);
-    simReal* retVal=nullptr;
+    double* retVal=nullptr;
     if (hasLaunched())
     {
         CikGroup* it=CEnvironment::currentEnvironment->ikGroupContainer->getIkGroup(ikGroupHandle);
         if (it!=nullptr)
         {
-            const simReal* b=it->getLastJacobianData_old(matrixSize);
+            const double* b=it->getLastJacobianData_old(matrixSize);
             if (b!=nullptr)
             {
-                retVal=new simReal[size_t(matrixSize[0]*matrixSize[1])];
+                retVal=new double[size_t(matrixSize[0]*matrixSize[1])];
                 for (size_t i=0;i<size_t(matrixSize[0]*matrixSize[1]);i++)
                     retVal[i]=b[i];
             }
@@ -969,7 +967,7 @@ simReal* ikGetJacobian_old(int ikGroupHandle,size_t* matrixSize)
     return(retVal);
 }
 
-bool ikGetManipulability_old(int ikGroupHandle,simReal* manip)
+bool ikGetManipulability_old(int ikGroupHandle,double* manip)
 {
     debugInfo inf(__FUNCTION__,ikGroupHandle);
     bool retVal=false;
@@ -978,7 +976,7 @@ bool ikGetManipulability_old(int ikGroupHandle,simReal* manip)
         CikGroup* it=CEnvironment::currentEnvironment->ikGroupContainer->getIkGroup(ikGroupHandle);
         if (it!=nullptr)
         {
-            simReal b=it->getLastManipulabilityValue_old(retVal);
+            double b=it->getLastManipulabilityValue_old(retVal);
             if (retVal)
                 manip[0]=b;
         }
@@ -988,7 +986,7 @@ bool ikGetManipulability_old(int ikGroupHandle,simReal* manip)
     return(retVal);
 }
 
-bool ikHandleIkGroup(int ikGroupHandle/*=ik_handle_all*/,int* result/*=nullptr*/,bool(*cb)(const int*,std::vector<simReal>*,const int*,const int*,const int*,const int*,std::vector<simReal>*,simReal*)/*=nullptr*/)
+bool ikHandleIkGroup(int ikGroupHandle/*=ik_handle_all*/,int* result/*=nullptr*/,bool(*cb)(const int*,std::vector<double>*,const int*,const int*,const int*,const int*,std::vector<double>*,double*)/*=nullptr*/)
 {
     debugInfo inf(__FUNCTION__,ikGroupHandle);
     bool retVal=false;
@@ -1001,7 +999,7 @@ bool ikHandleIkGroup(int ikGroupHandle/*=ik_handle_all*/,int* result/*=nullptr*/
                 retVal=CEnvironment::currentEnvironment->ikGroupContainer->computeAllIkGroups(false);
             else
             { // explicit handling
-                if (it->getExplicitHandling())
+                if (it->getExplicitHandling_old())
                 {
                     int res=it->computeGroupIk(false,cb);
                     if (result!=nullptr)
@@ -1292,7 +1290,7 @@ bool ikGetJointMode(int jointHandle,int* mode)
     return(retVal);
 }
 
-bool ikSetJointInterval(int jointHandle,bool cyclic,const simReal* intervalMinAndRange/*=nullptr*/)
+bool ikSetJointInterval(int jointHandle,bool cyclic,const double* intervalMinAndRange/*=nullptr*/)
 {
     debugInfo inf(__FUNCTION__,jointHandle);
     bool retVal=false;
@@ -1301,14 +1299,14 @@ bool ikSetJointInterval(int jointHandle,bool cyclic,const simReal* intervalMinAn
         CJoint* it=CEnvironment::currentEnvironment->objectContainer->getJoint(jointHandle);
         if (it!=nullptr)
         {
-            simReal previousPos=it->getPosition();
+            double previousPos=it->getPosition();
             if (it->getPositionIsCyclic()!=cyclic)
                 it->setPositionIsCyclic(cyclic);
             if (intervalMinAndRange!=nullptr)
             {
-                if ( fabs(it->getPositionIntervalMin()-intervalMinAndRange[0])>simReal(0.00001) )
+                if ( fabs(it->getPositionIntervalMin()-intervalMinAndRange[0])>0.00001 )
                     it->setPositionIntervalMin(intervalMinAndRange[0]);
-                if ( fabs(it->getPositionIntervalRange()-intervalMinAndRange[1])>simReal(0.00001) )
+                if ( fabs(it->getPositionIntervalRange()-intervalMinAndRange[1])>0.00001 )
                     it->setPositionIntervalRange(intervalMinAndRange[1]);
             }
             it->setPosition(previousPos);
@@ -1320,7 +1318,7 @@ bool ikSetJointInterval(int jointHandle,bool cyclic,const simReal* intervalMinAn
     return(retVal);
 }
 
-bool ikSetJointScrewPitch(int jointHandle,simReal pitch)
+bool ikSetJointScrewPitch(int jointHandle,double pitch)
 {
     debugInfo inf(__FUNCTION__,jointHandle);
     bool retVal=false;
@@ -1329,7 +1327,7 @@ bool ikSetJointScrewPitch(int jointHandle,simReal pitch)
         CJoint* it=CEnvironment::currentEnvironment->objectContainer->getJoint(jointHandle);
         if (it!=nullptr)
         {
-            if ( fabs(it->getScrewPitch()-pitch)>simReal(0.000001) )
+            if ( fabs(it->getScrewPitch()-pitch)>0.000001 )
                 it->setScrewPitch(pitch);
             retVal=true;
         }
@@ -1339,7 +1337,7 @@ bool ikSetJointScrewPitch(int jointHandle,simReal pitch)
     return(retVal);
 }
 
-bool ikSetJointIkWeight(int jointHandle,simReal ikWeight)
+bool ikSetJointIkWeight(int jointHandle,double ikWeight)
 {
     debugInfo inf(__FUNCTION__,jointHandle);
     bool retVal=false;
@@ -1348,7 +1346,7 @@ bool ikSetJointIkWeight(int jointHandle,simReal ikWeight)
         CJoint* it=CEnvironment::currentEnvironment->objectContainer->getJoint(jointHandle);
         if (it!=nullptr)
         {
-            if ( fabs(it->getIkWeight()-ikWeight)>simReal(0.0001) )
+            if ( fabs(it->getIkWeight()-ikWeight)>0.0001 )
                 it->setIkWeight(ikWeight);
             retVal=true;
         }
@@ -1358,7 +1356,7 @@ bool ikSetJointIkWeight(int jointHandle,simReal ikWeight)
     return(retVal);
 }
 
-bool ikGetJointIkWeight(int jointHandle,simReal* ikWeight)
+bool ikGetJointIkWeight(int jointHandle,double* ikWeight)
 {
     debugInfo inf(__FUNCTION__,jointHandle);
     bool retVal=false;
@@ -1376,7 +1374,7 @@ bool ikGetJointIkWeight(int jointHandle,simReal* ikWeight)
     return(retVal);
 }
 
-bool ikSetJointMaxStepSize(int jointHandle,simReal maxStepSize)
+bool ikSetJointLimitMargin(int jointHandle,double m)
 {
     debugInfo inf(__FUNCTION__,jointHandle);
     bool retVal=false;
@@ -1385,7 +1383,43 @@ bool ikSetJointMaxStepSize(int jointHandle,simReal maxStepSize)
         CJoint* it=CEnvironment::currentEnvironment->objectContainer->getJoint(jointHandle);
         if (it!=nullptr)
         {
-            if ( fabs(it->getMaxStepSize()-maxStepSize)>simReal(0.00001) )
+            it->setLimitMargin(m);
+            retVal=true;
+        }
+        else
+            _setLastError("Invalid joint handle: %i",jointHandle);
+    }
+    return(retVal);
+}
+
+bool ikGetJointLimitMargin(int jointHandle,double* m)
+{
+    debugInfo inf(__FUNCTION__,jointHandle);
+    bool retVal=false;
+    if (hasLaunched())
+    {
+        CJoint* it=CEnvironment::currentEnvironment->objectContainer->getJoint(jointHandle);
+        if (it!=nullptr)
+        {
+            m[0]=it->getLimitMargin();
+            retVal=true;
+        }
+        else
+            _setLastError("Invalid joint handle: %i",jointHandle);
+    }
+    return(retVal);
+}
+
+bool ikSetJointMaxStepSize(int jointHandle,double maxStepSize)
+{
+    debugInfo inf(__FUNCTION__,jointHandle);
+    bool retVal=false;
+    if (hasLaunched())
+    {
+        CJoint* it=CEnvironment::currentEnvironment->objectContainer->getJoint(jointHandle);
+        if (it!=nullptr)
+        {
+            if ( fabs(it->getMaxStepSize()-maxStepSize)>0.00001 )
                 it->setMaxStepSize(maxStepSize);
             retVal=true;
         }
@@ -1395,7 +1429,7 @@ bool ikSetJointMaxStepSize(int jointHandle,simReal maxStepSize)
     return(retVal);
 }
 
-bool ikGetJointMaxStepSize(int jointHandle,simReal* maxStepSize)
+bool ikGetJointMaxStepSize(int jointHandle,double* maxStepSize)
 {
     debugInfo inf(__FUNCTION__,jointHandle);
     bool retVal=false;
@@ -1413,7 +1447,7 @@ bool ikGetJointMaxStepSize(int jointHandle,simReal* maxStepSize)
     return(retVal);
 }
 
-bool ikSetJointDependency(int jointHandle,int dependencyJointHandle,simReal offset/*=0.0*/,simReal mult/*=1.0*/)
+bool ikSetJointDependency(int jointHandle,int dependencyJointHandle,double offset/*=0.0*/,double mult/*=1.0*/)
 {
     debugInfo inf(__FUNCTION__,jointHandle,dependencyJointHandle);
     bool retVal=false;
@@ -1429,9 +1463,9 @@ bool ikSetJointDependency(int jointHandle,int dependencyJointHandle,simReal offs
                     it->setDependencyJointHandle(dependencyJointHandle);
                 if (dependencyJointHandle!=-1)
                 {
-                    if ( fabs(it->getDependencyJointMult()-mult)>simReal(0.00001) )
+                    if ( fabs(it->getDependencyJointMult()-mult)>0.00001 )
                         it->setDependencyJointMult(mult);
-                    if ( fabs(it->getDependencyJointAdd()-offset)>simReal(0.00001) )
+                    if ( fabs(it->getDependencyJointAdd()-offset)>0.00001 )
                         it->setDependencyJointAdd(offset);
                 }
                 retVal=true;
@@ -1445,7 +1479,7 @@ bool ikSetJointDependency(int jointHandle,int dependencyJointHandle,simReal offs
     return(retVal);
 }
 
-bool ikGetJointDependency(int jointHandle,int* dependencyJointHandle,simReal* offset,simReal* mult)
+bool ikGetJointDependency(int jointHandle,int* dependencyJointHandle,double* offset,double* mult)
 {
     debugInfo inf(__FUNCTION__,jointHandle);
     bool retVal=false;
@@ -1480,7 +1514,7 @@ bool ikEraseObject(int objectHandle)
     return(retVal);
 }
 
-bool ikGetJointInterval(int jointHandle,bool* cyclic,simReal* intervalMinAndRange)
+bool ikGetJointInterval(int jointHandle,bool* cyclic,double* intervalMinAndRange)
 {
     debugInfo inf(__FUNCTION__,jointHandle);
     bool retVal=false;
@@ -1500,7 +1534,7 @@ bool ikGetJointInterval(int jointHandle,bool* cyclic,simReal* intervalMinAndRang
     return(retVal);
 }
 
-bool ikGetJointScrewPitch(int jointHandle,simReal* pitch)
+bool ikGetJointScrewPitch(int jointHandle,double* pitch)
 {
     debugInfo inf(__FUNCTION__,jointHandle);
     bool retVal=false;
@@ -1518,7 +1552,7 @@ bool ikGetJointScrewPitch(int jointHandle,simReal* pitch)
     return(retVal);
 }
 
-bool ikGetIkGroupJointLimitHits(int ikGroupHandle,std::vector<int>* jointHandles,std::vector<simReal>* underOrOvershots)
+bool ikGetIkGroupJointLimitHits(int ikGroupHandle,std::vector<int>* jointHandles,std::vector<double>* underOrOvershots)
 {
     debugInfo inf(__FUNCTION__,ikGroupHandle);
     bool retVal=false;
@@ -1536,7 +1570,7 @@ bool ikGetIkGroupJointLimitHits(int ikGroupHandle,std::vector<int>* jointHandles
     return(retVal);
 }
 
-bool ikGetIkGroupCalculation(int ikGroupHandle,int* method,simReal* damping,int* maxIterations)
+bool ikGetIkGroupCalculation(int ikGroupHandle,int* method,double* damping,int* maxIterations)
 {
     debugInfo inf(__FUNCTION__,ikGroupHandle);
     bool retVal=false;
@@ -1556,7 +1590,7 @@ bool ikGetIkGroupCalculation(int ikGroupHandle,int* method,simReal* damping,int*
     return(retVal);
 }
 
-bool ikSetIkGroupCalculation(int ikGroupHandle,int method,simReal damping,int maxIterations)
+bool ikSetIkGroupCalculation(int ikGroupHandle,int method,double damping,int maxIterations)
 {
     debugInfo inf(__FUNCTION__,ikGroupHandle,method);
     bool retVal=false;
@@ -1567,7 +1601,7 @@ bool ikSetIkGroupCalculation(int ikGroupHandle,int method,simReal damping,int ma
         {
             if (it->getCalculationMethod()!=method)
                 it->setCalculationMethod(method);
-            if ( fabs(it->getDlsFactor()-damping)>simReal(0.0001) )
+            if ( fabs(it->getDlsFactor()-damping)>0.0001 )
                 it->setDlsFactor(damping);
             if (it->getMaxIterations()!=maxIterations)
                 it->setMaxIterations(maxIterations);
@@ -1579,48 +1613,6 @@ bool ikSetIkGroupCalculation(int ikGroupHandle,int method,simReal damping,int ma
     return(retVal);
 }
 
-/*
-bool ikGetIkGroupLimitThresholds(int ikGroupHandle,simReal* linearAndAngularThresholds)
-{
-    debugInfo inf(__FUNCTION__);
-    bool retVal=false;
-    if (hasLaunched())
-    {
-        CikGroup* it=CEnvironment::currentEnvironment->ikGroupContainer->getIkGroup(ikGroupHandle);
-        if (it!=nullptr)
-        {
-            retVal=true;
-            linearAndAngularThresholds[0]=it->getJointTreshholdLinear();
-            linearAndAngularThresholds[1]=it->getJointTreshholdAngular();
-        }
-        else
-            _setLastError("Invalid IK group handle: %i",ikGroupHandle);
-    }
-    return(retVal);
-}
-
-bool ikSetIkGroupLimitThresholds(int ikGroupHandle,const simReal* linearAndAngularThresholds)
-{
-    debugInfo inf(__FUNCTION__);
-    bool retVal=false;
-    if (hasLaunched())
-    {
-        CikGroup* it=CEnvironment::currentEnvironment->ikGroupContainer->getIkGroup(ikGroupHandle);
-        if (it!=nullptr)
-        {
-            if ( fabs(it->getJointTreshholdLinear()-linearAndAngularThresholds[0])>simReal(0.0001) )
-                it->setJointTreshholdLinear(linearAndAngularThresholds[0]);
-            if ( fabs(it->getJointTreshholdAngular()-linearAndAngularThresholds[1])>simReal(0.001)*degToRad )
-                it->setJointTreshholdAngular(linearAndAngularThresholds[1]);
-            retVal=true;
-        }
-        else
-            _setLastError("Invalid IK group handle: %i",ikGroupHandle);
-    }
-    return(retVal);
-}
-*/
-
 bool ikSetIkGroupFlags(int ikGroupHandle,int flags)
 {
     debugInfo inf(__FUNCTION__,ikGroupHandle,flags);
@@ -1630,20 +1622,40 @@ bool ikSetIkGroupFlags(int ikGroupHandle,int flags)
         CikGroup* it=CEnvironment::currentEnvironment->ikGroupContainer->getIkGroup(ikGroupHandle);
         if (it!=nullptr)
         {
-            if (it->getActive()!=((flags&1)!=0))
-                it->setActive((flags&1)!=0);
-//            if (it->getCorrectJointLimits()!=((flags&2)!=0))
-//                it->setCorrectJointLimits((flags&2)!=0);
-            if (it->getIgnoreMaxStepSizes()!=((flags&2)!=0))
-                it->setIgnoreMaxStepSizes((flags&2)!=0);
-            if (it->getRestoreIfPositionNotReached()!=((flags&4)!=0))
-                it->setRestoreIfPositionNotReached((flags&4)!=0);
-            if (it->getRestoreIfOrientationNotReached()!=((flags&8)!=0))
-                it->setRestoreIfOrientationNotReached((flags&8)!=0);
-            if (it->getFailOnJointLimits()!=((flags&0x10)!=0))
-                it->setFailOnJointLimits((flags&0x10)!=0);
-            if (it->getForbidOvershoot()!=((flags&0x20)!=0))
-                it->setForbidOvershoot((flags&0x20)!=0);
+            int options=it->getOptions();
+            if ((flags&1)!=0)
+                options=options&~1; // enabled
+            else
+                options=options|1; // disabled
+            if ((flags&2)!=0)
+                options=options&~2;
+            else
+                options=options|2;
+            if ((flags&4)!=0)
+                options=options|4;
+            else
+                options=options&~4;
+            if ((flags&8)!=0)
+                options=options|8;
+            else
+                options=options&~8;
+            if ((flags&16)!=0)
+                options=options|16;
+            else
+                options=options&~16;
+            if ((flags&32)!=0)
+                options=options|32;
+            else
+                options=options&~32;
+            if ((flags&64)!=0)
+                options=options|64;
+            else
+                options=options&~64;
+            if ((flags&128)!=0)
+                options=options|128;
+            else
+                options=options&~128;
+            it->setOptions(options);
             retVal=true;
         }
         else
@@ -1663,20 +1675,23 @@ bool ikGetIkGroupFlags(int ikGroupHandle,int* flags)
         {
             retVal=true;
             flags[0]=0;
-            if (it->getActive())
+            int options=it->getOptions();
+            if ((options&1)==0)
                 flags[0]=flags[0]|1;
-//            if (it->getCorrectJointLimits())
-//                flags[0]=flags[0]|2;
-            if (it->getIgnoreMaxStepSizes())
+            if ((options&2)==0)
                 flags[0]=flags[0]|2;
-            if (it->getRestoreIfPositionNotReached())
+            if ((options&4)!=0)
                 flags[0]=flags[0]|4;
-            if (it->getRestoreIfOrientationNotReached())
+            if ((options&8)!=0)
                 flags[0]=flags[0]|8;
-            if (it->getFailOnJointLimits())
-                flags[0]=flags[0]|0x10;
-            if (it->getForbidOvershoot())
-                flags[0]=flags[0]|0x20;
+            if ((options&16)!=0)
+                flags[0]=flags[0]|16;
+            if ((options&32)!=0)
+                flags[0]=flags[0]|32;
+            if ((options&64)!=0)
+                flags[0]=flags[0]|64;
+            if ((options&128)!=0)
+                flags[0]=flags[0]|128;
         }
         else
             _setLastError("Invalid IK group handle: %i",ikGroupHandle);
@@ -1684,10 +1699,10 @@ bool ikGetIkGroupFlags(int ikGroupHandle,int* flags)
     return(retVal);
 }
 
-int ikFindConfig(int ikGroupHandle,size_t jointCnt,const int* jointHandles,simReal thresholdDist,int maxTimeInMs,simReal* retConfig,const simReal* metric/*=nullptr*/,bool(*validationCallback)(simReal*)/*=nullptr*/)
+int ikFindConfig(int ikGroupHandle,size_t jointCnt,const int* jointHandles,double thresholdDist,int maxTimeInMs,double* retConfig,const double* metric/*=nullptr*/,bool(*validationCallback)(double*)/*=nullptr*/)
 {
     debugInfo inf(__FUNCTION__,ikGroupHandle);
-    std::vector<simReal> retConf(jointCnt);
+    std::vector<double> retConf(jointCnt);
     if (!hasLaunched())
         return(-1);
     CikGroup* ikGroup=CEnvironment::currentEnvironment->ikGroupContainer->getIkGroup(ikGroupHandle);
@@ -1696,7 +1711,7 @@ int ikFindConfig(int ikGroupHandle,size_t jointCnt,const int* jointHandles,simRe
         _setLastError("Invalid IK group handle: %i",ikGroupHandle);
         return(-1);
     }
-    if ( (!ikGroup->getActive())||(ikGroup->getIkElementCount()==0) )
+    if ( ((ikGroup->getOptions()&1)!=0)||(ikGroup->getIkElementCount()==0) )
     {
         _setLastError("Invalid IK group");
         return(-1);
@@ -1718,8 +1733,8 @@ int ikFindConfig(int ikGroupHandle,size_t jointCnt,const int* jointHandles,simRe
         selectedJoints.push_back(aJoint);
     }
 
-    const simReal _defaultMetric[4]={simOne,simOne,simOne,simReal(0.1)};
-    const simReal* theMetric=_defaultMetric;
+    const double _defaultMetric[4]={1.0,1.0,1.0,0.1};
+    const double* theMetric=_defaultMetric;
     if (metric!=nullptr)
         theMetric=metric;
 
@@ -1747,16 +1762,16 @@ int ikFindConfig(int ikGroupHandle,size_t jointCnt,const int* jointHandles,simRe
     }
 
     std::vector<CJoint*> allJoints;
-    std::vector<simReal> allJointInitValues;
-    std::vector<simReal> allJointMinVals;
-    std::vector<simReal> allJointRangeVals;
+    std::vector<double> allJointInitValues;
+    std::vector<double> allJointMinVals;
+    std::vector<double> allJointRangeVals;
     for (size_t i=0;i<CEnvironment::currentEnvironment->objectContainer->jointList.size();i++)
     {
         CJoint* aJoint=CEnvironment::currentEnvironment->objectContainer->getJoint(CEnvironment::currentEnvironment->objectContainer->jointList[i]);
         allJoints.push_back(aJoint);
         allJointInitValues.push_back(aJoint->getPosition());
-        simReal l=aJoint->getPositionIntervalMin();
-        simReal r=aJoint->getPositionIntervalRange();
+        double l=aJoint->getPositionIntervalMin();
+        double r=aJoint->getPositionIntervalRange();
         if (aJoint->getPositionIsCyclic())
         {
             l=-piValue;
@@ -1765,7 +1780,7 @@ int ikFindConfig(int ikGroupHandle,size_t jointCnt,const int* jointHandles,simRe
         if (aJoint->getJointMode()!=ik_jointmode_ik)
         {
             l=aJoint->getPosition();
-            r=simZero;
+            r=0.0;
         }
         allJointMinVals.push_back(l);
         allJointRangeVals.push_back(r);
@@ -1778,12 +1793,12 @@ int ikFindConfig(int ikGroupHandle,size_t jointCnt,const int* jointHandles,simRe
         // 1. Pick a random state:
         for (size_t i=0;i<allJoints.size();i++)
         {
-            if (allJointRangeVals[i]!=simZero)
-                allJoints[i]->setPosition(allJointMinVals[i]+(rand()/simReal(RAND_MAX))*allJointRangeVals[i]);
+            if (allJointRangeVals[i]!=0.0)
+                allJoints[i]->setPosition(allJointMinVals[i]+(rand()/double(RAND_MAX))*allJointRangeVals[i]);
         }
 
         // 2. Check distances between tip and target pairs (there might be several pairs!):
-        simReal cumulatedDist=simZero;
+        double cumulatedDist=0.0;
         for (size_t el=0;el<ikGroup->getIkElementCount();el++)
         {
             C7Vector tipTr(tips[el]->getCumulativeTransformation());
@@ -1797,7 +1812,7 @@ int ikFindConfig(int ikGroupHandle,size_t jointCnt,const int* jointHandles,simRe
             dx(0)*=theMetric[0];
             dx(1)*=theMetric[1];
             dx(2)*=theMetric[2];
-            simReal angle=tipTr.Q.getAngleBetweenQuaternions(targetTr.Q)*theMetric[3];
+            double angle=tipTr.Q.getAngleBetweenQuaternions(targetTr.Q)*theMetric[3];
             cumulatedDist+=sqrt(dx(0)*dx(0)+dx(1)*dx(1)+dx(2)*dx(2)+angle*angle);
         }
 
@@ -1811,7 +1826,7 @@ int ikFindConfig(int ikGroupHandle,size_t jointCnt,const int* jointHandles,simRe
                 bool limitsOk=true;
                 for (size_t i=0;i<jointCnt;i++)
                 {
-                    simReal pp=allJoints[i]->getPosition();
+                    double pp=allJoints[i]->getPosition();
                     if (allJoints[i]->getPositionIsCyclic())
                     {
                         if (allJointRangeVals[i]<piValTimes2)
@@ -1851,23 +1866,23 @@ int ikFindConfig(int ikGroupHandle,size_t jointCnt,const int* jointHandles,simRe
     return(retVal);
 }
 
-int ikGetConfigForTipPose(int ikGroupHandle,size_t jointCnt,const int* jointHandles,simReal thresholdDist,int maxIterations,simReal* retConfig,const simReal* metric/*=nullptr*/,bool(*validationCallback)(simReal*)/*=nullptr*/,const int* jointOptions/*=nullptr*/,const simReal* lowLimits/*=nullptr*/,const simReal* ranges/*=nullptr*/)
+int ikGetConfigForTipPose(int ikGroupHandle,size_t jointCnt,const int* jointHandles,double thresholdDist,int maxIterations,double* retConfig,const double* metric/*=nullptr*/,bool(*validationCallback)(double*)/*=nullptr*/,const int* jointOptions/*=nullptr*/,const double* lowLimits/*=nullptr*/,const double* ranges/*=nullptr*/)
 {
     debugInfo inf(__FUNCTION__,ikGroupHandle);
     int retVal=-1;
-    std::vector<simReal> conf(jointCnt);
+    std::vector<double> conf(jointCnt);
     if (hasLaunched())
     {
         CikGroup* ikGroup=CEnvironment::currentEnvironment->ikGroupContainer->getIkGroup(ikGroupHandle);
         if (ikGroup!=nullptr)
         {
-            const simReal _defaultMetric[4]={simOne,simOne,simOne,simReal(0.1)};
-            const simReal* theMetric=_defaultMetric;
+            const double _defaultMetric[4]={1.0,1.0,1.0,0.1};
+            const double* theMetric=_defaultMetric;
             if (metric!=nullptr)
                 theMetric=metric;
             std::vector<CJoint*> joints;
-            std::vector<simReal> minVals;
-            std::vector<simReal> rangeVals;
+            std::vector<double> minVals;
+            std::vector<double> rangeVals;
             int err=0;
             for (size_t i=0;i<jointCnt;i++)
             {
@@ -1878,19 +1893,19 @@ int ikGetConfigForTipPose(int ikGroupHandle,size_t jointCnt,const int* jointHand
                 {
                     joints.push_back(aJoint);
 
-                    simReal l0=aJoint->getPositionIntervalMin();
-                    simReal r0=aJoint->getPositionIntervalRange();
+                    double l0=aJoint->getPositionIntervalMin();
+                    double r0=aJoint->getPositionIntervalRange();
                     if (aJoint->getPositionIsCyclic())
                     {
                         l0=-piValue;
                         r0=piValTimes2;
                     }
-                    simReal l=l0;
-                    simReal r=r0;
+                    double l=l0;
+                    double r=r0;
                     if ( (lowLimits!=nullptr)&&(ranges!=nullptr) )
                     { // maybe we want different limits than the joint's limits?
-                        simReal ll=lowLimits[i];
-                        simReal rr=ranges[i];
+                        double ll=lowLimits[i];
+                        double rr=ranges[i];
                         if (rr!=0.0)
                         {
                             if (rr>0.0)
@@ -1911,7 +1926,7 @@ int ikGetConfigForTipPose(int ikGroupHandle,size_t jointCnt,const int* jointHand
                                     l=ll;
                                     if (l<l0)
                                         l=l0;
-                                    simReal u=ll+rr;
+                                    double u=ll+rr;
                                     if (u>l0+r0)
                                         u=l0+r0;
                                     r=u-l;
@@ -1940,7 +1955,7 @@ int ikGetConfigForTipPose(int ikGroupHandle,size_t jointCnt,const int* jointHand
                                     l=aJoint->getPosition()-rr*0.5;
                                     if (l<l0)
                                         l=l0;
-                                    simReal u=aJoint->getPosition()+rr*0.5;
+                                    double u=aJoint->getPosition()+rr*0.5;
                                     if (u>l0+r0)
                                         u=l0+r0;
                                     r=u-l;
@@ -1951,7 +1966,7 @@ int ikGetConfigForTipPose(int ikGroupHandle,size_t jointCnt,const int* jointHand
                     if (aJoint->getJointMode()==ik_jointmode_passive)
                     {
                         l=aJoint->getPosition();
-                        r=simZero;
+                        r=0.0;
                     }
                     minVals.push_back(l);
                     rangeVals.push_back(r);
@@ -1990,7 +2005,7 @@ int ikGetConfigForTipPose(int ikGroupHandle,size_t jointCnt,const int* jointHand
                 retVal=0;
                 // Save joint positions/modes (all of them, just in case)
                 std::vector<CJoint*> sceneJoints;
-                std::vector<simReal> initSceneJointValues;
+                std::vector<double> initSceneJointValues;
                 std::vector<int> initSceneJointModes;
                 for (size_t i=0;i<CEnvironment::currentEnvironment->objectContainer->jointList.size();i++)
                 {
@@ -2000,11 +2015,11 @@ int ikGetConfigForTipPose(int ikGroupHandle,size_t jointCnt,const int* jointHand
                     initSceneJointModes.push_back(aj->getJointMode());
                 }
 
-                ikGroup->setAllInvolvedJointsToPassiveMode();
+                ikGroup->setAllInvolvedJointsToPassiveMode_old();
 
-                bool ikGroupWasActive=ikGroup->getActive();
+                bool ikGroupWasActive=(ikGroup->getOptions()&1)==0;
                 if (!ikGroupWasActive)
-                    ikGroup->setActive(true);
+                    ikGroup->setOptions(ikGroup->getOptions()&~1);
 
                 // It can happen that some IK elements get deactivated when the user provided wrong handles, so save the activation state:
                 std::vector<bool> enabledElements;
@@ -2016,7 +2031,7 @@ int ikGetConfigForTipPose(int ikGroupHandle,size_t jointCnt,const int* jointHand
                 {
                     if ( (jointOptions==nullptr)||((jointOptions[i]&1)==0) )
                     {
-                        if (rangeVals[i]==simZero)
+                        if (rangeVals[i]==0.0)
                             joints[i]->setJointMode(ik_jointmode_passive);
                         else
                             joints[i]->setJointMode(ik_jointmode_ik);
@@ -2036,10 +2051,10 @@ int ikGetConfigForTipPose(int ikGroupHandle,size_t jointCnt,const int* jointHand
                 {
                     // 1. Pick a random state:
                     for (size_t i=0;i<jointCnt;i++)
-                        joints[i]->setPosition(minVals[i]+(rand()/simReal(RAND_MAX))*rangeVals[i]);
+                        joints[i]->setPosition(minVals[i]+(rand()/double(RAND_MAX))*rangeVals[i]);
 
                     // 2. Check distances between tip and target pairs (there might be several pairs!):
-                    simReal cumulatedDist=simZero;
+                    double cumulatedDist=0.0;
                     for (size_t el=0;el<ikGroup->getIkElementCount();el++)
                     {
                         C7Vector tipTr(tips[el]->getCumulativeTransformation());
@@ -2053,7 +2068,7 @@ int ikGetConfigForTipPose(int ikGroupHandle,size_t jointCnt,const int* jointHand
                         dx(0)*=theMetric[0];
                         dx(1)*=theMetric[1];
                         dx(2)*=theMetric[2];
-                        simReal angle=tipTr.Q.getAngleBetweenQuaternions(targetTr.Q)*theMetric[3];
+                        double angle=tipTr.Q.getAngleBetweenQuaternions(targetTr.Q)*theMetric[3];
                         cumulatedDist+=sqrt(dx(0)*dx(0)+dx(1)*dx(1)+dx(2)*dx(2)+angle*angle);
                     }
 
@@ -2066,7 +2081,7 @@ int ikGetConfigForTipPose(int ikGroupHandle,size_t jointCnt,const int* jointHand
                             bool limitsOk=true;
                             for (size_t i=0;i<jointCnt;i++)
                             {
-                                simReal pp=joints[i]->getPosition();
+                                double pp=joints[i]->getPosition();
                                 if (joints[i]->getPositionIsCyclic())
                                 {
                                     if (rangeVals[i]<piValTimes2)
@@ -2105,7 +2120,7 @@ int ikGetConfigForTipPose(int ikGroupHandle,size_t jointCnt,const int* jointHand
                 }
 
                 if (!ikGroupWasActive)
-                    ikGroup->setActive(false);
+                    ikGroup->setOptions(ikGroup->getOptions()|1);
 
                 // Restore the IK element activation state:
                 for (size_t i=0;i<ikGroup->getIkElementCount();i++)
@@ -2114,7 +2129,7 @@ int ikGetConfigForTipPose(int ikGroupHandle,size_t jointCnt,const int* jointHand
                 // Restore joint positions/modes:
                 for (size_t i=0;i<sceneJoints.size();i++)
                 {
-                    if (fabs(sceneJoints[i]->getPosition()-initSceneJointValues[i])>simReal(0.0001))
+                    if (fabs(sceneJoints[i]->getPosition()-initSceneJointValues[i])>0.0001)
                         sceneJoints[i]->setPosition(initSceneJointValues[i]);
                     if (sceneJoints[i]->getJointMode()!=initSceneJointModes[i])
                         sceneJoints[i]->setJointMode(initSceneJointModes[i]);

@@ -11,34 +11,37 @@ CJoint::CJoint(int jointType)
     _objectType=ik_objecttype_joint;
     _jointMode=ik_jointmode_ik;
     _objectName="joint";
-    _jointPosition=simZero;
-    _screwPitch=simZero;
+    _jointPosition=0.0;
+    _screwPitch=0.0;
     _sphericalTransformation.setIdentity();
-    _ikWeight=simOne;
+    _ikWeight=1.0;
     _dependencyJointHandle=-1;
-    _dependencyJointMult=simOne;
-    _dependencyJointAdd=simZero;
+    _dependencyJointMult=1.0;
+    _dependencyJointAdd=0.0;
     _jointType=jointType;
     if (jointType==ik_jointtype_revolute)
     {
         _positionIsCyclic=true;
         _jointPositionRange=piValTimes2;
         _jointMinPosition=-piValue;
-        _maxStepSize=simReal(10.0)*degToRad;
+        _maxStepSize=10.0*degToRad;
+        _limitMargin=5.0*degToRad;
     }
     if (jointType==ik_jointtype_prismatic)
     {
         _positionIsCyclic=false;
-        _jointPositionRange=simOne;
-        _jointMinPosition=simReal(-0.5);
-        _maxStepSize=simReal(0.1);
+        _jointPositionRange=1.0;
+        _jointMinPosition=-0.5;
+        _maxStepSize=0.1;
+        _limitMargin=0.01;
     }
     if (jointType==ik_jointtype_spherical)
     {
         _positionIsCyclic=true;
         _jointPositionRange=piValue;
-        _jointMinPosition=simZero;
-        _maxStepSize=simReal(10.0)*degToRad;
+        _jointMinPosition=0.0;
+        _maxStepSize=10.0*degToRad;
+        _limitMargin=0.0;
     }
 }
 
@@ -69,12 +72,12 @@ int CJoint::getDependencyJointHandle() const
     return(_dependencyJointHandle);
 }
 
-simReal CJoint::getDependencyJointMult() const
+double CJoint::getDependencyJointMult() const
 {
     return(_dependencyJointMult);
 }
 
-simReal CJoint::getDependencyJointAdd() const
+double CJoint::getDependencyJointAdd() const
 {
     return(_dependencyJointAdd);
 }
@@ -105,7 +108,7 @@ void CJoint::setDependencyJointHandle(int jointHandle)
     }
 }
 
-void CJoint::setDependencyJointMult(simReal m)
+void CJoint::setDependencyJointMult(double m)
 {
     if (_jointType!=ik_jointtype_spherical)
     {
@@ -114,7 +117,7 @@ void CJoint::setDependencyJointMult(simReal m)
     }
 }
 
-void CJoint::setDependencyJointAdd(simReal off)
+void CJoint::setDependencyJointAdd(double off)
 {
     if (_jointType!=ik_jointtype_spherical)
     {
@@ -128,12 +131,12 @@ int CJoint::getJointType() const
     return(_jointType);
 }
 
-simReal CJoint::getScrewPitch() const
+double CJoint::getScrewPitch() const
 {
     return(_screwPitch);
 }
 
-void CJoint::setScrewPitch(simReal p)
+void CJoint::setScrewPitch(double p)
 {
     if (_jointType==ik_jointtype_revolute)
         _screwPitch=p;
@@ -149,12 +152,12 @@ C4Vector CJoint::getSphericalTransformation() const
     return(_sphericalTransformation);
 }
 
-void CJoint::setMaxStepSize(simReal stepS)
+void CJoint::setMaxStepSize(double stepS)
 {
     _maxStepSize=stepS;
 }
 
-simReal CJoint::getMaxStepSize() const
+double CJoint::getMaxStepSize() const
 {
     return(_maxStepSize);
 }
@@ -172,6 +175,7 @@ CSceneObject* CJoint::copyYourself() const
     duplicate->_jointPosition=_jointPosition;
     duplicate->_maxStepSize=_maxStepSize;
     duplicate->_ikWeight=_ikWeight;
+    duplicate->_limitMargin=_limitMargin;
     duplicate->_jointMode=_jointMode;
     duplicate->_dependencyJointHandle=_dependencyJointHandle;
     duplicate->_dependencyJointMult=_dependencyJointMult;
@@ -180,22 +184,32 @@ CSceneObject* CJoint::copyYourself() const
     return(duplicate);
 }
 
-simReal CJoint::getPosition() const
+double CJoint::getPosition() const
 {
     return(_jointPosition);
 }
 
-simReal CJoint::getIkWeight() const
+double CJoint::getIkWeight() const
 {
     return(_ikWeight);
 }
 
-void CJoint::setIkWeight(simReal newWeight)
+void CJoint::setIkWeight(double newWeight)
 {
     _ikWeight=newWeight;
 }
 
-void CJoint::setPosition(simReal parameter,const CJoint* masterJoint/*=nullptr*/)
+double CJoint::getLimitMargin() const
+{
+    return(_limitMargin);
+}
+
+void CJoint::setLimitMargin(double newMargin)
+{
+    _limitMargin=newMargin;
+}
+
+void CJoint::setPosition(double parameter,const CJoint* masterJoint/*=nullptr*/)
 {
     if (masterJoint!=nullptr)
     {
@@ -203,7 +217,7 @@ void CJoint::setPosition(simReal parameter,const CJoint* masterJoint/*=nullptr*/
         {
             _jointPosition=_dependencyJointAdd+_dependencyJointMult*masterJoint->getPosition();
             for (size_t i=0;i<dependentJoints.size();i++)
-                dependentJoints[i]->setPosition(simZero,this);
+                dependentJoints[i]->setPosition(0.0,this);
         }
     }
     else
@@ -222,30 +236,30 @@ void CJoint::setPosition(simReal parameter,const CJoint* masterJoint/*=nullptr*/
             _jointPosition=parameter;
 
             for (size_t i=0;i<dependentJoints.size();i++)
-                dependentJoints[i]->setPosition(simZero,this);
+                dependentJoints[i]->setPosition(0.0,this);
         }
     }
 
 }
 
-simReal CJoint::getPositionIntervalMin() const
+double CJoint::getPositionIntervalMin() const
 { 
     return(_jointMinPosition); 
 }
 
-void CJoint::setPositionIntervalMin(simReal m)
+void CJoint::setPositionIntervalMin(double m)
 {
     _jointMinPosition=m;
     setSphericalTransformation(getSphericalTransformation());
     setPosition(getPosition());
 }
 
-simReal CJoint::getPositionIntervalRange() const
+double CJoint::getPositionIntervalRange() const
 { 
     return(_jointPositionRange); 
 }
 
-void CJoint::setPositionIntervalRange(simReal r)
+void CJoint::setPositionIntervalRange(double r)
 {
     _jointPositionRange=r;
     setSphericalTransformation(getSphericalTransformation());
@@ -267,7 +281,7 @@ void CJoint::setPositionIsCyclic(bool c)
     {
         if (getJointType()==ik_jointtype_revolute)
         {
-            _screwPitch=simZero;
+            _screwPitch=0.0;
             _jointMinPosition=-piValue;
             _jointPositionRange=piValTimes2;
             _positionIsCyclic=c;
@@ -323,21 +337,21 @@ void CJoint::serialize(CSerialization& ar)
     else
     {
         _jointType=ar.readInt();
-        _screwPitch=simReal(ar.readFloat());
-        _sphericalTransformation(0)=simReal(ar.readFloat());
-        _sphericalTransformation(1)=simReal(ar.readFloat());
-        _sphericalTransformation(2)=simReal(ar.readFloat());
-        _sphericalTransformation(3)=simReal(ar.readFloat());
+        _screwPitch=double(ar.readFloat());
+        _sphericalTransformation(0)=double(ar.readFloat());
+        _sphericalTransformation(1)=double(ar.readFloat());
+        _sphericalTransformation(2)=double(ar.readFloat());
+        _sphericalTransformation(3)=double(ar.readFloat());
         unsigned char dummy=ar.readByte();
         _positionIsCyclic=SIM_IS_BIT_SET(dummy,0);
-        _jointMinPosition=simReal(ar.readFloat());
-        _jointPositionRange=simReal(ar.readFloat());
-        _jointPosition=simReal(ar.readFloat());
-        _maxStepSize=simReal(ar.readFloat());
-        _ikWeight=simReal(ar.readFloat());
+        _jointMinPosition=double(ar.readFloat());
+        _jointPositionRange=double(ar.readFloat());
+        _jointPosition=double(ar.readFloat());
+        _maxStepSize=double(ar.readFloat());
+        _ikWeight=double(ar.readFloat());
         _jointMode=ar.readInt();
         _dependencyJointHandle=ar.readInt();
-        _dependencyJointMult=simReal(ar.readFloat());
-        _dependencyJointAdd=simReal(ar.readFloat());
+        _dependencyJointMult=double(ar.readFloat());
+        _dependencyJointAdd=double(ar.readFloat());
     }
 }

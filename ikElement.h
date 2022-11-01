@@ -33,21 +33,17 @@ public:
     bool getIsActive() const;
     void setIsActive(bool isActive);
 
-    simReal getMinLinearPrecision() const;
-    void setMinLinearPrecision(simReal precision);
-    simReal getMinAngularPrecision() const;
-    void setMinAngularPrecision(simReal precision);
-    simReal getPositionWeight() const;
-    void setPositionWeight(simReal weight);
-    simReal getOrientationWeight() const;
-    void setOrientationWeight(simReal weight);
+    void getWeights(double w[2]) const;
+    void setWeights(const double w[2]);
+    void getPrecisions(double p[2]) const;
+    void setPrecisions(const double p[2]);
     int getConstraints() const;
     void setConstraints(int constraints);
 
     void isWithinTolerance(bool& position,bool& orientation) const;
-    void getTipTargetDistance(simReal& linDist,simReal& angDist) const;
-    static bool getJacobian(CMatrix& jacob,CMatrix& errVect,const simReal weights[2],const int tipBaseAltBase[3],int constraints,simReal interpolationFactor,std::vector<int>* equTypes,std::vector<int>* jHandles,std::vector<int>* jDofIndex);
-    void prepareEquations(simReal interpolationFactor);
+    void getTipTargetDistance(double& linDist,double& angDist) const;
+    static bool getJacobian(CMatrix& jacob,CMatrix& errVect,const int tipBaseAltBase[3],int constraints,double interpolationFactor,std::vector<int>* equTypes,std::vector<int>* jHandles,std::vector<int>* jDofIndex);
+    void prepareEquations(double interpolationFactor);
 
     CMatrix jacobian;
     CMatrix errorVector;
@@ -58,15 +54,12 @@ public:
 private:
     static CMatrix _getNakedJacobian(const CSceneObject* tip,const CSceneObject* base,const CSceneObject* constrBase,int constraints,std::vector<int>* jHandles,std::vector<int>* jDofIndex);
 
-
     int _ikElementHandle;
     int _tipHandle;
     int _baseHandle;
     int _altBaseHandleForConstraints;
     int _constraints;
     bool _isActive;
-    simReal _positionWeight;
-    simReal _orientationWeight;
-    simReal _minAngularPrecision;
-    simReal _minLinearPrecision;
+    double _weights[2]; // linear and angular weights
+    double _precisions[2]; // linear and angular precisions
 };

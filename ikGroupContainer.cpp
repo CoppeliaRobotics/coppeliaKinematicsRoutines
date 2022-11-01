@@ -75,12 +75,6 @@ void CIkGroupContainer::announceSceneObjectWillBeErased(int objectHandle)
     }
 }
 
-void CIkGroupContainer::resetCalculationResults()
-{
-    for (size_t i=0;i<ikGroups.size();i++)
-        ikGroups[i]->resetCalculationResult();
-}
-
 void CIkGroupContainer::announceIkGroupWillBeErased(int ikGroupHandle)
 { // Never called from copy buffer!
     size_t i=0;
@@ -102,11 +96,10 @@ int CIkGroupContainer::computeAllIkGroups(bool exceptExplicitHandling)
     {
         for (size_t i=0;i<ikGroups.size();i++)
         {
-            if ((!exceptExplicitHandling)||(!ikGroups[i]->getExplicitHandling()))
+            if ((!exceptExplicitHandling)||(!ikGroups[i]->getExplicitHandling_old()))
             {
                 int res=0;
                 res=ikGroups[i]->computeGroupIk(false,nullptr);
-                ikGroups[i]->setCalculationResult(res);
                 if (res!=ik_result_not_performed)
                     performedCount++;
             }

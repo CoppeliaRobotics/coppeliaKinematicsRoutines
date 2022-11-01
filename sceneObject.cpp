@@ -111,10 +111,10 @@ C7Vector CSceneObject::getLocalTransformation() const
         const CJoint* it=dynamic_cast<const CJoint*>(this);
         C7Vector jointTr;
         jointTr.setIdentity();
-        simReal val=it->getPosition();
+        double val=it->getPosition();
         if (it->getJointType()==ik_jointtype_revolute)
         {
-            jointTr.Q.setAngleAndAxis(val,C3Vector(simZero,simZero,simOne));
+            jointTr.Q.setAngleAndAxis(val,C3Vector(0.0,0.0,1.0));
             jointTr.X(2)=val*it->getScrewPitch();
         }
         if (it->getJointType()==ik_jointtype_prismatic)
@@ -220,13 +220,13 @@ void CSceneObject::serializeMain(CSerialization& ar)
     }
     else
     {
-        _transformation.Q(0)=simReal(ar.readFloat());
-        _transformation.Q(1)=simReal(ar.readFloat());
-        _transformation.Q(2)=simReal(ar.readFloat());
-        _transformation.Q(3)=simReal(ar.readFloat());
-        _transformation.X(0)=simReal(ar.readFloat());
-        _transformation.X(1)=simReal(ar.readFloat());
-        _transformation.X(2)=simReal(ar.readFloat());
+        _transformation.Q(0)=double(ar.readFloat());
+        _transformation.Q(1)=double(ar.readFloat());
+        _transformation.Q(2)=double(ar.readFloat());
+        _transformation.Q(3)=double(ar.readFloat());
+        _transformation.X(0)=double(ar.readFloat());
+        _transformation.X(1)=double(ar.readFloat());
+        _transformation.X(2)=double(ar.readFloat());
         _objectHandle=ar.readInt();
         _parentObjectHandle=ar.readInt();
         _objectName=ar.readString().c_str();

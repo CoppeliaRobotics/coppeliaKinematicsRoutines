@@ -12,11 +12,11 @@ CikElement::CikElement(int theTooltip)
     _baseHandle=-1;
     _altBaseHandleForConstraints=-1;
     _isActive=true;
-    _constraints=(ik_constraint_x|ik_constraint_y|ik_constraint_z);
-    _minAngularPrecision=simReal(0.1)*degToRad;
-    _minLinearPrecision=simReal(0.0005);
-    _positionWeight=1.0;
-    _orientationWeight=1.0;
+    _constraints=ik_constraint_position;
+    _precisions[0]=0.0005;
+    _precisions[1]=0.1*degToRad;
+    _weights[0]=1.0;
+    _weights[1]=1.0;
     _ikElementHandle=-1;
 }
 
@@ -34,10 +34,10 @@ CikElement* CikElement::copyYourself() const
     duplicate->_altBaseHandleForConstraints=_altBaseHandleForConstraints;
     duplicate->_constraints=_constraints;
     duplicate->_isActive=_isActive;
-    duplicate->_positionWeight=_positionWeight;
-    duplicate->_orientationWeight=_orientationWeight;
-    duplicate->_minAngularPrecision=_minAngularPrecision;
-    duplicate->_minLinearPrecision=_minLinearPrecision;
+    duplicate->_weights[0]=_weights[0];
+    duplicate->_weights[1]=_weights[1];
+    duplicate->_precisions[0]=_precisions[0];
+    duplicate->_precisions[1]=_precisions[1];
     duplicate->jointHandles.assign(jointHandles.begin(),jointHandles.end());
     duplicate->jointDofIndex.assign(jointDofIndex.begin(),jointDofIndex.end());
     duplicate->equationTypes.assign(equationTypes.begin(),equationTypes.end());
@@ -68,11 +68,11 @@ void CikElement::serialize(CSerialization& ar)
         ar.writeInt(_tipHandle);
         ar.writeInt(_baseHandle);
         ar.writeInt(_altBaseHandleForConstraints);
-        ar.writeFloat(float(_minAngularPrecision));
-        ar.writeFloat(float(_minLinearPrecision));
+        ar.writeFloat(float(_precisions[1]));
+        ar.writeFloat(float(_precisions[0]));
         ar.writeInt(_constraints);
-        ar.writeFloat(float(_positionWeight));
-        ar.writeFloat(float(_orientationWeight));
+        ar.writeFloat(float(_weights[0]));
+        ar.writeFloat(float(_weights[1]));
         unsigned char nothing=0;
         nothing=nothing+1*_isActive;
         ar.writeByte(nothing);
@@ -83,11 +83,11 @@ void CikElement::serialize(CSerialization& ar)
         _tipHandle=ar.readInt();
         _baseHandle=ar.readInt();
         _altBaseHandleForConstraints=ar.readInt();
-        _minAngularPrecision=simReal(ar.readFloat());
-        _minLinearPrecision=simReal(ar.readFloat());
+        _precisions[1]=double(ar.readFloat());
+        _precisions[0]=double(ar.readFloat());
         _constraints=ar.readInt();
-        _positionWeight=simReal(ar.readFloat());
-        _orientationWeight=simReal(ar.readFloat());
+        _weights[0]=double(ar.readFloat());
+        _weights[1]=double(ar.readFloat());
         _isActive=(ar.readByte()&1);
     }
 }
@@ -162,46 +162,6 @@ void CikElement::setIsActive(bool isActive)
     _isActive=isActive;
 }
 
-simReal CikElement::getMinLinearPrecision() const
-{
-    return(_minLinearPrecision);
-}
-
-void CikElement::setMinLinearPrecision(simReal precision)
-{
-    _minLinearPrecision=precision;
-}
-
-simReal CikElement::getMinAngularPrecision() const
-{
-    return(_minAngularPrecision);
-}
-
-void CikElement::setMinAngularPrecision(simReal precision)
-{
-    _minAngularPrecision=precision;
-}
-
-simReal CikElement::getPositionWeight() const
-{
-    return(_positionWeight);
-}
-
-void CikElement::setPositionWeight(simReal weight)
-{
-    _positionWeight=weight;
-}
-
-simReal CikElement::getOrientationWeight() const
-{
-    return(_orientationWeight);
-}
-
-void CikElement::setOrientationWeight(simReal weight)
-{
-    _orientationWeight=weight;
-}
-
 int CikElement::getConstraints() const
 {
     return(_constraints);
@@ -216,28 +176,51 @@ void CikElement::isWithinTolerance(bool& position,bool& orientation) const
 {
     position=true;
     orientation=true;
-    simReal linDist,angDist;
+    double linDist,angDist;
     getTipTargetDistance(linDist,angDist);
-    if ( (_constraints&(ik_constraint_x|ik_constraint_y|ik_constraint_z))!=0 )
+    if ( (_constraints&ik_constraint_position)!=0 )
     {
-        if (_minLinearPrecision<linDist)
+        if (_precisions[0]<linDist)
             position=false;
     }
-    if ( (_constraints&(ik_constraint_alpha_beta|ik_constraint_gamma))!=0 )
+    if ( (_constraints&ik_constraint_orientation)!=0 )
     {
-        if (_minAngularPrecision<angDist)
+        if (_precisions[1]<angDist)
             orientation=false;
     }
 }
 
-void CikElement::prepareEquations(simReal interpolationFactor)
+void CikElement::getWeights(double w[2]) const
 {
-    int tipBaseAltBase[3]={_tipHandle,_baseHandle,_altBaseHandleForConstraints};
-    simReal weights[2]={_positionWeight,_orientationWeight};
-    getJacobian(jacobian,errorVector,weights,tipBaseAltBase,_constraints,interpolationFactor,&equationTypes,&jointHandles,&jointDofIndex);
+    w[0]=_weights[0];
+    w[1]=_weights[1];
 }
 
-bool CikElement::getJacobian(CMatrix& jacob,CMatrix& errVect,const simReal weights[2],const int tipBaseAltBase[3],int constraints,simReal interpolationFactor,std::vector<int>* equTypes,std::vector<int>* jHandles,std::vector<int>* jDofIndex)
+void CikElement::setWeights(const double w[2])
+{
+    _weights[0]=w[0];
+    _weights[1]=w[1];
+}
+
+void CikElement::getPrecisions(double p[2]) const
+{
+    p[0]=_precisions[0];
+    p[1]=_precisions[1];
+}
+
+void CikElement::setPrecisions(const double p[2])
+{
+    _precisions[0]=p[0];
+    _precisions[1]=p[1];
+}
+
+void CikElement::prepareEquations(double interpolationFactor)
+{
+    int tipBaseAltBase[3]={_tipHandle,_baseHandle,_altBaseHandleForConstraints};
+    getJacobian(jacobian,errorVector,tipBaseAltBase,_constraints,interpolationFactor,&equationTypes,&jointHandles,&jointDofIndex);
+}
+
+bool CikElement::getJacobian(CMatrix& jacob,CMatrix& errVect,const int tipBaseAltBase[3],int constraints,double interpolationFactor,std::vector<int>* equTypes,std::vector<int>* jHandles,std::vector<int>* jDofIndex)
 { // equTypes, jHandles and jDofIndex can be nullptr
     if (jHandles!=nullptr)
         jHandles->clear();
@@ -256,7 +239,7 @@ bool CikElement::getJacobian(CMatrix& jacob,CMatrix& errVect,const simReal weigh
     CSceneObject* altBase=CEnvironment::currentEnvironment->objectContainer->getObject(tipBaseAltBase[2]);
     if (altBase!=nullptr)
         constrBase=altBase;
-    std::vector<simReal> mem;
+    std::vector<double> mem;
     jacob=_getNakedJacobian(tip,base,constrBase,constraints,jHandles,jDofIndex);
     bool retVal=false;
     if ( (jacob.rows!=0)&&(jacob.cols!=0) )
@@ -272,10 +255,10 @@ bool CikElement::getJacobian(CMatrix& jacob,CMatrix& errVect,const simReal weigh
                 constrBaseTrInverse=constrBase->getCumulativeTransformation().getInverse();
             C7Vector tipTrRel(constrBaseTrInverse*tip->getCumulativeTransformationPart1());
             C7Vector targetTrRel(constrBaseTrInverse*target->getCumulativeTransformationPart1());
-            if ((constraints&(ik_constraint_alpha_beta|ik_constraint_gamma))==ik_constraint_alpha_beta)
+            if ((constraints&ik_constraint_orientation)==ik_constraint_alpha_beta)
             { // We need to reorient the target around its z-axis to "ressemble" most the tip orientation
                 C3Vector tipXaxisProj(targetTrRel.Q.getInverse()*tipTrRel.Q.getMatrix().axis[0]);
-                simReal angle=tipXaxisProj.getAngle(C3Vector::unitXVector);
+                double angle=tipXaxisProj.getAngle(C3Vector::unitXVector);
                 if (fabs(angle)>0.001)
                 {
                     if (tipXaxisProj(1)<0.0)
@@ -284,11 +267,11 @@ bool CikElement::getJacobian(CMatrix& jacob,CMatrix& errVect,const simReal weigh
                     targetTrRel.Q*=q;
                 }
             }
-            if ((constraints&(ik_constraint_alpha_beta|ik_constraint_gamma))==ik_constraint_gamma)
+            if ((constraints&ik_constraint_orientation)==ik_constraint_gamma)
             { // We need to reorient the target with a rotation that brings both z-axes together
                 C3Vector tipZaxis(tipTrRel.Q.getMatrix().axis[2]);
                 C3Vector targetZaxis(targetTrRel.Q.getMatrix().axis[2]);
-                simReal angle=targetZaxis.getAngle(tipZaxis);
+                double angle=targetZaxis.getAngle(tipZaxis);
                 if (angle>0.001)
                 {
                     C4Vector q(angle,(targetZaxis^tipZaxis).getNormalized());
@@ -296,7 +279,7 @@ bool CikElement::getJacobian(CMatrix& jacob,CMatrix& errVect,const simReal weigh
                 }
             }
             C7Vector interpolTargetRel;
-            simReal dq=0.01; // not that relevant apparently
+            double dq=0.01; // not that relevant apparently
             interpolTargetRel.buildInterpolation(tipTrRel,targetTrRel,interpolationFactor*dq);
 
             C4Vector dx_q(tipTrRel.Q.getInverse()*interpolTargetRel.Q);
@@ -309,28 +292,28 @@ bool CikElement::getJacobian(CMatrix& jacob,CMatrix& errVect,const simReal weigh
             size_t rowIndex=0;
             if ((constraints&ik_constraint_x)!=0)
             {
-                errVect(rowIndex++,0)=dx_x(0)*weights[0]/dq;
+                errVect(rowIndex++,0)=dx_x(0)/dq;
                 if (equTypes!=nullptr)
                     equTypes->push_back(0);
             }
             if ((constraints&ik_constraint_y)!=0)
             {
-                errVect(rowIndex++,0)=dx_x(1)*weights[0]/dq;
+                errVect(rowIndex++,0)=dx_x(1)/dq;
                 if (equTypes!=nullptr)
                     equTypes->push_back(1);
             }
             if ((constraints&ik_constraint_z)!=0)
             {
-                errVect(rowIndex++,0)=dx_x(2)*weights[0]/dq;
+                errVect(rowIndex++,0)=dx_x(2)/dq;
                 if (equTypes!=nullptr)
                     equTypes->push_back(2);
             }
-            if ((constraints&(ik_constraint_alpha_beta|ik_constraint_gamma))!=0)
+            if ((constraints&ik_constraint_orientation)!=0)
             {
                 if ((constraints&ik_constraint_alpha_beta)!=0)
                 {
-                    errVect(rowIndex++,0)=euler(0)*weights[1]/dq;
-                    errVect(rowIndex++,0)=euler(1)*weights[1]/dq;
+                    errVect(rowIndex++,0)=euler(0)/dq;
+                    errVect(rowIndex++,0)=euler(1)/dq;
                     if (equTypes!=nullptr)
                     {
                         equTypes->push_back(3);
@@ -339,7 +322,7 @@ bool CikElement::getJacobian(CMatrix& jacob,CMatrix& errVect,const simReal weigh
                 }
                 if ((constraints&ik_constraint_gamma)!=0)
                 {
-                    errVect(rowIndex++,0)=euler(2)*weights[1]/dq;
+                    errVect(rowIndex++,0)=euler(2)/dq;
                     if (equTypes!=nullptr)
                         equTypes->push_back(5);
                 }
@@ -350,10 +333,10 @@ bool CikElement::getJacobian(CMatrix& jacob,CMatrix& errVect,const simReal weigh
     return(retVal);
 }
 
-void CikElement::getTipTargetDistance(simReal& linDist,simReal& angDist) const
+void CikElement::getTipTargetDistance(double& linDist,double& angDist) const
 { // returns the tip-target lin./ang. distances, taking into account the constraint settings
-    linDist=simZero;
-    angDist=simZero;
+    linDist=0.0;
+    angDist=0.0;
     CDummy* targetObject=CEnvironment::currentEnvironment->objectContainer->getDummy(getTargetHandle());
     if (targetObject!=nullptr)
     {
@@ -371,25 +354,25 @@ void CikElement::getTipTargetDistance(simReal& linDist,simReal& angDist) const
         targetTr=baseTrInv*targetTr;
 
         // Linear:
-        simReal constr[3]={simZero,simZero,simZero};
+        double constr[3]={0.0,0.0,0.0};
         if ( (_constraints&ik_constraint_x)!=0 )
-            constr[0]=simOne;
+            constr[0]=1.0;
         if ( (_constraints&ik_constraint_y)!=0 )
-            constr[1]=simOne;
+            constr[1]=1.0;
         if ( (_constraints&ik_constraint_z)!=0 )
-            constr[2]=simOne;
+            constr[2]=1.0;
         C3Vector displ(tooltipTr.X-targetTr.X);
         linDist=sqrt(displ(0)*displ(0)*constr[0]+displ(1)*displ(1)*constr[1]+displ(2)*displ(2)*constr[2]);
 
         // Angular:
-        if ( ((_constraints&ik_constraint_alpha_beta)!=0)&&((_constraints&ik_constraint_gamma)!=0) )
+        if ( (_constraints&ik_constraint_orientation)==ik_constraint_orientation)
             (targetTr.getInverse()*tooltipTr).Q.getAngleAndAxis(angDist);
         else if ( (_constraints&ik_constraint_alpha_beta)!=0 )
             angDist=targetTr.getMatrix().M.axis[2].getAngle(tooltipTr.getMatrix().M.axis[2]);
         else if ( (_constraints&ik_constraint_gamma)!=0 ) // gamma constraint can exist also without alpha/beta constraint, e.g. in 2D
             angDist=fabs((targetTr.getInverse()*tooltipTr).Q.getEulerAngles()(2));
         else
-            angDist=simZero;
+            angDist=0.0;
     }
 }
 
@@ -443,7 +426,7 @@ CMatrix CikElement::_getNakedJacobian(const CSceneObject* tip,const CSceneObject
         C7Vector x(jbabs.getInverse()*tip->getCumulativeTransformationPart1());
         C7Vector dj;
         dj.setIdentity();
-        simReal dq=0.01; // starts breaking at dj>0.05 or at dj<0.01
+        double dq=0.01; // starts breaking at dj>0.05 or at dj<0.01
         if (joint->getJointType()==ik_jointtype_prismatic)
             dj(2)=dq;
         if (joint->getJointType()==ik_jointtype_revolute)
@@ -477,7 +460,7 @@ CMatrix CikElement::_getNakedJacobian(const CSceneObject* tip,const CSceneObject
             jacobian(rowIndex++,colIndex)=dx_x(1)/dq;
         if ((constraints&ik_constraint_z)!=0)
             jacobian(rowIndex++,colIndex)=dx_x(2)/dq;
-        if ((constraints&(ik_constraint_alpha_beta|ik_constraint_gamma))!=0)
+        if ((constraints&ik_constraint_orientation)!=0)
         {
             if ((constraints&ik_constraint_alpha_beta)!=0)
             {

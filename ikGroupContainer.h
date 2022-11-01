@@ -19,7 +19,6 @@ public:
     void announceSceneObjectWillBeErased(int objectHandle);
     void announceIkGroupWillBeErased(int ikGroupHandle);
     int computeAllIkGroups(bool exceptExplicitHandling);
-    void resetCalculationResults();
 
     std::vector<CikGroup*> ikGroups;
 };

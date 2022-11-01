@@ -518,7 +518,7 @@ void CObjectContainer::addObjectToScene(CSceneObject* newObject,bool keepAllCurr
     }
 }
 
-void CObjectContainer::memorizeJointConfig(std::vector<int>& jointHandles,std::vector<simReal>& jointValues)
+void CObjectContainer::memorizeJointConfig(std::vector<int>& jointHandles,std::vector<double>& jointValues)
 {
     jointHandles.clear();
     jointValues.clear();
@@ -537,7 +537,7 @@ void CObjectContainer::memorizeJointConfig(std::vector<int>& jointHandles,std::v
     }
 }
 
-void CObjectContainer::restoreJointConfig(const std::vector<int>& jointHandles,const std::vector<simReal>& jointValues)
+void CObjectContainer::restoreJointConfig(const std::vector<int>& jointHandles,const std::vector<double>& jointValues)
 {
     size_t ind=0;
     for (size_t i=0;i<jointHandles.size();i++)
