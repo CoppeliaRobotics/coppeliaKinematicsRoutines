@@ -119,7 +119,7 @@ bool ikGetIkElementWeights(int ikGroupHandle,int ikElementHandle,double* linearW
 bool ikSetIkElementWeights(int ikGroupHandle,int ikElementHandle,double linearWeight,double angularWeight);
 
 bool ikHandleIkGroup(int ikGroupHandle=ik_handle_all,int* result=nullptr,bool(*cb)(const int*,std::vector<double>*,const int*,const int*,const int*,const int*,std::vector<double>*,double*)=nullptr);
-bool ikComputeJacobian(int baseHandle,int altBaseHandle,int jointHandle,int constraints,const C7Vector* tipPose,const C7Vector* targetPose,std::vector<double>* jacobian,std::vector<double>* errorVect);
+bool ikComputeJacobian(int baseHandle,int jointHandle,int constraints,const C7Vector* tipPose,const C7Vector* targetPose,const C7Vector* taltBasePose,std::vector<double>* jacobian,std::vector<double>* errorVect);
 
 bool ikComputeJacobian_old(int ikGroupHandle,int options,bool* success=nullptr);
 double* ikGetJacobian_old(int ikGroupHandle,size_t* matrixSize);

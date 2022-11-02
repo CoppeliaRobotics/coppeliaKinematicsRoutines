@@ -42,7 +42,7 @@ public:
 
     void isWithinTolerance(bool& position,bool& orientation) const;
     void getTipTargetDistance(double& linDist,double& angDist) const;
-    static bool getJacobian(CMatrix& jacob,CMatrix& errVect,const int tipBaseAltBase[3],int constraints,double interpolationFactor,std::vector<int>* equTypes,std::vector<int>* jHandles,std::vector<int>* jDofIndex);
+    static bool getJacobian(CMatrix& jacob,CMatrix& errVect,int ttip,int tbase,int constraints,const C7Vector* altBasePose,double interpolationFactor,std::vector<int>* equTypes,std::vector<int>* jHandles,std::vector<int>* jDofIndex);
     void prepareEquations(double interpolationFactor);
 
     CMatrix jacobian;
@@ -52,7 +52,7 @@ public:
     std::vector<int> jointDofIndex;
 
 private:
-    static CMatrix _getNakedJacobian(const CSceneObject* tip,const CSceneObject* base,const CSceneObject* constrBase,int constraints,std::vector<int>* jHandles,std::vector<int>* jDofIndex);
+    static CMatrix _getNakedJacobian(const CSceneObject* tip,const CSceneObject* base,const C7Vector* constrBasePose,int constraints,std::vector<int>* jHandles,std::vector<int>* jDofIndex);
 
     int _ikElementHandle;
     int _tipHandle;

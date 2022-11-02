@@ -236,17 +236,17 @@ td.section { margin: 0; padding: 0; }
 </tr>
 <tr class="apiTableTr">
 <td class="apiTableLeftCSyn">Synopsis</td>
-<td class="apiTableRightCSyn">bool ikComputeJacobian(int baseHandle,int altBaseHandle,int jointHandle,int constraints,const C7Vector* tipPose,const C7Vector* targetPose,std::vector<simReal>* jacobian,std::vector<simReal>* errorVect)</td>
+<td class="apiTableRightCSyn">bool ikComputeJacobian(int baseHandle,int jointHandle,int constraints,const C7Vector* tipPose,const C7Vector* targetPose,const C7Vector* constrBasePose,std::vector<simReal>* jacobian,std::vector<simReal>* errorVect)</td>
 </tr>
 <tr class="apiTableTr">
 <td class="apiTableLeftCParam">Arguments</td>
 <td class="apiTableRightCParam">
 <div><strong>baseHandle</strong>: the handle of the base of the kinematic chain, or -1 for the world</div>
-<div><strong>altBaseHandle</strong>: the handle of an object, that should serve as the reference frame, or -1 to use baseHandle as reference frame</div>
 <div><strong>jointHandle</strong>: the handle of the last joint in the kinematic chain, when going from base to tip</div>
 <div><strong>constraints</strong>: a combination of following is possible: ik_constraint_x, ik_constraint_y, ik_constraint_z, ik_constraint_alpha_beta, ik_constraint_gamma. For convenience we also have ik_constraint_position=ik_constraint_x|ik_constraint_y|ik_constraint_z, ik_constraint_orientation=ik_constraint_alpha_beta|ik_constraint_gamma, and ik_constraint_pose=ik_constraint_position|ik_constraint_orientation.</div>
 <div><strong>tipPose</strong>: the pose of the tip object, relative to the world</div>
 <div><strong>targetPose</strong>: the pose of the target object, relative to the world. Can be nullptr, in which case the targetPose is the same as the tipPose</div>
+<div><strong>constrBasePose</strong>: the pose that should serve as the reference frame for constraints, or nullptr to use the base as reference frame</div>
 <div><strong>jacobian</strong>: the jacobian in return (row major order). Each row corresponds to one constraint in following order: x, y, z, alpha, beta, gamma. Each column corresponds to one joint, from base to tip. Can be nullptr</div>
 <div><strong>errorVect</strong>: the error vector between the target and the tip. Can be nullptr</div>
 </td>
