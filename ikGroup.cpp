@@ -513,9 +513,7 @@ int CikGroup::_performOnePass(std::vector<CikElement*>* validElements,bool& limi
         return(1);
 
     // Now we just have to solve:
-    size_t doF=mainJacobian.cols;
-    size_t eqNumb=mainJacobian.rows;
-    CMatrix solution(doF,1);
+    CMatrix solution(mainJacobian.cols,1);
     bool computeHere=true;
     if (cb)
     {
@@ -523,6 +521,7 @@ int CikGroup::_performOnePass(std::vector<CikElement*>* validElements,bool& limi
         computeHere=!cb(js,&mainJacobian.data,_equationType.data(),_elementHandles.data(),_jointHandles.data(),_jointDofIndex.data(),&mainErrorVector.data,solution.data.data());
         mainJacobian.rows=mainJacobian.data.size()/mainJacobian.cols;
         mainErrorVector.rows=mainJacobian.rows;
+        _equationType.resize(mainJacobian.rows,8);
     }
 
     if (computeHere)
@@ -563,7 +562,7 @@ int CikGroup::_performOnePass(std::vector<CikElement*>* validElements,bool& limi
         {
             CMatrix JT(mainJacobian);
             JT.transpose();
-            CMatrix pseudoJ(doF,eqNumb);
+            CMatrix pseudoJ(mainJacobian.cols,mainJacobian.rows);
             CMatrix JJTInv(mainJacobian*JT);
             if (!JJTInv.inverse())
                 return(-1);
@@ -579,7 +578,7 @@ int CikGroup::_performOnePass(std::vector<CikElement*>* validElements,bool& limi
         {
             CMatrix JT(mainJacobian);
             JT.transpose();
-            CMatrix DLSJ(doF,eqNumb);
+            CMatrix DLSJ(mainJacobian.cols,mainJacobian.rows);
             CMatrix JJTInv(mainJacobian*JT);
             CMatrix ID(mainJacobian.rows,mainJacobian.rows);
             ID.setIdentity();
@@ -598,7 +597,7 @@ int CikGroup::_performOnePass(std::vector<CikElement*>* validElements,bool& limi
         }
 
         // We take the joint weights into account here (part2):
-        for (size_t i=0;i<doF;i++)
+        for (size_t i=0;i<mainJacobian.cols;i++)
         {
             CJoint* it=allJoints[i];
             double coeff=sqrt(fabs(it->getIkWeight()));
@@ -610,7 +609,7 @@ int CikGroup::_performOnePass(std::vector<CikElement*>* validElements,bool& limi
     // We check if some variations are too big:
     if ((_options&2)!=0)
     {
-        for (size_t i=0;i<doF;i++)
+        for (size_t i=0;i<mainJacobian.cols;i++)
         {
             CJoint* it=allJoints[i];
             if (it->getJointType()!=ik_jointtype_prismatic)
@@ -638,7 +637,7 @@ int CikGroup::_performOnePass(std::vector<CikElement*>* validElements,bool& limi
     }
 
     // Set the computed values
-    for (size_t i=0;i<doF;i++)
+    for (size_t i=0;i<mainJacobian.cols;i++)
     {
         CJoint* it=allJoints[i];
         if (it->getJointType()==ik_jointtype_spherical)
@@ -669,7 +668,7 @@ int CikGroup::_performOnePass(std::vector<CikElement*>* validElements,bool& limi
     }
 
     // Check which joints hit a joint limit:
-    for (size_t i=0;i<doF;i++)
+    for (size_t i=0;i<mainJacobian.cols;i++)
     {
         CJoint* it=allJoints[i];
         if ( (it->getJointType()!=ik_jointtype_spherical)&&(!it->getPositionIsCyclic()) )
