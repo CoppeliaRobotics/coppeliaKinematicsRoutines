@@ -484,26 +484,27 @@ int CikGroup::_performOnePass(std::vector<CikElement*>* validElements,bool& limi
                 _elementHandles.push_back(-1);
                 _equationType.push_back(7);
 
-                if (dependenceHandle!=-1)
+                double mult=allJoints[i]->getDependencyJointMult();
+                bool found=false;
+                size_t depJointIndex;
+                for (depJointIndex=0;depJointIndex<allJoints.size();depJointIndex++)
                 {
-                    double mult=allJoints[i]->getDependencyJointMult();
-                    double off=allJoints[i]->getDependencyJointAdd();
-                    bool found=false;
-                    size_t depJointIndex;
-                    for (depJointIndex=0;depJointIndex<allJoints.size();depJointIndex++)
+                    if (allJoints[depJointIndex]->getObjectHandle()==dependenceHandle)
                     {
-                        if (allJoints[depJointIndex]->getObjectHandle()==dependenceHandle)
-                        {
-                            found=true;
-                            break;
-                        }
+                        found=true;
+                        break;
                     }
-                    if (found)
-                    {
-                        mainJacobian(currentRow,i)=-1.0;
-                        mainJacobian(currentRow,depJointIndex)=mult;
-                        mainErrorVector(currentRow,0)=0.0;
-                    }
+                }
+                if (found)
+                {
+                    mainJacobian(currentRow,i)=-1.0;
+                    mainJacobian(currentRow,depJointIndex)=mult;
+                    mainErrorVector(currentRow,0)=0.0;
+                }
+                else
+                { // we forbid this joint to move, since it depends on another joint not part of this ik group
+                    mainJacobian(currentRow,i)=1.0;
+                    mainErrorVector(currentRow,0)=0.0;
                 }
             }
         }
