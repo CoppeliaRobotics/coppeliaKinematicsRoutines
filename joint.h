@@ -51,10 +51,13 @@ public:
     void setDependencyJointHandle(int jointHandle);
     void setDependencyJointMult(double m);
     void setDependencyJointAdd(double off);
+    void setDependencyJointCallback(double(*cb)(int ikEnv,int slaveJoint,double masterPos));
+    void updateSlavesAndSelf();
 
     std::vector<CJoint*> dependentJoints;
 
 protected:
+
     int _jointType;
     C4Vector _sphericalTransformation; // spherical joints don't have a range anymore since 22.10.22
     bool _positionIsCyclic;
@@ -73,4 +76,5 @@ protected:
     int _dependencyJointHandle;
     double _dependencyJointMult;
     double _dependencyJointAdd;
+    double(*_dependencyJointCallback)(int ikEnv,int slaveJoint,double masterPos);
 };

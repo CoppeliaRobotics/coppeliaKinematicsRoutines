@@ -236,7 +236,7 @@ td.section { margin: 0; padding: 0; }
 </tr>
 <tr class="apiTableTr">
 <td class="apiTableLeftCSyn">Synopsis</td>
-<td class="apiTableRightCSyn">bool ikComputeJacobian(int baseHandle,int jointHandle,int constraints,const C7Vector* tipPose,const C7Vector* targetPose,const C7Vector* constrBasePose,std::vector<simReal>* jacobian,std::vector<simReal>* errorVect)</td>
+<td class="apiTableRightCSyn">bool ikComputeJacobian(int baseHandle,int jointHandle,int constraints,const C7Vector* tipPose,const C7Vector* targetPose,const C7Vector* constrBasePose,std::vector<double>* jacobian,std::vector<double>* errorVect)</td>
 </tr>
 <tr class="apiTableTr">
 <td class="apiTableLeftCParam">Arguments</td>
@@ -528,7 +528,7 @@ td.section { margin: 0; padding: 0; }
 </tr>
 <tr class="apiTableTr">
 <td class="apiTableLeftCSyn">Synopsis</td>
-<td class="apiTableRightCSyn">int ikFindConfig(int ikGroupHandle,size_t jointCnt,const int* jointHandles,simReal thresholdDist,int maxSearchTimeInMs,simReal* retConfig,const simReal* metric=nullptr,bool(*validationCallback)(simReal*)=nullptr)</td>
+<td class="apiTableRightCSyn">int ikFindConfig(int ikGroupHandle,size_t jointCnt,const int* jointHandles,double thresholdDist,int maxSearchTimeInMs,double* retConfig,const double* metric=nullptr,bool(*validationCallback)(double*)=nullptr)</td>
 </tr>
 <tr class="apiTableTr">
 <td class="apiTableLeftCParam">Arguments</td>
@@ -563,7 +563,7 @@ td.section { margin: 0; padding: 0; }
 </tr>
 <tr class="apiTableTr">
 <td class="apiTableLeftCSyn">Synopsis</td>
-<td class="apiTableRightCSyn">int ikGetConfigForTipPose(int ikGroupHandle,size_t jointCnt,const int* jointHandles,simReal thresholdDist,int maxIterations,simReal* retConfig,const simReal* metric=nullptr,bool(*validationCallback)(simReal*)=nullptr,const int* jointOptions=nullptr,const simReal* lowLimits=nullptr,const simReal* ranges=nullptr)</td>
+<td class="apiTableRightCSyn">int ikGetConfigForTipPose(int ikGroupHandle,size_t jointCnt,const int* jointHandles,double thresholdDist,int maxIterations,double* retConfig,const double* metric=nullptr,bool(*validationCallback)(double*)=nullptr,const int* jointOptions=nullptr,const double* lowLimits=nullptr,const double* ranges=nullptr)</td>
 </tr>
 <tr class="apiTableTr">
 <td class="apiTableLeftCParam">Arguments</td>
@@ -692,7 +692,7 @@ td.section { margin: 0; padding: 0; }
 </tr>
 <tr class="apiTableTr">
 <td class="apiTableLeftCSyn">Synopsis</td>
-<td class="apiTableRightCSyn">bool ikGetIkElementPrecision(int ikGroupHandle,int ikElementHandle,simReal* linearPrecision,simReal* angularPrecision)</td>
+<td class="apiTableRightCSyn">bool ikGetIkElementPrecision(int ikGroupHandle,int ikElementHandle,double* linearPrecision,double* angularPrecision)</td>
 </tr>
 <tr class="apiTableTr">
 <td class="apiTableLeftCParam">Arguments</td>
@@ -723,7 +723,7 @@ td.section { margin: 0; padding: 0; }
 </tr>
 <tr class="apiTableTr">
 <td class="apiTableLeftCSyn">Synopsis</td>
-<td class="apiTableRightCSyn">bool ikGetIkElementWeights(int ikGroupHandle,int ikElementHandle,simReal* linearWeight,simReal* angularWeight)</td>
+<td class="apiTableRightCSyn">bool ikGetIkElementWeights(int ikGroupHandle,int ikElementHandle,double* linearWeight,double* angularWeight)</td>
 </tr>
 <tr class="apiTableTr">
 <td class="apiTableLeftCParam">Arguments</td>
@@ -754,7 +754,7 @@ td.section { margin: 0; padding: 0; }
 </tr>
 <tr class="apiTableTr">
 <td class="apiTableLeftCSyn">Synopsis</td>
-<td class="apiTableRightCSyn">bool ikGetIkGroupCalculation(int ikGroupHandle,int* method,simReal* damping,int* maxIterations)</td>
+<td class="apiTableRightCSyn">bool ikGetIkGroupCalculation(int ikGroupHandle,int* method,double* damping,int* maxIterations)</td>
 </tr>
 <tr class="apiTableTr">
 <td class="apiTableLeftCParam">Arguments</td>
@@ -843,7 +843,7 @@ td.section { margin: 0; padding: 0; }
 </tr>
 <tr class="apiTableTr">
 <td class="apiTableLeftCSyn">Synopsis</td>
-<td class="apiTableRightCSyn">bool ikGetIkGroupJointLimitHits(int ikGroupHandle,std::vector&lt;int&gt;* jointHandles,std::vector&lt;float&gt;* underOrOvershots)</td>
+<td class="apiTableRightCSyn">bool ikGetIkGroupJointLimitHits(int ikGroupHandle,std::vector&lt;int&gt;* jointHandles,std::vector&lt;double&gt;* underOrOvershots)</td>
 </tr>
 <tr class="apiTableTr">
 <td class="apiTableLeftCParam">Arguments</td>
@@ -873,7 +873,7 @@ td.section { margin: 0; padding: 0; }
 </tr>
 <tr class="apiTableTr">
 <td class="apiTableLeftCSyn">Synopsis</td>
-<td class="apiTableRightCSyn">bool ikGetJointDependency(int jointHandle,int* dependencyJointHandle,simReal* offset,simReal* mult)</td>
+<td class="apiTableRightCSyn">bool ikGetJointDependency(int jointHandle,int* dependencyJointHandle,double* offset,double* mult)</td>
 </tr>
 <tr class="apiTableTr">
 <td class="apiTableLeftCParam">Arguments</td>
@@ -904,7 +904,7 @@ td.section { margin: 0; padding: 0; }
 </tr>
 <tr class="apiTableTr">
 <td class="apiTableLeftCSyn">Synopsis</td>
-<td class="apiTableRightCSyn">bool ikGetJointIkWeight(int jointHandle,simReal* ikWeight)</td>
+<td class="apiTableRightCSyn">bool ikGetJointIkWeight(int jointHandle,double* ikWeight)</td>
 </tr>
 <tr class="apiTableTr">
 <td class="apiTableLeftCParam">Arguments</td>
@@ -933,7 +933,7 @@ td.section { margin: 0; padding: 0; }
 </tr>
 <tr class="apiTableTr">
 <td class="apiTableLeftCSyn">Synopsis</td>
-<td class="apiTableRightCSyn">bool ikGetJointInterval(int jointHandle,bool* cyclic,simReal* intervalMinAndRange)</td>
+<td class="apiTableRightCSyn">bool ikGetJointInterval(int jointHandle,bool* cyclic,double* intervalMinAndRange)</td>
 </tr>
 <tr class="apiTableTr">
 <td class="apiTableLeftCParam">Arguments</td>
@@ -963,7 +963,7 @@ td.section { margin: 0; padding: 0; }
 </tr>
 <tr class="apiTableTr">
 <td class="apiTableLeftCSyn">Synopsis</td>
-<td class="apiTableRightCSyn">bool ikGetJointLimitMargin(int jointHandle,simReal* margin)</td>
+<td class="apiTableRightCSyn">bool ikGetJointLimitMargin(int jointHandle,double* margin)</td>
 </tr>
 <tr class="apiTableTr">
 <td class="apiTableLeftCParam">Arguments</td>
@@ -1021,7 +1021,7 @@ td.section { margin: 0; padding: 0; }
 </tr>
 <tr class="apiTableTr">
 <td class="apiTableLeftCSyn">Synopsis</td>
-<td class="apiTableRightCSyn">bool ikGetJointMaxStepSize(int jointHandle,simReal* maxStepSize)</td>
+<td class="apiTableRightCSyn">bool ikGetJointMaxStepSize(int jointHandle,double* maxStepSize)</td>
 </tr>
 <tr class="apiTableTr">
 <td class="apiTableLeftCParam">Arguments</td>
@@ -1080,7 +1080,7 @@ td.section { margin: 0; padding: 0; }
 </tr>
 <tr class="apiTableTr">
 <td class="apiTableLeftCSyn">Synopsis</td>
-<td class="apiTableRightCSyn">bool ikGetJointPosition(int jointHandle,simReal* position)</td>
+<td class="apiTableRightCSyn">bool ikGetJointPosition(int jointHandle,double* position)</td>
 </tr>
 <tr class="apiTableTr">
 <td class="apiTableLeftCParam">Arguments</td>
@@ -1109,7 +1109,7 @@ td.section { margin: 0; padding: 0; }
 </tr>
 <tr class="apiTableTr">
 <td class="apiTableLeftCSyn">Synopsis</td>
-<td class="apiTableRightCSyn">bool ikGetJointScrewPitch(int jointHandle,simReal* pitch)</td>
+<td class="apiTableRightCSyn">bool ikGetJointScrewPitch(int jointHandle,double* pitch)</td>
 </tr>
 <tr class="apiTableTr">
 <td class="apiTableLeftCParam">Arguments</td>
@@ -1403,7 +1403,7 @@ td.section { margin: 0; padding: 0; }
 </tr>
 <tr class="apiTableTr">
 <td class="apiTableLeftCSyn">Synopsis</td>
-<td class="apiTableRightCSyn">bool ikHandleIkGroup(int ikGroupHandle=ik_handle_all,int* result=nullptr,int(*cb)(const int*,std::vector&lt;simReal&gt;*,const int*,const int*,const int*,const int*,std::vector&lt;simReal&gt;*,simReal*)=nullptr)</td>
+<td class="apiTableRightCSyn">bool ikHandleIkGroup(int ikGroupHandle=ik_handle_all,int* result=nullptr,int(*cb)(const int*,std::vector&lt;double&gt;*,const int*,const int*,const int*,const int*,std::vector&lt;double&gt;*,double*)=nullptr)</td>
 </tr>
 <tr class="apiTableTr">
 <td class="apiTableLeftCParam">Arguments</td>
@@ -1411,7 +1411,7 @@ td.section { margin: 0; padding: 0; }
 <div><strong>ikGroupHandle</strong>: the handle of the IK group (in that case make sure the IK group is flagged as explicit handling (default when creating a new IK group)), or ik_handle_all to handle all IK groups.</div>
 <div><strong>result</strong>: the resolution result, in return. Possible values are ik_result_not_performed, ik_result_success, ik_result_fail</div>
 <div><strong>cb</strong>: an optional callback address that allows to inspect and manipulate the generated jacobians and error vector:</div>
-<div>bool jacobianCallback(const int jacobianSize[2],std::vector&lt;simReal&gt;* jacobian,const simInt* rowConstraints,const simInt* rowIkElements,const simInt* colHandles,const simInt* colStages,std::vector&lt;simReal&gt;* errorVector,simReal* qVector)</div>
+<div>bool jacobianCallback(const int jacobianSize[2],std::vector&lt;double&gt;* jacobian,const simInt* rowConstraints,const simInt* rowIkElements,const simInt* colHandles,const simInt* colStages,std::vector&lt;double&gt;* errorVector,double* qVector)</div>
 <div></div>
 <div>The returned jacobian and errorVector can be modified, also in size, but must be consistent with each other and the joints involved. Returning true expects the computed joint errors in qVector. Otherwise, the jacobian and error vector will be used to compute the corresponding joint errors as usual.</div>
 </td>
@@ -1612,7 +1612,7 @@ td.section { margin: 0; padding: 0; }
 </tr>
 <tr class="apiTableTr">
 <td class="apiTableLeftCSyn">Synopsis</td>
-<td class="apiTableRightCSyn">bool ikSetIkElementPrecision(int ikGroupHandle,int ikElementHandle,simReal linearPrecision,simReal angularPrecision)</td>
+<td class="apiTableRightCSyn">bool ikSetIkElementPrecision(int ikGroupHandle,int ikElementHandle,double linearPrecision,double angularPrecision)</td>
 </tr>
 <tr class="apiTableTr">
 <td class="apiTableLeftCParam">Arguments</td>
@@ -1643,7 +1643,7 @@ td.section { margin: 0; padding: 0; }
 </tr>
 <tr class="apiTableTr">
 <td class="apiTableLeftCSyn">Synopsis</td>
-<td class="apiTableRightCSyn">bool ikSetIkElementWeights(int ikGroupHandle,int ikElementHandle,simReal linearWeight,simReal angularWeight)</td>
+<td class="apiTableRightCSyn">bool ikSetIkElementWeights(int ikGroupHandle,int ikElementHandle,double linearWeight,double angularWeight)</td>
 </tr>
 <tr class="apiTableTr">
 <td class="apiTableLeftCParam">Arguments</td>
@@ -1674,7 +1674,7 @@ td.section { margin: 0; padding: 0; }
 </tr>
 <tr class="apiTableTr">
 <td class="apiTableLeftCSyn">Synopsis</td>
-<td class="apiTableRightCSyn">bool ikSetIkGroupCalculation(int ikGroupHandle,int method,simReal damping,int maxIterations)</td>
+<td class="apiTableRightCSyn">bool ikSetIkGroupCalculation(int ikGroupHandle,int method,double damping,int maxIterations)</td>
 </tr>
 <tr class="apiTableTr">
 <td class="apiTableLeftCParam">Arguments</td>
@@ -1734,7 +1734,7 @@ td.section { margin: 0; padding: 0; }
 </tr>
 <tr class="apiTableTr">
 <td class="apiTableLeftCSyn">Synopsis</td>
-<td class="apiTableRightCSyn">bool ikSetJointDependency(int jointHandle,int dependencyJointHandle,simReal offset=0.0,simReal mult=1.0)</td>
+<td class="apiTableRightCSyn">bool ikSetJointDependency(int jointHandle,int dependencyJointHandle,double offset=0.0,double mult=1.0,double(*cb)(int ikEnv,int slaveJoint,double masterPos)=nullptr)</td>
 </tr>
 <tr class="apiTableTr">
 <td class="apiTableLeftCParam">Arguments</td>
@@ -1743,6 +1743,8 @@ td.section { margin: 0; padding: 0; }
 <div><strong>dependencyJointHandle</strong>: the handle of the joint, this joint is dependent of. -1 to disable.</div>
 <div><strong>offset</strong>: the offset. We have joint linear/angular position = dependency joint linear/angular position * mult + offset</div>
 <div><strong>mult</strong>: the multiplication factor. We have joint linear/angular position = dependency joint linear/angular position * mult + offset</div>
+<div><strong>cb</strong>: an optional callback address that allows to provide a custom dependency function:</div>
+<div>double dependencyCallback(int ikEnv,int slaveJointHandle,double masterJointPosition)</div>
 </td>
 </tr>
 <tr class="apiTableTr">
@@ -1765,7 +1767,7 @@ td.section { margin: 0; padding: 0; }
 </tr>
 <tr class="apiTableTr">
 <td class="apiTableLeftCSyn">Synopsis</td>
-<td class="apiTableRightCSyn">bool ikSetJointIkWeight(int jointHandle,simReal ikWeight)</td>
+<td class="apiTableRightCSyn">bool ikSetJointIkWeight(int jointHandle,double ikWeight)</td>
 </tr>
 <tr class="apiTableTr">
 <td class="apiTableLeftCParam">Arguments</td>
@@ -1794,7 +1796,7 @@ td.section { margin: 0; padding: 0; }
 </tr>
 <tr class="apiTableTr">
 <td class="apiTableLeftCSyn">Synopsis</td>
-<td class="apiTableRightCSyn">bool ikSetJointInterval(int jointHandle,bool cyclic,const simReal* intervalMinAndRange=nullptr)</td>
+<td class="apiTableRightCSyn">bool ikSetJointInterval(int jointHandle,bool cyclic,const double* intervalMinAndRange=nullptr)</td>
 </tr>
 <tr class="apiTableTr">
 <td class="apiTableLeftCParam">Arguments</td>
@@ -1824,7 +1826,7 @@ td.section { margin: 0; padding: 0; }
 </tr>
 <tr class="apiTableTr">
 <td class="apiTableLeftCSyn">Synopsis</td>
-<td class="apiTableRightCSyn">bool ikSetJointLimitMargin(int jointHandle,simReal margin)</td>
+<td class="apiTableRightCSyn">bool ikSetJointLimitMargin(int jointHandle,double margin)</td>
 </tr>
 <tr class="apiTableTr">
 <td class="apiTableLeftCParam">Arguments</td>
@@ -1853,7 +1855,7 @@ td.section { margin: 0; padding: 0; }
 </tr>
 <tr class="apiTableTr">
 <td class="apiTableLeftCSyn">Synopsis</td>
-<td class="apiTableRightCSyn">bool ikSetJointMaxStepSize(int jointHandle,simReal maxStepSize)</td>
+<td class="apiTableRightCSyn">bool ikSetJointMaxStepSize(int jointHandle,double maxStepSize)</td>
 </tr>
 <tr class="apiTableTr">
 <td class="apiTableLeftCParam">Arguments</td>
@@ -1911,7 +1913,7 @@ td.section { margin: 0; padding: 0; }
 </tr>
 <tr class="apiTableTr">
 <td class="apiTableLeftCSyn">Synopsis</td>
-<td class="apiTableRightCSyn">bool ikSetJointPosition(int jointHandle,simReal position)</td>
+<td class="apiTableRightCSyn">bool ikSetJointPosition(int jointHandle,double position)</td>
 </tr>
 <tr class="apiTableTr">
 <td class="apiTableLeftCParam">Arguments</td>
@@ -1940,7 +1942,7 @@ td.section { margin: 0; padding: 0; }
 </tr>
 <tr class="apiTableTr">
 <td class="apiTableLeftCSyn">Synopsis</td>
-<td class="apiTableRightCSyn">bool ikSetJointScrewPitch(int jointHandle,simReal pitch)</td>
+<td class="apiTableRightCSyn">bool ikSetJointScrewPitch(int jointHandle,double pitch)</td>
 </tr>
 <tr class="apiTableTr">
 <td class="apiTableLeftCParam">Arguments</td>

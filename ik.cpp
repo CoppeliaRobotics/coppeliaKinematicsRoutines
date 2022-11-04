@@ -1446,7 +1446,7 @@ bool ikGetJointMaxStepSize(int jointHandle,double* maxStepSize)
     return(retVal);
 }
 
-bool ikSetJointDependency(int jointHandle,int dependencyJointHandle,double offset/*=0.0*/,double mult/*=1.0*/)
+bool ikSetJointDependency(int jointHandle,int dependencyJointHandle,double offset/*=0.0*/,double mult/*=1.0*/,double(*cb)(int ikEnv,int slaveJoint,double masterPos)/*=nullptr*/)
 {
     debugInfo inf(__FUNCTION__,jointHandle,dependencyJointHandle);
     bool retVal=false;
@@ -1462,10 +1462,9 @@ bool ikSetJointDependency(int jointHandle,int dependencyJointHandle,double offse
                     it->setDependencyJointHandle(dependencyJointHandle);
                 if (dependencyJointHandle!=-1)
                 {
-                    if ( fabs(it->getDependencyJointMult()-mult)>0.00001 )
-                        it->setDependencyJointMult(mult);
-                    if ( fabs(it->getDependencyJointAdd()-offset)>0.00001 )
-                        it->setDependencyJointAdd(offset);
+                    it->setDependencyJointMult(mult);
+                    it->setDependencyJointAdd(offset);
+                    it->setDependencyJointCallback(cb);
                 }
                 retVal=true;
             }

@@ -86,7 +86,7 @@ bool ikSetJointLimitMargin(int jointHandle,double m);
 bool ikGetJointMaxStepSize(int jointHandle,double* maxStepSize);
 bool ikSetJointMaxStepSize(int jointHandle,double maxStepSize);
 bool ikGetJointDependency(int jointHandle,int* dependencyJointHandle,double* offset,double* mult);
-bool ikSetJointDependency(int jointHandle,int dependencyJointHandle,double offset=0.0,double mult=1.0);
+bool ikSetJointDependency(int jointHandle,int dependencyJointHandle,double offset=0.0,double mult=1.0,double(*cb)(int ikEnv,int slaveJoint,double masterPos)=nullptr);
 bool ikGetJointPosition(int jointHandle,double* position);
 bool ikSetJointPosition(int jointHandle,double position);
 bool ikGetJointMatrix(int jointHandle,C4X4Matrix* matrix);

@@ -4,11 +4,13 @@
 CJoint::CJoint()
 {
     _objectType=ik_objecttype_joint;
+    _dependencyJointCallback=nullptr;
 }
 
 CJoint::CJoint(int jointType)
 {
     _objectType=ik_objecttype_joint;
+    _dependencyJointCallback=nullptr;
     _jointMode=ik_jointmode_ik;
     _objectName="joint";
     _jointPosition=0.0;
@@ -82,6 +84,17 @@ double CJoint::getDependencyJointAdd() const
     return(_dependencyJointAdd);
 }
 
+void CJoint::updateSlavesAndSelf()
+{
+    if (_dependencyJointHandle!=-1)
+    {
+        CJoint* it=CEnvironment::currentEnvironment->objectContainer->getJoint(_dependencyJointHandle);
+        it->updateSlavesAndSelf();
+    }
+    else
+        setPosition(getPosition());
+}
+
 void CJoint::setDependencyJointHandle(int jointHandle)
 {
     if (_dependencyJointHandle!=jointHandle)
@@ -102,10 +115,8 @@ void CJoint::setDependencyJointHandle(int jointHandle)
                 }
                 iterat=CEnvironment::currentEnvironment->objectContainer->getJoint(joint);
             }
-            it->setPosition(it->getPosition());
         }
-        else
-            setPosition(getPosition());
+        updateSlavesAndSelf();
         CEnvironment::currentEnvironment->objectContainer->actualizeObjectInformation();
     }
 }
@@ -115,7 +126,7 @@ void CJoint::setDependencyJointMult(double m)
     if (_jointType!=ik_jointtype_spherical)
     {
         _dependencyJointMult=m;
-        setPosition(getPosition());
+        updateSlavesAndSelf();
     }
 }
 
@@ -124,7 +135,16 @@ void CJoint::setDependencyJointAdd(double off)
     if (_jointType!=ik_jointtype_spherical)
     {
         _dependencyJointAdd=off;
-        setPosition(getPosition());
+        updateSlavesAndSelf();
+    }
+}
+
+void CJoint::setDependencyJointCallback(double(*cb)(int ikEnv,int slaveJoint,double masterPos))
+{
+    if (_jointType!=ik_jointtype_spherical)
+    {
+        _dependencyJointCallback=cb;
+        updateSlavesAndSelf();
     }
 }
 
@@ -217,7 +237,10 @@ void CJoint::setPosition(double parameter,const CJoint* masterJoint/*=nullptr*/)
     {
         if (_dependencyJointHandle==masterJoint->getObjectHandle())
         {
-            _jointPosition=_dependencyJointAdd+_dependencyJointMult*masterJoint->getPosition();
+            if (_dependencyJointCallback==nullptr)
+                _jointPosition=_dependencyJointAdd+_dependencyJointMult*masterJoint->getPosition();
+            else
+                _jointPosition=_dependencyJointCallback(CEnvironment::currentEnvironment->getHandle(),_objectHandle,masterJoint->getPosition());
             for (size_t i=0;i<dependentJoints.size();i++)
                 dependentJoints[i]->setPosition(0.0,this);
         }
