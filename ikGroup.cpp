@@ -409,7 +409,7 @@ int CikGroup::_performOnePass(std::vector<CikElement*>* validElements,bool& limi
         }
     }
 
-    if ((_options&128)!=0)
+    if ((_options&64)!=0)
     { // handle joint limits by counter-acting:
         for (size_t jointCounter=0;jointCounter<allJoints.size();jointCounter++)
         {
@@ -470,45 +470,6 @@ int CikGroup::_performOnePass(std::vector<CikElement*>* validElements,bool& limi
         }
     }
 
-    if ((_options&64)==0)
-    {
-        for (size_t i=0;i<allJoints.size();i++)
-        { // handle joint dependencies:
-            int dependenceHandle=allJoints[i]->getDependencyJointHandle();
-            if ( ((dependenceHandle!=-1)&&(allJoints[i]->getJointMode()==ik_jointmode_ik))&&(allJoints[i]->getJointType()!=ik_jointtype_spherical) )
-            {
-                size_t rows=mainJacobian.rows+1;
-                size_t currentRow=rows-1;
-                mainJacobian.resize(rows,allJoints.size(),0.0);
-                mainErrorVector.resize(rows,1,0.0);
-                _elementHandles.push_back(-1);
-                _equationType.push_back(7);
-
-                double mult=allJoints[i]->getDependencyJointMult();
-                bool found=false;
-                size_t depJointIndex;
-                for (depJointIndex=0;depJointIndex<allJoints.size();depJointIndex++)
-                {
-                    if (allJoints[depJointIndex]->getObjectHandle()==dependenceHandle)
-                    {
-                        found=true;
-                        break;
-                    }
-                }
-                if (found)
-                {
-                    mainJacobian(currentRow,i)=-1.0;
-                    mainJacobian(currentRow,depJointIndex)=mult;
-                    mainErrorVector(currentRow,0)=0.0;
-                }
-                else
-                { // we forbid this joint to move, since it depends on another joint not part of this ik group
-                    mainJacobian(currentRow,i)=1.0;
-                    mainErrorVector(currentRow,0)=0.0;
-                }
-            }
-        }
-    }
     _lastJacobian.set(mainJacobian);
     if (computeOnlyJacobian)
         return(1);

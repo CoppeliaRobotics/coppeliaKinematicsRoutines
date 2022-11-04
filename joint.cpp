@@ -102,8 +102,10 @@ void CJoint::setDependencyJointHandle(int jointHandle)
                 }
                 iterat=CEnvironment::currentEnvironment->objectContainer->getJoint(joint);
             }
-            setPosition(getPosition());
+            it->setPosition(it->getPosition());
         }
+        else
+            setPosition(getPosition());
         CEnvironment::currentEnvironment->objectContainer->actualizeObjectInformation();
     }
 }
@@ -293,7 +295,10 @@ bool CJoint::announceSceneObjectWillBeErased(int objectHandle)
 {
     announceSceneObjectWillBeErasedMain(objectHandle);
     if (_dependencyJointHandle==objectHandle)
+    {
         _dependencyJointHandle=-1;
+        setPosition(getPosition()); // we need to take the joint limits into account again
+    }
     for (size_t i=0;i<dependentJoints.size();i++)
     {
         if (dependentJoints[i]->getObjectHandle()==objectHandle)

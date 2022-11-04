@@ -63,7 +63,7 @@ private:
     double _dlsFactor;
     int _calculationMethod;
     std::map<int,double> _jointLimitHits;
-    int _options; // bits set: 0=disabled,1=don'tignoreMaxStepSize,2=restoreIfPosNotReached,3=restoreIfOrientationNotReached,4=failOnJointLimitHit,5=forbidOvershoot,6=ignoreJointDependencies,7=doJointLimitCorrections
+    int _options; // bits set: 0=disabled,1=don'tignoreMaxStepSize,2=restoreIfPosNotReached,3=restoreIfOrientationNotReached,4=failOnJointLimitHit,5=forbidOvershoot,6=doJointLimitCorrections
 
     CMatrix _lastJacobian;
     CMatrix _lastJacobian_flipped; // for backw. compatibility. Cols are from tip to base

@@ -1,6 +1,7 @@
 #include "ikElement.h"
 #include "environment.h"
 #include "MyMath.h"
+#include <unordered_set>
 
 CikElement::CikElement()
 {
@@ -396,8 +397,8 @@ CMatrix CikElement::_getNakedJacobian(const CSceneObject* tip,const CSceneObject
     if ((constraints&ik_constraint_gamma)!=0)
         rows++;
 
-
     std::vector<CJoint*> joints;
+    std::unordered_set<CJoint*> allJ;
     CSceneObject* object=tip->getParentObject();
     while (object!=base)
     {
@@ -405,7 +406,29 @@ CMatrix CikElement::_getNakedJacobian(const CSceneObject* tip,const CSceneObject
         {
             CJoint* joint=(CJoint*)object;
             if (joint->getJointMode()==ik_jointmode_ik)
-                joints.insert(joints.begin(),joint);
+            {
+                int d=joint->getDependencyJointHandle();
+                while (d!=-1)
+                { // follow joints from slave to master, if applicable
+                    joint=CEnvironment::currentEnvironment->objectContainer->getJoint(d);
+                    d=-1;
+                    if (joint!=nullptr)
+                    { // should always pass
+                        if (joint->getJointMode()!=ik_jointmode_ik)
+                            joint=nullptr;
+                        else
+                            d=joint->getDependencyJointHandle();
+                    }
+                }
+                if (joint!=nullptr)
+                {
+                    if (allJ.find(joint)==allJ.end())
+                    { // make sure we do not add more than one occurence of the same joint
+                        joints.insert(joints.begin(),joint);
+                        allJ.insert(joint);
+                    }
+                }
+            }
         }
         object=object->getParentObject();
     }
@@ -421,28 +444,23 @@ CMatrix CikElement::_getNakedJacobian(const CSceneObject* tip,const CSceneObject
     size_t jointIndex=0;
     while (jointIndex<joints.size())
     {
-        CJoint* joint=joints[jointIndex];
+        CJoint* joint=joints[jointIndex]; // can also include joints not in the IK chain (e.g. because of joint dependencies)
         if (jHandles!=nullptr)
             jHandles->push_back(joint->getObjectHandle());
         if (jDofIndex!=nullptr)
             jDofIndex->push_back(dofIndex);
         int colIndex=int(jacobian.cols);
         jacobian.resize(rows,jacobian.cols+1,0.0);
-        C7Vector jbabs(joint->getCumulativeTransformation());
-        C7Vector jb(constrBaseTrInverse*jbabs);
-        C7Vector x(jbabs.getInverse()*tip->getCumulativeTransformationPart1());
-        C7Vector dj;
-        dj.setIdentity();
         double dq=0.01; // starts breaking at dj>0.05 or at dj<0.01
-        if (joint->getJointType()==ik_jointtype_prismatic)
-            dj(2)=dq;
-        if (joint->getJointType()==ik_jointtype_revolute)
-        {
-            dj(2)=joint->getScrewPitch()*dq;
-            dj.Q.setAngleAndAxis(dq,C3Vector(0.0,0.0,1.0));
-        }
+
+        C7Vector tipRelConstrBase_changed;
         if (joint->getJointType()==ik_jointtype_spherical)
         {
+            C7Vector jbabs(joint->getCumulativeTransformation());
+            C7Vector jb(constrBaseTrInverse*jbabs);
+            C7Vector x(jbabs.getInverse()*tip->getCumulativeTransformationPart1());
+            C7Vector dj;
+            dj.setIdentity();
             if (dofIndex==0)
                 dj.Q.setAngleAndAxis(dq,C3Vector(1.0,0.0,0.0));
             if (dofIndex==1)
@@ -450,8 +468,15 @@ CMatrix CikElement::_getNakedJacobian(const CSceneObject* tip,const CSceneObject
             if (dofIndex==2)
                 dj.Q.setAngleAndAxis(dq,C3Vector(0.0,0.0,1.0));
             dofIndex++;
+            tipRelConstrBase_changed=jb*dj*x;
         }
-        C7Vector tipRelConstrBase_changed(jb*dj*x);
+        else
+        {
+            double tmp=joint->getPosition();
+            joint->setPosition(tmp+dq);
+            tipRelConstrBase_changed=constrBaseTrInverse*tip->getCumulativeTransformationPart1();
+            joint->setPosition(tmp);
+        }
 
         C4Vector dx_q(tipRelConstrBase.Q.getInverse()*tipRelConstrBase_changed.Q);
         C4Vector aaxis(dx_q.getAngleAndAxis()); // angle and axis relative to tipRelConstrBase

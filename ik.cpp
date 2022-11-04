@@ -1650,10 +1650,6 @@ bool ikSetIkGroupFlags(int ikGroupHandle,int flags)
                 options=options|64;
             else
                 options=options&~64;
-            if ((flags&128)!=0)
-                options=options|128;
-            else
-                options=options&~128;
             it->setOptions(options);
             retVal=true;
         }
@@ -1689,8 +1685,6 @@ bool ikGetIkGroupFlags(int ikGroupHandle,int* flags)
                 flags[0]=flags[0]|32;
             if ((options&64)!=0)
                 flags[0]=flags[0]|64;
-            if ((options&128)!=0)
-                flags[0]=flags[0]|128;
         }
         else
             _setLastError("Invalid IK group handle: %i",ikGroupHandle);
