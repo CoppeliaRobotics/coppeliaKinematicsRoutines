@@ -24,7 +24,7 @@ CJoint::CJoint(int jointType)
     if (jointType==ik_jointtype_revolute)
     {
         _positionIsCyclic=true;
-        _jointPositionRange=piValTimes2;
+        _jointPositionRange=piValT2;
         _jointMinPosition=-piValue;
         _maxStepSize=10.0*degToRad;
         _limitMargin=5.0*degToRad;
@@ -84,12 +84,12 @@ double CJoint::getDependencyJointAdd() const
     return(_dependencyJointAdd);
 }
 
-void CJoint::updateSlavesAndSelf()
+void CJoint::updateSelfAsSlave()
 {
     if (_dependencyJointHandle!=-1)
     {
         CJoint* it=CEnvironment::currentEnvironment->objectContainer->getJoint(_dependencyJointHandle);
-        it->updateSlavesAndSelf();
+        it->updateSelfAsSlave();
     }
     else
         setPosition(getPosition());
@@ -115,8 +115,10 @@ void CJoint::setDependencyJointHandle(int jointHandle)
                 }
                 iterat=CEnvironment::currentEnvironment->objectContainer->getJoint(joint);
             }
+            updateSelfAsSlave();
         }
-        updateSlavesAndSelf();
+        else
+            setPosition(getPosition());
         CEnvironment::currentEnvironment->objectContainer->actualizeObjectInformation();
     }
 }
@@ -126,7 +128,8 @@ void CJoint::setDependencyJointMult(double m)
     if (_jointType!=ik_jointtype_spherical)
     {
         _dependencyJointMult=m;
-        updateSlavesAndSelf();
+        if (_dependencyJointHandle!=-1)
+            updateSelfAsSlave();
     }
 }
 
@@ -135,7 +138,8 @@ void CJoint::setDependencyJointAdd(double off)
     if (_jointType!=ik_jointtype_spherical)
     {
         _dependencyJointAdd=off;
-        updateSlavesAndSelf();
+        if (_dependencyJointHandle!=-1)
+            updateSelfAsSlave();
     }
 }
 
@@ -144,7 +148,8 @@ void CJoint::setDependencyJointCallback(double(*cb)(int ikEnv,int slaveJoint,dou
     if (_jointType!=ik_jointtype_spherical)
     {
         _dependencyJointCallback=cb;
-        updateSlavesAndSelf();
+        if (_dependencyJointHandle!=-1)
+            updateSelfAsSlave();
     }
 }
 
@@ -308,7 +313,7 @@ void CJoint::setPositionIsCyclic(bool c)
         {
             _screwPitch=0.0;
             _jointMinPosition=-piValue;
-            _jointPositionRange=piValTimes2;
+            _jointPositionRange=piValT2;
             _positionIsCyclic=c;
         }
     }

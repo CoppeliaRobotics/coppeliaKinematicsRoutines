@@ -52,7 +52,7 @@ public:
     void setDependencyJointMult(double m);
     void setDependencyJointAdd(double off);
     void setDependencyJointCallback(double(*cb)(int ikEnv,int slaveJoint,double masterPos));
-    void updateSlavesAndSelf();
+    void updateSelfAsSlave();
 
     std::vector<CJoint*> dependentJoints;
 

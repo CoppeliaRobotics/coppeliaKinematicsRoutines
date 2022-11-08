@@ -137,7 +137,7 @@ void CikElement::setAltBaseHandleForConstraints(int newAltBaseHandle)
     _altBaseHandleForConstraints=newAltBaseHandle;
 }
 
-void CikElement::setRelatedJointsToPassiveMode()
+void CikElement::setRelatedJointsToPassiveMode_old()
 {
     CSceneObject* it=CEnvironment::currentEnvironment->objectContainer->getDummy(_tipHandle);
     if (it!=nullptr)

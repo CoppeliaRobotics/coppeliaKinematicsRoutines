@@ -29,7 +29,7 @@ public:
     int getAltBaseHandleForConstraints() const;
     void setAltBaseHandleForConstraints(int newAltBaseHandle);
 
-    void setRelatedJointsToPassiveMode();
+    void setRelatedJointsToPassiveMode_old();
     bool getIsActive() const;
     void setIsActive(bool isActive);
 

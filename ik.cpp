@@ -1767,7 +1767,7 @@ int ikFindConfig(int ikGroupHandle,size_t jointCnt,const int* jointHandles,doubl
         if (aJoint->getPositionIsCyclic())
         {
             l=-piValue;
-            r=piValTimes2;
+            r=piValT2;
         }
         if (aJoint->getJointMode()!=ik_jointmode_ik)
         {
@@ -1821,12 +1821,12 @@ int ikFindConfig(int ikGroupHandle,size_t jointCnt,const int* jointHandles,doubl
                     double pp=allJoints[i]->getPosition();
                     if (allJoints[i]->getPositionIsCyclic())
                     {
-                        if (allJointRangeVals[i]<piValTimes2)
+                        if (allJointRangeVals[i]<piValT2)
                         {
                             while (pp>allJointMinVals[i])
-                                pp-=piValTimes2;
+                                pp-=piValT2;
                             while (pp<allJointMinVals[i])
-                                pp+=piValTimes2;
+                                pp+=piValT2;
                             if (pp>allJointMinVals[i]+allJointRangeVals[i])
                                 limitsOk=false;
                         }
@@ -1890,7 +1890,7 @@ int ikGetConfigForTipPose(int ikGroupHandle,size_t jointCnt,const int* jointHand
                     if (aJoint->getPositionIsCyclic())
                     {
                         l0=-piValue;
-                        r0=piValTimes2;
+                        r0=piValT2;
                     }
                     double l=l0;
                     double r=r0;
@@ -1905,13 +1905,13 @@ int ikGetConfigForTipPose(int ikGroupHandle,size_t jointCnt,const int* jointHand
                                 if (aJoint->getPositionIsCyclic())
                                 {
                                     r=rr;
-                                    if (r>piValTimes2)
-                                        r=piValTimes2;
+                                    if (r>piValT2)
+                                        r=piValT2;
                                     l=ll;
                                     while (l<-piValue)
-                                        l+=piValTimes2;
+                                        l+=piValT2;
                                     while (l>piValue)
-                                        l-=piValTimes2;
+                                        l-=piValT2;
                                 }
                                 else
                                 {
@@ -1929,16 +1929,16 @@ int ikGetConfigForTipPose(int ikGroupHandle,size_t jointCnt,const int* jointHand
                                 rr=-rr;
                                 if (aJoint->getPositionIsCyclic())
                                 {
-                                    if (r>=piValTimes2)
+                                    if (r>=piValT2)
                                     {
                                         l=-piValue;
-                                        r=piValTimes2;
+                                        r=piValT2;
                                     }
                                     else
                                     {
                                         l=aJoint->getPosition()-rr*0.5;
                                         if (l<-piValue)
-                                            l+=piValTimes2;
+                                            l+=piValT2;
                                         r=rr;
                                     }
                                 }
@@ -1955,7 +1955,7 @@ int ikGetConfigForTipPose(int ikGroupHandle,size_t jointCnt,const int* jointHand
                             }
                         }
                     }
-                    if (aJoint->getJointMode()==ik_jointmode_passive)
+                    if (aJoint->getJointMode()!=ik_jointmode_passive)
                     {
                         l=aJoint->getPosition();
                         r=0.0;
@@ -2076,12 +2076,12 @@ int ikGetConfigForTipPose(int ikGroupHandle,size_t jointCnt,const int* jointHand
                                 double pp=joints[i]->getPosition();
                                 if (joints[i]->getPositionIsCyclic())
                                 {
-                                    if (rangeVals[i]<piValTimes2)
+                                    if (rangeVals[i]<piValT2)
                                     {
                                         while (pp>minVals[i])
-                                            pp-=piValTimes2;
+                                            pp-=piValT2;
                                         while (pp<minVals[i])
-                                            pp+=piValTimes2;
+                                            pp+=piValT2;
                                         if (pp>minVals[i]+rangeVals[i])
                                             limitsOk=false;
                                     }

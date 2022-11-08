@@ -34,7 +34,7 @@ bool CikGroup::getExplicitHandling_old() const
 void CikGroup::setAllInvolvedJointsToPassiveMode_old()
 {
     for (size_t i=0;i<_ikElements.size();i++)
-        _ikElements[i]->setRelatedJointsToPassiveMode();
+        _ikElements[i]->setRelatedJointsToPassiveMode_old();
 }
 
 void CikGroup::setObjectName(std::string newName)
