@@ -290,7 +290,7 @@ int CikGroup::computeGroupIk(bool forInternalFunctionality,bool(*cb)(const int*,
                 CikElement* element=validElements[elNb];
                 element->isWithinTolerance(withinPosition,withinOrientation);
                 if (!(withinPosition&&withinOrientation))
-                    resultCode|=ik_result_notwithintolerance;
+                    resultCode=ik_result_notwithintolerance;
             }
             if (resultCode==ik_result_success)
                 break;
