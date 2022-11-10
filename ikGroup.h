@@ -54,7 +54,7 @@ public:
 
 
 private:
-    int _performOnePass(std::vector<CikElement*>* validElements,bool& limitOrAvoidanceNeedMoreCalculation,double interpolFact,bool forInternalFunctionality,bool computeOnlyJacobian,bool(*cb)(const int*,std::vector<double>*,const int*,const int*,const int*,const int*,std::vector<double>*,double*));
+    int _performOnePass(std::vector<CikElement*>* validElements,double interpolFact,bool forInternalFunctionality,bool computeOnlyJacobian,bool(*cb)(const int*,std::vector<double>*,const int*,const int*,const int*,const int*,std::vector<double>*,double*));
 
     std::vector<CikElement*> _ikElements;
     int _objectHandle;

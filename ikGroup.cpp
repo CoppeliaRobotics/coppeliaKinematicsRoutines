@@ -208,7 +208,7 @@ bool CikGroup::getJointLimitHits(std::vector<int>* jointHandles,std::vector<doub
 }
 
 int CikGroup::computeGroupIk(bool forInternalFunctionality,bool(*cb)(const int*,std::vector<double>*,const int*,const int*,const int*,const int*,std::vector<double>*,double*))
-{ // Return value is one of following: ik_result_not_performed, ik_result_success, ik_result_fail
+{ // Return value is one ik_result_...-value
     _jointLimitHits.clear();
     if ((_options&1)!=0)
         return(ik_result_not_performed); // group is disabled!
@@ -262,7 +262,7 @@ int CikGroup::computeGroupIk(bool forInternalFunctionality,bool(*cb)(const int*,
     }
     // Now validElements contains all valid elements we have to use in the following computation!
     if (validElements.size()==0)
-        return(ik_result_fail); // Error!
+        return(ik_result_novalidikelement); // Error!
 
     std::vector<int> memorizedConf_handles;
     std::vector<double> memorizedConf_vals;
@@ -270,9 +270,8 @@ int CikGroup::computeGroupIk(bool forInternalFunctionality,bool(*cb)(const int*,
 
     // Here we have the main iteration loop:
     double interpolFact=1.0; // We first try to solve in one step
-    bool limitOrAvoidanceNeedMoreCalculation;
-    bool leaveNow=false;
-    bool errorOccured=false;
+    int resultCode;
+    bool withinPosition,withinOrientation;
     for (int iterationNb=0;iterationNb<_maxIterations;iterationNb++)
     {
         // Here we prepare all element equations:
@@ -282,71 +281,43 @@ int CikGroup::computeGroupIk(bool forInternalFunctionality,bool(*cb)(const int*,
             element->prepareEquations(interpolFact);
         }
 
-        int res=_performOnePass(&validElements,limitOrAvoidanceNeedMoreCalculation,interpolFact,forInternalFunctionality,false,cb);
-        if (res==-1)
-        { // an error occured during resolution, or a joint limit was hit (and we didn't allow joint limits to be hit)
-            errorOccured=true;
-            leaveNow=true;
-        }
-        if (res==0)
-        { // Joint variations not within tolerance. Restart from the beginning
-            interpolFact=interpolFact/2.0;
-            CEnvironment::currentEnvironment->objectContainer->restoreJointConfig(memorizedConf_handles,memorizedConf_vals);
-        }
-        if (res==1)
-        { // Joint variations within tolerance
+        resultCode=_performOnePass(&validElements,interpolFact,forInternalFunctionality,false,cb);
+        if (resultCode==ik_result_success)
+        {
             // We check if all IK elements are under the required precision and
-            // that there are not active joint limitation or avoidance equations
-            bool posAndOrAreOk=true;
             for (size_t elNb=0;elNb<validElements.size();elNb++)
             {
                 CikElement* element=validElements[elNb];
-                bool posit,orient;
-                element->isWithinTolerance(posit,orient);
-                if (!(posit&&orient))
-                {
-                    posAndOrAreOk=false;
-                    break;
-                }
+                element->isWithinTolerance(withinPosition,withinOrientation);
+                if (!(withinPosition&&withinOrientation))
+                    resultCode|=ik_result_notwithintolerance;
             }
-            if (posAndOrAreOk&&(!limitOrAvoidanceNeedMoreCalculation))
-                leaveNow=true; // Everything is fine, we can leave here
+            if (resultCode==ik_result_success)
+                break;
         }
-        if (leaveNow)
-            break;
-    }
-    int returnValue=ik_result_fail;;
-    if (!errorOccured)
-        returnValue=ik_result_success;
-    bool setNewValues=(!errorOccured);
-    for (size_t elNb=0;elNb<validElements.size();elNb++)
-    {
-        CikElement* element=validElements[elNb];
-        bool posit,orient;
-        element->isWithinTolerance(posit,orient);
-        if ( (!posit)||(!orient) )
-        {
-            returnValue=ik_result_fail;
-            if ( (((_options&4)!=0)&&(!posit))||
-                (((_options&8)!=0)&&(!orient)) )
-                setNewValues=false;
+        else if (resultCode==ik_result_jointveltoobig)
+        { // Joint variations not within tolerance. Restart from the beginning, by interpolating
+            interpolFact=interpolFact/2.0;
+            CEnvironment::currentEnvironment->objectContainer->restoreJointConfig(memorizedConf_handles,memorizedConf_vals);
         }
+        else
+            break; // unrecoverable error
     }
 
-    // We set all joint parameters:
-    if (!setNewValues)
-        CEnvironment::currentEnvironment->objectContainer->restoreJointConfig(memorizedConf_handles,memorizedConf_vals);
-    return(returnValue);
+    if (resultCode!=ik_result_success)
+    {
+        bool restoreConfig=true;
+        if (resultCode==ik_result_notwithintolerance) // notwithintolerance cannot always be considered as an error and results are applied by default
+            restoreConfig=( (((_options&4)!=0)&&(!withinPosition))||(((_options&8)!=0)&&(!withinOrientation)) );
+        if (restoreConfig)
+            CEnvironment::currentEnvironment->objectContainer->restoreJointConfig(memorizedConf_handles,memorizedConf_vals);
+    }
+
+    return(resultCode);
 }
 
-int CikGroup::_performOnePass(std::vector<CikElement*>* validElements,bool& limitOrAvoidanceNeedMoreCalculation,double interpolFact,bool forInternalFunctionality,bool computeOnlyJacobian,bool(*cb)(const int*,std::vector<double>*,const int*,const int*,const int*,const int*,std::vector<double>*,double*))
-{   // Return value -1 means that an error occured or joint limits were hit (with appropriate flag) --> keep old configuration
-    // Return value 0 means that the max. angular or linear variation were overshot
-    // Return value 1 means everything went ok
-    // In that case the joints temp. values are not actualized. Another pass is needed
-    // Here we have the multi-ik solving algorithm:
-    //********************************************************************************
-    limitOrAvoidanceNeedMoreCalculation=false;
+int CikGroup::_performOnePass(std::vector<CikElement*>* validElements,double interpolFact,bool forInternalFunctionality,bool computeOnlyJacobian,bool(*cb)(const int*,std::vector<double>*,const int*,const int*,const int*,const int*,std::vector<double>*,double*))
+{   // Return value: one of ik_result_...-values
     // We prepare a vector of all used joints and a counter for the number of rows:
     std::vector<CJoint*> allJoints;
     _jointHandles.clear();
@@ -455,8 +426,6 @@ int CikGroup::_performOnePass(std::vector<CikElement*>* validElements,bool& limi
             { // We have to activate a joint limitation equation
                 // If we are over the treshhold of more than 5%:
                 // (important in case target and tooltip are within tolerance)
-                if (eq>limitMargin*0.05)
-                    limitOrAvoidanceNeedMoreCalculation=true;
 
                 int rows=mainJacobian.rows+1;
                 int currentRow=rows-1;
@@ -472,7 +441,7 @@ int CikGroup::_performOnePass(std::vector<CikElement*>* validElements,bool& limi
 
     _lastJacobian.set(mainJacobian);
     if (computeOnlyJacobian)
-        return(1);
+        return(ik_result_success);
 
     // Now we just have to solve:
     CMatrix solution(mainJacobian.cols,1);
@@ -527,7 +496,7 @@ int CikGroup::_performOnePass(std::vector<CikElement*>* validElements,bool& limi
             CMatrix pseudoJ(mainJacobian.cols,mainJacobian.rows);
             CMatrix JJTInv(mainJacobian*JT);
             if (!JJTInv.inverse())
-                return(-1);
+                return(ik_result_cannotinvert);
             pseudoJ=JT*JJTInv;
             solution=pseudoJ*mainErrorVector;
         }
@@ -547,7 +516,7 @@ int CikGroup::_performOnePass(std::vector<CikElement*>* validElements,bool& limi
             ID/=1.0/(dampingFact*dampingFact);
             JJTInv+=ID;
             if (!JJTInv.inverse())
-                return(-1);
+                return(ik_result_cannotinvert);
             DLSJ=JT*JJTInv;
             solution=DLSJ*mainErrorVector;
         }
@@ -577,7 +546,7 @@ int CikGroup::_performOnePass(std::vector<CikElement*>* validElements,bool& limi
             if (it->getJointType()!=ik_jointtype_prismatic)
                 solution(i,0)=atan2(sin(solution(i,0)),cos(solution(i,0)));
             if (fabs(solution(i,0))>it->getMaxStepSize())
-                return(0);
+                return(ik_result_jointveltoobig);
         }
     }
 
@@ -623,9 +592,9 @@ int CikGroup::_performOnePass(std::vector<CikElement*>* validElements,bool& limi
             bool linOvershoot=(distBefore[2*elNb+0]<lin)&&(lin>0.01);
             bool angOvershoot=(distBefore[2*elNb+1]<ang)&&(ang>1.0*piValD2/180.0);
             if ( linOvershoot&&(angOvershoot||((element->getConstraints()&ik_constraint_orientation)==0)) )
-                return(-1); // we overshot
+                return(ik_result_distancingfromtarget); // we overshot
             if ( angOvershoot&&(linOvershoot||((element->getConstraints()&ik_constraint_position)==0)) )
-                return(-1); // we overshot
+                return(ik_result_distancingfromtarget); // we overshot
         }
     }
 
@@ -644,9 +613,9 @@ int CikGroup::_performOnePass(std::vector<CikElement*>* validElements,bool& limi
     }
 
     if ( ((_options&16)!=0)&&(!_jointLimitHits.empty()) )
-        return(-1);
+        return(ik_result_limithit);
 
-    return(1);
+    return(ik_result_success);
 }
 
 bool CikGroup::computeOnlyJacobian_old(int options)
@@ -705,10 +674,9 @@ bool CikGroup::computeOnlyJacobian_old(int options)
         CikElement* element=validElements[elNb];
         element->prepareEquations(1.0);
     }
-    bool dummy=false;
-    int retVal=_performOnePass(&validElements,dummy,1.0,false,true,nullptr);
+    int retVal=_performOnePass(&validElements,1.0,false,true,nullptr);
     CEnvironment::currentEnvironment->objectContainer->restoreJointConfig(memorizedConf_handles,memorizedConf_vals);
-    return(retVal);
+    return(retVal==ik_result_success);
 }
 
 const double*  CikGroup::getLastJacobianData_old(size_t matrixSize[2])

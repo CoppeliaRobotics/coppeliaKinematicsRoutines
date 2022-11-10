@@ -42,7 +42,13 @@
 
 #define ik_result_not_performed 0
 #define ik_result_success 1
-#define ik_result_fail 2
+// 2 is reserved. ik_result_fail is deprecated and now one of following:
+#define ik_result_novalidikelement 4
+#define ik_result_notwithintolerance 8
+#define ik_result_cannotinvert 16
+#define ik_result_jointveltoobig 32
+#define ik_result_distancingfromtarget 64
+#define ik_result_limithit 128
 
 
 void _setLastError(const char* errStr,const char* substr1=nullptr,const char* substr2=nullptr);
