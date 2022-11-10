@@ -1403,13 +1403,13 @@ td.section { margin: 0; padding: 0; }
 </tr>
 <tr class="apiTableTr">
 <td class="apiTableLeftCSyn">Synopsis</td>
-<td class="apiTableRightCSyn">bool ikHandleIkGroup(int ikGroupHandle=ik_handle_all,int* result=nullptr,int(*cb)(const int*,std::vector&lt;double&gt;*,const int*,const int*,const int*,const int*,std::vector&lt;double&gt;*,double*)=nullptr)</td>
+<td class="apiTableRightCSyn">bool ikHandleIkGroup(int ikGroupHandle,int* result=nullptr,int(*cb)(const int*,std::vector&lt;double&gt;*,const int*,const int*,const int*,const int*,std::vector&lt;double&gt;*,double*)=nullptr)</td>
 </tr>
 <tr class="apiTableTr">
 <td class="apiTableLeftCParam">Arguments</td>
 <td class="apiTableRightCParam">
-<div><strong>ikGroupHandle</strong>: the handle of the IK group (in that case make sure the IK group is flagged as explicit handling (default when creating a new IK group)), or ik_handle_all to handle all IK groups.</div>
-<div><strong>result</strong>: the resolution result, in return. Possible values are ik_result_not_performed, ik_result_success, ik_result_fail</div>
+<div><strong>ikGroupHandle</strong>: the handle of the IK group</div>
+<div><strong>result</strong>: the resolution result, in return. Possible values are ik_result_not_performed, ik_result_success, ik_result_novalidikelement, ik_result_notwithintolerance, ik_result_cannotinvert, ik_result_jointveltoobig, ik_result_distancingfromtarget, ik_result_limithit</div>
 <div><strong>cb</strong>: an optional callback address that allows to inspect and manipulate the generated jacobians and error vector:</div>
 <div>bool jacobianCallback(const int jacobianSize[2],std::vector&lt;double&gt;* jacobian,const simInt* rowConstraints,const simInt* rowIkElements,const simInt* colHandles,const simInt* colStages,std::vector&lt;double&gt;* errorVector,double* qVector)</div>
 <div></div>
@@ -1418,7 +1418,7 @@ td.section { margin: 0; padding: 0; }
 </tr>
 <tr class="apiTableTr">
 <td class="apiTableLeftCRet">Return value</td>
-<td class="apiTableRightCRet">true in case of success.</td>
+<td class="apiTableRightCRet">true in case of execution success.</td>
 </tr>
 <tr class="apiTableTr">
 <td class="apiTableLeftDescr">See also</td>
