@@ -380,6 +380,18 @@ void CikElement::getTipTargetDistance(double& linDist,double& angDist) const
             angDist=fabs((targetTr.getInverse()*tooltipTr).Q.getEulerAngles()(2));
         else
             angDist=0.0;
+        printf("Linear dist: %f\n",linDist);
+        printf("Angular dist: %f\n",angDist);
+
+        printf("Tip pose rel to base: ");
+        for (size_t i=0;i<3;i++)
+            printf("%f,",tooltipTr.X(i));
+        printf("%f,%f,%f,%f\n",tooltipTr.Q(1),tooltipTr.Q(2),tooltipTr.Q(3),tooltipTr.Q(0));
+
+        printf("Target pose rel to base: ");
+        for (size_t i=0;i<3;i++)
+            printf("%f,",targetTr.X(i));
+        printf("%f,%f,%f,%f\n",targetTr.Q(1),targetTr.Q(2),targetTr.Q(3),targetTr.Q(0));
     }
 }
 
