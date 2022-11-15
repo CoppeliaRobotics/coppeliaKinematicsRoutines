@@ -791,7 +791,13 @@ td.section { margin: 0; padding: 0; }
 <td class="apiTableLeftCParam">Arguments</td>
 <td class="apiTableRightCParam">
 <div><strong>ikGroupHandle</strong>: the handle of the IK group.</div>
-<div><strong>flags</strong>: the flags of the IK group, in return. bit0 set (i.e. 1)=group is enabled, bit1 set (i.e. 2)=max. step sizes are ignored, bit2 set (i.e. 4)=restore joints if target position not reached, bit3 set (i.e. 8)=restore joints if target orientation not reached, bit4 set (i.e. 16)=fail IK computations if a joint limit was hit, bit6 set (i.e. 64)=counteract on a joint when its limits are hit</div>
+<div><strong>flags</strong>: the flags of the IK group, in return, bit-coded:</div>
+<div class="tabTab">ik_group_enabled: the group's enabled state</div>
+<div class="tabTab">ik_group_ignoremaxsteps: the joints' max step sizes are ignored. Otherwise, when detected, an interpolation factor (originally at 1.0) is successively divided by 2.0 until the max. step sizes are respected</div>
+<div class="tabTab">ik_group_restoreonbadlintol: the IK world state is left untouched if the linear precision is not reached</div>
+<div class="tabTab">ik_group_restoreonbadangtol: the IK world state is left untouched if the angular precision is not reached</div>
+<div class="tabTab">ik_group_avoidlimits: joint limits are actively avoided</div>
+<div class="tabTab">ik_group_stoponlimithit: calculation ends when a joint limit is hit</div>
 </td>
 </tr>
 <tr class="apiTableTr">
@@ -1712,7 +1718,13 @@ td.section { margin: 0; padding: 0; }
 <td class="apiTableLeftCParam">Arguments</td>
 <td class="apiTableRightCParam">
 <div><strong>ikGroupHandle</strong>: the handle of the IK group.</div>
-<div><strong>flags</strong>: the flags of the IK group. bit0 set (i.e. 1)=group is enabled, bit1 set (i.e. 2)=max. step sizes are ignored, bit2 set (i.e. 4)=restore joints if target position not reached, bit3 set (i.e. 8)=restore joints if target orientation not reached, bit4 set (i.e. 16)=fail IK computations if a joint limit was hit, bit6 set (i.e. 64)=counteract on a joint when its limits are hit</div>
+<div><strong>flags</strong>: the flags of the IK group bit-coded:</div>
+<div class="tabTab">ik_group_enabled: the group's enabled state</div>
+<div class="tabTab">ik_group_ignoremaxsteps: the joints' max step sizes are ignored. Otherwise, when detected, an interpolation factor (originally at 1.0) is successively divided by 2.0 until the max. step sizes are respected</div>
+<div class="tabTab">ik_group_restoreonbadlintol: the IK world state is left untouched if the linear precision is not reached</div>
+<div class="tabTab">ik_group_restoreonbadangtol: the IK world state is left untouched if the angular precision is not reached</div>
+<div class="tabTab">ik_group_avoidlimits: joint limits are actively avoided</div>
+<div class="tabTab">ik_group_stoponlimithit: calculation ends when a joint limit is hit</div>
 </td>
 </tr>
 <tr class="apiTableTr">
