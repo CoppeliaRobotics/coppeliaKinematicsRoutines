@@ -985,7 +985,7 @@ bool ikGetManipulability_old(int ikGroupHandle,double* manip)
     return(retVal);
 }
 
-bool ikHandleIkGroup(int ikGroupHandle/*=ik_handle_all*/,int* result/*=nullptr*/,bool(*cb)(const int*,std::vector<double>*,const int*,const int*,const int*,const int*,std::vector<double>*,double*)/*=nullptr*/)
+bool ikHandleIkGroup(int ikGroupHandle/*=ik_handle_all*/,int* result/*=nullptr*/,double* precision/*=nullptr*/,bool(*cb)(const int*,std::vector<double>*,const int*,const int*,const int*,const int*,std::vector<double>*,double*)/*=nullptr*/)
 {
     debugInfo inf(__FUNCTION__,ikGroupHandle);
     bool retVal=false;
@@ -1000,7 +1000,7 @@ bool ikHandleIkGroup(int ikGroupHandle/*=ik_handle_all*/,int* result/*=nullptr*/
             { // explicit handling
                 if (it->getExplicitHandling_old())
                 {
-                    int res=it->computeGroupIk(false,cb);
+                    int res=it->computeGroupIk(precision,false,cb);
                     if (result!=nullptr)
                         result[0]=res;
                     retVal=true;
@@ -1620,36 +1620,7 @@ bool ikSetIkGroupFlags(int ikGroupHandle,int flags)
         CikGroup* it=CEnvironment::currentEnvironment->ikGroupContainer->getIkGroup(ikGroupHandle);
         if (it!=nullptr)
         {
-            int options=it->getOptions();
-            if ((flags&1)!=0)
-                options=options&~1; // enabled
-            else
-                options=options|1; // disabled
-            if ((flags&2)!=0)
-                options=options&~2;
-            else
-                options=options|2;
-            if ((flags&4)!=0)
-                options=options|4;
-            else
-                options=options&~4;
-            if ((flags&8)!=0)
-                options=options|8;
-            else
-                options=options&~8;
-            if ((flags&16)!=0)
-                options=options|16;
-            else
-                options=options&~16;
-            if ((flags&32)!=0)
-                options=options|32;
-            else
-                options=options&~32;
-            if ((flags&64)!=0)
-                options=options|64;
-            else
-                options=options&~64;
-            it->setOptions(options);
+            it->setOptions(flags);
             retVal=true;
         }
         else
@@ -1668,22 +1639,7 @@ bool ikGetIkGroupFlags(int ikGroupHandle,int* flags)
         if (it!=nullptr)
         {
             retVal=true;
-            flags[0]=0;
-            int options=it->getOptions();
-            if ((options&1)==0)
-                flags[0]=flags[0]|1;
-            if ((options&2)==0)
-                flags[0]=flags[0]|2;
-            if ((options&4)!=0)
-                flags[0]=flags[0]|4;
-            if ((options&8)!=0)
-                flags[0]=flags[0]|8;
-            if ((options&16)!=0)
-                flags[0]=flags[0]|16;
-            if ((options&32)!=0)
-                flags[0]=flags[0]|32;
-            if ((options&64)!=0)
-                flags[0]=flags[0]|64;
+            flags[0]=it->getOptions();
         }
         else
             _setLastError("Invalid IK group handle: %i",ikGroupHandle);
@@ -1703,7 +1659,7 @@ int ikFindConfig(int ikGroupHandle,size_t jointCnt,const int* jointHandles,doubl
         _setLastError("Invalid IK group handle: %i",ikGroupHandle);
         return(-1);
     }
-    if ( ((ikGroup->getOptions()&1)!=0)||(ikGroup->getIkElementCount()==0) )
+    if ( ((ikGroup->getOptions()&ik_group_enabled)==0)||(ikGroup->getIkElementCount()==0) )
     {
         _setLastError("Invalid IK group");
         return(-1);
@@ -1811,7 +1767,8 @@ int ikFindConfig(int ikGroupHandle,size_t jointCnt,const int* jointHandles,doubl
         // 3. If distance<=threshold, try to perform IK:
         if (cumulatedDist<=thresholdDist)
         {
-            if (ik_result_success==ikGroup->computeGroupIk(true,nullptr)) // allow here also the Jacobian callback, at a later stage
+            int err=ik_calc_notperformed|ik_calc_notwithintolerance|ik_calc_cannotinvert;
+            if ( (ikGroup->computeGroupIk(nullptr,true,nullptr)&err)==0 ) // allow here also the Jacobian callback, at a later stage
             { // 3.1 We found a configuration that works!
                 /*
                 // 3.2 Check joint limits:
@@ -2009,9 +1966,8 @@ int ikGetConfigForTipPose(int ikGroupHandle,size_t jointCnt,const int* jointHand
 
                 ikGroup->setAllInvolvedJointsToPassiveMode_old();
 
-                bool ikGroupWasActive=(ikGroup->getOptions()&1)==0;
-                if (!ikGroupWasActive)
-                    ikGroup->setOptions(ikGroup->getOptions()&~1);
+                int savedIkGroupOptions=ikGroup->getOptions();
+                ikGroup->setOptions(savedIkGroupOptions|ik_group_enabled);
 
                 // It can happen that some IK elements get deactivated when the user provided wrong handles, so save the activation state:
                 std::vector<bool> enabledElements;
@@ -2067,7 +2023,8 @@ int ikGetConfigForTipPose(int ikGroupHandle,size_t jointCnt,const int* jointHand
                     // 3. If distance<=threshold, try to perform IK:
                     if (cumulatedDist<=thresholdDist)
                     {
-                        if (ik_result_success==ikGroup->computeGroupIk(true,nullptr))
+                        int err=ik_calc_notperformed|ik_calc_notwithintolerance|ik_calc_cannotinvert;
+                        if ( (ikGroup->computeGroupIk(nullptr,true,nullptr)&err)==0 )
                         { // 3.1 We found a configuration that works!
                             // 3.2 Check joint limits:
                             bool limitsOk=true;
@@ -2111,8 +2068,7 @@ int ikGetConfigForTipPose(int ikGroupHandle,size_t jointCnt,const int* jointHand
                     }
                 }
 
-                if (!ikGroupWasActive)
-                    ikGroup->setOptions(ikGroup->getOptions()|1);
+                ikGroup->setOptions(savedIkGroupOptions);
 
                 // Restore the IK element activation state:
                 for (size_t i=0;i<ikGroup->getIkElementCount();i++)

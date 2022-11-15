@@ -11,7 +11,7 @@ CikGroup::CikGroup()
     _dlsFactor=0.1;
     _calculationMethod=ik_method_pseudo_inverse;
 
-    _options=0;
+    _options=ik_group_enabled|ik_group_ignoremaxsteps;
 }
 
 CikGroup::~CikGroup()
@@ -207,11 +207,17 @@ bool CikGroup::getJointLimitHits(std::vector<int>* jointHandles,std::vector<doub
     return(!_jointLimitHits.empty());
 }
 
-int CikGroup::computeGroupIk(bool forInternalFunctionality,bool(*cb)(const int*,std::vector<double>*,const int*,const int*,const int*,const int*,std::vector<double>*,double*))
-{ // Return value is one ik_result_...-value
+int CikGroup::computeGroupIk(double precision[2],bool forInternalFunctionality,bool(*cb)(const int*,std::vector<double>*,const int*,const int*,const int*,const int*,std::vector<double>*,double*))
+{ // Return value is one ik_resultinfo...-value
+    if (precision!=nullptr)
+    {
+        precision[0]=0.0;
+        precision[1]=0.0;
+    }
+
     _jointLimitHits.clear();
-    if ((_options&1)!=0)
-        return(ik_result_not_performed); // group is disabled!
+    if ((_options&ik_group_enabled)==0)
+        return(ik_calc_notperformed|ik_calc_notwithintolerance); // group is disabled!
 
     // Now we prepare a vector with all valid and active elements:
     std::vector<CikElement*> validElements;
@@ -262,7 +268,7 @@ int CikGroup::computeGroupIk(bool forInternalFunctionality,bool(*cb)(const int*,
     }
     // Now validElements contains all valid elements we have to use in the following computation!
     if (validElements.size()==0)
-        return(ik_result_novalidikelement); // Error!
+        return(ik_calc_notperformed|ik_calc_notwithintolerance);
 
     std::vector<int> memorizedConf_handles;
     std::vector<double> memorizedConf_vals;
@@ -270,7 +276,7 @@ int CikGroup::computeGroupIk(bool forInternalFunctionality,bool(*cb)(const int*,
 
     // Here we have the main iteration loop:
     double interpolFact=1.0; // We first try to solve in one step
-    int resultCode;
+    int cumulResultInfo=0;
     bool withinPosition,withinOrientation;
     for (int iterationNb=0;iterationNb<_maxIterations;iterationNb++)
     {
@@ -281,43 +287,66 @@ int CikGroup::computeGroupIk(bool forInternalFunctionality,bool(*cb)(const int*,
             element->prepareEquations(interpolFact);
         }
 
-        resultCode=_performOnePass(&validElements,interpolFact,forInternalFunctionality,false,cb);
-        if (resultCode==ik_result_success)
-        {
-            // We check if all IK elements are under the required precision and
-            for (size_t elNb=0;elNb<validElements.size();elNb++)
-            {
-                CikElement* element=validElements[elNb];
-                element->isWithinTolerance(withinPosition,withinOrientation);
-                if (!(withinPosition&&withinOrientation))
-                    resultCode=ik_result_notwithintolerance;
-            }
-            if (resultCode==ik_result_success)
-                break;
-        }
-        else if (resultCode==ik_result_jointveltoobig)
-        { // Joint variations not within tolerance. Restart from the beginning, by interpolating
+        std::vector<double> memorizedConfPass_vals;
+        CEnvironment::currentEnvironment->objectContainer->memorizeJointConfig(memorizedConf_handles,memorizedConfPass_vals);
+
+        int resultInfo=_performOnePass(&validElements,interpolFact,forInternalFunctionality,false,cb);
+        cumulResultInfo=cumulResultInfo|resultInfo;
+
+        if ( ((_options&ik_group_ignoremaxsteps)==0)&&((resultInfo&ik_calc_stepstoobig)!=0) )
+        { // Joint variations not within tolerance. Retry by interpolating if there is one iteration left
             interpolFact=interpolFact/2.0;
-            CEnvironment::currentEnvironment->objectContainer->restoreJointConfig(memorizedConf_handles,memorizedConf_vals);
+            CEnvironment::currentEnvironment->objectContainer->restoreJointConfig(memorizedConf_handles,memorizedConfPass_vals);
         }
-        else
+
+        // We check if all IK elements are under the required precision
+        withinPosition=true;
+        withinOrientation=true;;
+        for (size_t elNb=0;elNb<validElements.size();elNb++)
+        {
+            CikElement* element=validElements[elNb];
+            double lp,ap;
+            element->getTipTargetDistance(lp,ap);
+            double pr[2];
+            element->getPrecisions(pr);
+            if (lp>pr[0])
+                withinPosition=false;
+            if (ap>pr[1])
+                withinOrientation=false;
+            if (precision!=nullptr)
+            {
+                if (lp>precision[0])
+                    precision[0]=lp;
+                if (ap>precision[1])
+                    precision[1]=ap;
+            }
+        }
+        if ( (!withinPosition)||(!withinOrientation) )
+            cumulResultInfo=cumulResultInfo|ik_calc_notwithintolerance;
+        if ( (cumulResultInfo&ik_calc_cannotinvert)!=0)
             break; // unrecoverable error
+        if ( ((cumulResultInfo&ik_calc_limithit)!=0)&&((_options&ik_group_stoponlimithit)!=0) )
+            break;
+        if (withinPosition&&withinOrientation)
+        {
+            cumulResultInfo=cumulResultInfo&(~ik_calc_notwithintolerance);
+            break;
+        }
     }
 
-    if (resultCode!=ik_result_success)
-    {
-        bool restoreConfig=true;
-        if (resultCode==ik_result_notwithintolerance) // notwithintolerance cannot always be considered as an error and results are applied by default
-            restoreConfig=( (((_options&4)!=0)&&(!withinPosition))||(((_options&8)!=0)&&(!withinOrientation)) );
-        if (restoreConfig)
-            CEnvironment::currentEnvironment->objectContainer->restoreJointConfig(memorizedConf_handles,memorizedConf_vals);
-    }
+    bool restoreConfig=false;
+    if ( (cumulResultInfo&ik_calc_cannotinvert)!=0 )
+        restoreConfig=true;
+    if ( (cumulResultInfo&ik_calc_notwithintolerance)!=0 ) // notwithintolerance cannot always be considered as an error and results are applied by default
+        restoreConfig=( (((_options&ik_group_restoreonbadlintol)!=0)&&(!withinPosition))||(((_options&ik_group_restoreonbadangtol)!=0)&&(!withinOrientation)) );
+    if (restoreConfig)
+        CEnvironment::currentEnvironment->objectContainer->restoreJointConfig(memorizedConf_handles,memorizedConf_vals);
 
-    return(resultCode);
+    return(cumulResultInfo);
 }
 
 int CikGroup::_performOnePass(std::vector<CikElement*>* validElements,double interpolFact,bool forInternalFunctionality,bool computeOnlyJacobian,bool(*cb)(const int*,std::vector<double>*,const int*,const int*,const int*,const int*,std::vector<double>*,double*))
-{   // Return value: one of ik_result_...-values
+{   // Return value: one of ik_resultinfo...-values
     // We prepare a vector of all used joints and a counter for the number of rows:
     std::vector<CJoint*> allJoints;
     _jointHandles.clear();
@@ -380,7 +409,7 @@ int CikGroup::_performOnePass(std::vector<CikElement*>* validElements,double int
         }
     }
 
-    if ((_options&64)!=0)
+    if ((_options&ik_group_avoidlimits)!=0)
     { // handle joint limits by counter-acting:
         for (size_t jointCounter=0;jointCounter<allJoints.size();jointCounter++)
         {
@@ -441,7 +470,7 @@ int CikGroup::_performOnePass(std::vector<CikElement*>* validElements,double int
 
     _lastJacobian.set(mainJacobian);
     if (computeOnlyJacobian)
-        return(ik_result_success);
+        return(0);
 
     // Now we just have to solve:
     CMatrix solution(mainJacobian.cols,1);
@@ -496,7 +525,7 @@ int CikGroup::_performOnePass(std::vector<CikElement*>* validElements,double int
             CMatrix pseudoJ(mainJacobian.cols,mainJacobian.rows);
             CMatrix JJTInv(mainJacobian*JT);
             if (!JJTInv.inverse())
-                return(ik_result_cannotinvert);
+                return(ik_calc_cannotinvert);
             pseudoJ=JT*JJTInv;
             solution=pseudoJ*mainErrorVector;
         }
@@ -516,7 +545,7 @@ int CikGroup::_performOnePass(std::vector<CikElement*>* validElements,double int
             ID/=1.0/(dampingFact*dampingFact);
             JJTInv+=ID;
             if (!JJTInv.inverse())
-                return(ik_result_cannotinvert);
+                return(ik_calc_cannotinvert);
             DLSJ=JT*JJTInv;
             solution=DLSJ*mainErrorVector;
         }
@@ -536,35 +565,27 @@ int CikGroup::_performOnePass(std::vector<CikElement*>* validElements,double int
         }
     }
 
+    int retVal=0;
 
     // We check if some variations are too big:
-    if ((_options&2)!=0)
+    for (size_t i=0;i<mainJacobian.cols;i++)
     {
-        for (size_t i=0;i<mainJacobian.cols;i++)
-        {
-            CJoint* it=allJoints[i];
-            if (it->getJointType()!=ik_jointtype_prismatic)
-                solution(i,0)=atan2(sin(solution(i,0)),cos(solution(i,0)));
-            if (fabs(solution(i,0))>it->getMaxStepSize())
-                return(ik_result_jointveltoobig);
-        }
+        CJoint* it=allJoints[i];
+        if (it->getJointType()!=ik_jointtype_prismatic)
+            solution(i,0)=atan2(sin(solution(i,0)),cos(solution(i,0)));
+        if (fabs(solution(i,0))>it->getMaxStepSize())
+            retVal=retVal|ik_calc_stepstoobig;
     }
-
 
     // Measure tip-target distances before applying new values:
     std::vector<double> distBefore;
-    double overshootDamp=1.0;
-    if ((_options&32)!=0)
+    for (size_t elNb=0;elNb<validElements->size();elNb++)
     {
-        overshootDamp=0.75; // for now hard-coded
-        for (size_t elNb=0;elNb<validElements->size();elNb++)
-        {
-            CikElement* element=validElements->at(elNb);
-            double lin,ang;
-            element->getTipTargetDistance(lin,ang);
-            distBefore.push_back(lin);
-            distBefore.push_back(ang);
-        }
+        CikElement* element=validElements->at(elNb);
+        double lin,ang;
+        element->getTipTargetDistance(lin,ang);
+        distBefore.push_back(lin);
+        distBefore.push_back(ang);
     }
 
     // Set the computed values
@@ -574,27 +595,25 @@ int CikGroup::_performOnePass(std::vector<CikElement*>* validElements,double int
         if (it->getJointType()==ik_jointtype_spherical)
         {
             C4Vector tr;
-            tr.setEulerAngles(solution(i,0)*overshootDamp,solution(i+1,0)*overshootDamp,solution(i+2,0)*overshootDamp);
+            tr.setEulerAngles(solution(i,0),solution(i+1,0),solution(i+2,0));
             it->setSphericalTransformation(it->getSphericalTransformation()*tr);
             i+=2;
         }
         else
-            it->setPosition(it->getPosition()+solution(i,0)*overshootDamp);
+            it->setPosition(it->getPosition()+solution(i,0));
     }
 
-    if ((_options&32)!=0)
+    for (size_t elNb=0;elNb<validElements->size();elNb++)
     {
-        for (size_t elNb=0;elNb<validElements->size();elNb++)
+        CikElement* element=validElements->at(elNb);
+        double lin,ang;
+        element->getTipTargetDistance(lin,ang);
+        bool linOvershoot=(lin>0.001)&&(lin>distBefore[2*elNb+0]*1.1); // tolerate 10% overshoot
+        bool angOvershoot=(ang>0.1*piValD2/180.0)&&(ang>distBefore[2*elNb+1]*1.1); // tolerate 10% overshoot
+        if (linOvershoot||angOvershoot)
         {
-            CikElement* element=validElements->at(elNb);
-            double lin,ang;
-            element->getTipTargetDistance(lin,ang);
-            bool linOvershoot=(distBefore[2*elNb+0]<lin)&&(lin>0.01);
-            bool angOvershoot=(distBefore[2*elNb+1]<ang)&&(ang>1.0*piValD2/180.0);
-            if ( linOvershoot&&(angOvershoot||((element->getConstraints()&ik_constraint_orientation)==0)) )
-                return(ik_result_distancingfromtarget); // we overshot
-            if ( angOvershoot&&(linOvershoot||((element->getConstraints()&ik_constraint_position)==0)) )
-                return(ik_result_distancingfromtarget); // we overshot
+            retVal=retVal|ik_calc_movingaway; // we overshot
+            break;
         }
     }
 
@@ -611,11 +630,10 @@ int CikGroup::_performOnePass(std::vector<CikElement*>* validElements,double int
                 _jointLimitHits[it->getObjectHandle()]=nv-it->getPositionIntervalMin();
         }
     }
+    if (!_jointLimitHits.empty())
+        retVal=retVal|ik_calc_limithit;
 
-    if ( ((_options&16)!=0)&&(!_jointLimitHits.empty()) )
-        return(ik_result_limithit);
-
-    return(ik_result_success);
+    return(retVal);
 }
 
 bool CikGroup::computeOnlyJacobian_old(int options)
@@ -676,7 +694,7 @@ bool CikGroup::computeOnlyJacobian_old(int options)
     }
     int retVal=_performOnePass(&validElements,1.0,false,true,nullptr);
     CEnvironment::currentEnvironment->objectContainer->restoreJointConfig(memorizedConf_handles,memorizedConf_vals);
-    return(retVal==ik_result_success);
+    return(retVal!=ik_calc_cannotinvert);
 }
 
 const double*  CikGroup::getLastJacobianData_old(size_t matrixSize[2])

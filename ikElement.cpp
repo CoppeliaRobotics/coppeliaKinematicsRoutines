@@ -173,24 +173,6 @@ void CikElement::setConstraints(int constraints)
     _constraints=constraints;
 }
 
-void CikElement::isWithinTolerance(bool& position,bool& orientation) const
-{
-    position=true;
-    orientation=true;
-    double linDist,angDist;
-    getTipTargetDistance(linDist,angDist);
-    if ( (_constraints&ik_constraint_position)!=0 )
-    {
-        if (_precisions[0]<linDist)
-            position=false;
-    }
-    if ( (_constraints&ik_constraint_orientation)!=0 )
-    {
-        if (_precisions[1]<angDist)
-            orientation=false;
-    }
-}
-
 void CikElement::getWeights(double w[2]) const
 {
     w[0]=_weights[0];
@@ -379,7 +361,7 @@ void CikElement::getTipTargetDistance(double& linDist,double& angDist) const
             angDist=fabs((targetTr.getInverse()*tooltipTr).Q.getEulerAngles()(2));
         else
             angDist=0.0;
-        //*
+        /*
         printf("Linear dist: %f\n",linDist);
         printf("Angular dist: %f\n",angDist);
 

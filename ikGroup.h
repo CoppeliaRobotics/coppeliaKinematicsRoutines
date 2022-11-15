@@ -41,7 +41,7 @@ public:
     void setOptions(int options);
     int getOptions() const;
 
-    int computeGroupIk(bool forInternalFunctionality,bool(*cb)(const int*,std::vector<double>*,const int*,const int*,const int*,const int*,std::vector<double>*,double*));
+    int computeGroupIk(double precision[2],bool forInternalFunctionality,bool(*cb)(const int*,std::vector<double>*,const int*,const int*,const int*,const int*,std::vector<double>*,double*));
 
     bool getJointLimitHits(std::vector<int>* jointHandles,std::vector<double>* underOrOvershots) const;
 
@@ -63,7 +63,7 @@ private:
     double _dlsFactor;
     int _calculationMethod;
     std::map<int,double> _jointLimitHits;
-    int _options; // bits set: 0=disabled,1=don'tignoreMaxStepSize,2=restoreIfPosNotReached,3=restoreIfOrientationNotReached,4=failOnJointLimitHit,5=forbidOvershoot,6=doJointLimitCorrections
+    int _options; // bits set: 0=enabled,1=ignoreMaxStepSize,2=restoreIfPosNotReached,3=restoreIfOrientationNotReached,4=failOnJointLimitHit,5=forbidOvershoot,6=doJointLimitCorrections
 
     CMatrix _lastJacobian;
     CMatrix _lastJacobian_flipped; // for backw. compatibility. Cols are from tip to base

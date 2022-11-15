@@ -40,7 +40,6 @@ public:
     int getConstraints() const;
     void setConstraints(int constraints);
 
-    void isWithinTolerance(bool& position,bool& orientation) const;
     void getTipTargetDistance(double& linDist,double& angDist) const;
     static bool getJacobian(CMatrix& jacob,CMatrix& errVect,int ttip,int tbase,int constraints,const C7Vector* altBasePose,double interpolationFactor,std::vector<int>* equTypes,std::vector<int>* jHandles,std::vector<int>* jDofIndex);
     void prepareEquations(double interpolationFactor);

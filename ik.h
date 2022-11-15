@@ -40,16 +40,24 @@
 #define ik_method_jacobian_transpose 2
 #define ik_method_undamped_pseudo_inverse 3
 
+/* following 3 deprecated */
 #define ik_result_not_performed 0
 #define ik_result_success 1
-// 2 is reserved. ik_result_fail is deprecated and now one of following:
-#define ik_result_novalidikelement 4
-#define ik_result_notwithintolerance 8
-#define ik_result_cannotinvert 16
-#define ik_result_jointveltoobig 32
-#define ik_result_distancingfromtarget 64
-#define ik_result_limithit 128
+#define ik_result_fail 2
 
+#define ik_calc_notperformed 1
+#define ik_calc_cannotinvert 2
+#define ik_calc_notwithintolerance 16
+#define ik_calc_stepstoobig 32
+#define ik_calc_limithit 64
+#define ik_calc_movingaway 128
+
+#define ik_group_enabled 1
+#define ik_group_ignoremaxsteps 2
+#define ik_group_restoreonbadlintol 4
+#define ik_group_restoreonbadangtol 8
+#define ik_group_stoponlimithit 16
+#define ik_group_avoidlimits 64
 
 void _setLastError(const char* errStr,const char* substr1=nullptr,const char* substr2=nullptr);
 void _setLastError(const char* errStr,int intVal1,int intVal2=-1);
@@ -124,7 +132,7 @@ bool ikSetIkElementPrecision(int ikGroupHandle,int ikElementHandle,double linear
 bool ikGetIkElementWeights(int ikGroupHandle,int ikElementHandle,double* linearWeight,double* angularWeight);
 bool ikSetIkElementWeights(int ikGroupHandle,int ikElementHandle,double linearWeight,double angularWeight);
 
-bool ikHandleIkGroup(int ikGroupHandle=ik_handle_all,int* result=nullptr,bool(*cb)(const int*,std::vector<double>*,const int*,const int*,const int*,const int*,std::vector<double>*,double*)=nullptr);
+bool ikHandleIkGroup(int ikGroupHandle=ik_handle_all,int* result=nullptr,double* precision=nullptr,bool(*cb)(const int*,std::vector<double>*,const int*,const int*,const int*,const int*,std::vector<double>*,double*)=nullptr);
 bool ikComputeJacobian(int baseHandle,int jointHandle,int constraints,const C7Vector* tipPose,const C7Vector* targetPose,const C7Vector* taltBasePose,std::vector<double>* jacobian,std::vector<double>* errorVect);
 
 bool ikComputeJacobian_old(int ikGroupHandle,int options,bool* success=nullptr);
