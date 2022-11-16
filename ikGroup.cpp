@@ -294,17 +294,14 @@ int CikGroup::computeGroupIk(double precision[2],bool forInternalFunctionality,b
         int resultInfo=_performOnePass(&validElements,&maxStepFact,forInternalFunctionality,false,cb);
         cumulResultInfo=cumulResultInfo|resultInfo;
 
-        printf("a: %f\n",interpolFact);
         if ( ((_options&ik_group_ignoremaxsteps)==0)&&((resultInfo&ik_calc_stepstoobig)!=0) )
         { // Joint variations not within tolerance. Retry by interpolating:
             interpolFact=interpolFact/(maxStepFact*1.1); // 10% tolerance
             CEnvironment::currentEnvironment->objectContainer->restoreJointConfig(memorizedConf_handles,memorizedConfPass_vals);
             iterationNb--; // redo this pass
-            printf("b\n");
         }
         else
         {
-            printf("c\n");
             if ( (maxStepFact<0.8)&&(interpolFact<1.0) )
             { // Joint variations are not too large: try to return to a non-interpolated target:
                 interpolFact=interpolFact/(maxStepFact*1.1); // 10% tolerance
@@ -312,7 +309,6 @@ int CikGroup::computeGroupIk(double precision[2],bool forInternalFunctionality,b
                     interpolFact=1.0;
             }
         }
-        printf("d: %f\n",interpolFact);
 
         // We check if all IK elements are under the required precision
         withinPosition=true;
