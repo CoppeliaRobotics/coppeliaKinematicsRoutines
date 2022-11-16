@@ -290,14 +290,29 @@ int CikGroup::computeGroupIk(double precision[2],bool forInternalFunctionality,b
         std::vector<double> memorizedConfPass_vals;
         CEnvironment::currentEnvironment->objectContainer->memorizeJointConfig(memorizedConf_handles,memorizedConfPass_vals);
 
-        int resultInfo=_performOnePass(&validElements,interpolFact,forInternalFunctionality,false,cb);
+        double maxStepFact;
+        int resultInfo=_performOnePass(&validElements,&maxStepFact,forInternalFunctionality,false,cb);
         cumulResultInfo=cumulResultInfo|resultInfo;
 
+        printf("a: %f\n",interpolFact);
         if ( ((_options&ik_group_ignoremaxsteps)==0)&&((resultInfo&ik_calc_stepstoobig)!=0) )
-        { // Joint variations not within tolerance. Retry by interpolating if there is one iteration left
-            interpolFact=interpolFact/2.0;
+        { // Joint variations not within tolerance. Retry by interpolating:
+            interpolFact=interpolFact/(maxStepFact*1.1); // 10% tolerance
             CEnvironment::currentEnvironment->objectContainer->restoreJointConfig(memorizedConf_handles,memorizedConfPass_vals);
+            iterationNb--; // redo this pass
+            printf("b\n");
         }
+        else
+        {
+            printf("c\n");
+            if ( (maxStepFact<0.8)&&(interpolFact<1.0) )
+            { // Joint variations are not too large: try to return to a non-interpolated target:
+                interpolFact=interpolFact/(maxStepFact*1.1); // 10% tolerance
+                if (interpolFact>1.0)
+                    interpolFact=1.0;
+            }
+        }
+        printf("d: %f\n",interpolFact);
 
         // We check if all IK elements are under the required precision
         withinPosition=true;
@@ -345,8 +360,10 @@ int CikGroup::computeGroupIk(double precision[2],bool forInternalFunctionality,b
     return(cumulResultInfo);
 }
 
-int CikGroup::_performOnePass(std::vector<CikElement*>* validElements,double interpolFact,bool forInternalFunctionality,bool computeOnlyJacobian,bool(*cb)(const int*,std::vector<double>*,const int*,const int*,const int*,const int*,std::vector<double>*,double*))
+int CikGroup::_performOnePass(std::vector<CikElement*>* validElements,double* maxStepFact,bool forInternalFunctionality,bool computeOnlyJacobian,bool(*cb)(const int*,std::vector<double>*,const int*,const int*,const int*,const int*,std::vector<double>*,double*))
 {   // Return value: one of ik_resultinfo...-values
+    if (maxStepFact!=nullptr)
+        maxStepFact[0]=0.0;
     // We prepare a vector of all used joints and a counter for the number of rows:
     std::vector<CJoint*> allJoints;
     _jointHandles.clear();
@@ -575,6 +592,15 @@ int CikGroup::_performOnePass(std::vector<CikElement*>* validElements,double int
             solution(i,0)=atan2(sin(solution(i,0)),cos(solution(i,0)));
         if (fabs(solution(i,0))>it->getMaxStepSize())
             retVal=retVal|ik_calc_stepstoobig;
+        if (maxStepFact!=nullptr)
+        {
+            if (it->getMaxStepSize()>0.0)
+            {
+                double v=fabs(solution(i,0))/it->getMaxStepSize();
+                if (v>maxStepFact[0])
+                    maxStepFact[0]=v;
+            }
+        }
     }
 
     // Measure tip-target distances before applying new values:
@@ -692,7 +718,7 @@ bool CikGroup::computeOnlyJacobian_old(int options)
         CikElement* element=validElements[elNb];
         element->prepareEquations(1.0);
     }
-    int retVal=_performOnePass(&validElements,1.0,false,true,nullptr);
+    int retVal=_performOnePass(&validElements,nullptr,false,true,nullptr);
     CEnvironment::currentEnvironment->objectContainer->restoreJointConfig(memorizedConf_handles,memorizedConf_vals);
     return(retVal!=ik_calc_cannotinvert);
 }

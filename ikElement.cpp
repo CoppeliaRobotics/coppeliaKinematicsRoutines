@@ -234,7 +234,7 @@ bool CikElement::getJacobian(CMatrix& jacob,CMatrix& errVect,int ttip,int tbase,
         constrBasePoseInv=altBasePose[0];
     constrBasePoseInv=constrBasePoseInv.getInverse();
     std::vector<double> mem;
-    jacob=_getNakedJacobian(tip,target,base,altBasePose,constraints,jHandles,jDofIndex);
+    jacob=_getNakedJacobian(tip,target,base,altBasePose,constraints,interpolationFactor,jHandles,jDofIndex);
     bool retVal=false;
     if ( (jacob.rows!=0)&&(jacob.cols!=0) )
     {
@@ -244,6 +244,7 @@ bool CikElement::getJacobian(CMatrix& jacob,CMatrix& errVect,int ttip,int tbase,
             errVect.resize(jacob.rows,1,0.0);
             C7Vector tipTrRel(constrBasePoseInv*tip->getCumulativeTransformationPart1());
             C7Vector targetTrRel(constrBasePoseInv*target->getCumulativeTransformationPart1());
+            targetTrRel.buildInterpolation(tipTrRel,targetTrRel,interpolationFactor);
             if ((constraints&ik_constraint_orientation)==ik_constraint_alpha_beta)
             { // We need to reorient the tip around its z-axis to "ressemble" most the target orientation
                 C3Vector targetXaxisProj(tipTrRel.Q.getInverse()*targetTrRel.Q.getMatrix().axis[0]);
@@ -269,7 +270,7 @@ bool CikElement::getJacobian(CMatrix& jacob,CMatrix& errVect,int ttip,int tbase,
             }
             C7Vector interpolTargetRel;
             double dq=0.01; // not that relevant apparently
-            interpolTargetRel.buildInterpolation(tipTrRel,targetTrRel,interpolationFactor*dq);
+            interpolTargetRel.buildInterpolation(tipTrRel,targetTrRel,dq);
 
             C4Vector dx_q(tipTrRel.Q.getInverse()*interpolTargetRel.Q);
             C3Vector euler(dx_q.getEulerAngles());
@@ -378,7 +379,7 @@ void CikElement::getTipTargetDistance(double& linDist,double& angDist) const
     }
 }
 
-CMatrix CikElement::_getNakedJacobian(const CSceneObject* tip,const CSceneObject* target,const CSceneObject* base,const C7Vector* constrBasePose,int constraints,std::vector<int>* jHandles,std::vector<int>* jDofIndex)
+CMatrix CikElement::_getNakedJacobian(const CSceneObject* tip,const CSceneObject* target,const CSceneObject* base,const C7Vector* constrBasePose,int constraints,double interpolationFactor,std::vector<int>* jHandles,std::vector<int>* jDofIndex)
 { // jHandles and jDofIndex can be nullptr
     size_t rows=0;
     if ((constraints&ik_constraint_x)!=0)
@@ -437,7 +438,10 @@ CMatrix CikElement::_getNakedJacobian(const CSceneObject* tip,const CSceneObject
 
     C4Vector targetQ(tip->getCumulativeTransformationPart1().Q);
     if (target!=nullptr)
+    {
         targetQ=target->getCumulativeTransformationPart1().Q;
+        targetQ.buildInterpolation(tip->getCumulativeTransformationPart1().Q,targetQ,interpolationFactor);
+    }
     C4Vector tipTop(tip->getCumulativeTransformationPart1().Q.getInverse()*targetQ);
 
     int dofIndex=0;

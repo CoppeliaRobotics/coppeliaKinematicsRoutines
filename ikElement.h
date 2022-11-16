@@ -51,7 +51,7 @@ public:
     std::vector<int> jointDofIndex;
 
 private:
-    static CMatrix _getNakedJacobian(const CSceneObject* tip,const CSceneObject* target,const CSceneObject* base,const C7Vector* constrBasePose,int constraints,std::vector<int>* jHandles,std::vector<int>* jDofIndex);
+    static CMatrix _getNakedJacobian(const CSceneObject* tip,const CSceneObject* target,const CSceneObject* base,const C7Vector* constrBasePose,int constraints,double interpolationFactor,std::vector<int>* jHandles,std::vector<int>* jDofIndex);
 
     int _ikElementHandle;
     int _tipHandle;
