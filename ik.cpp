@@ -205,10 +205,10 @@ CikElement* getIkElementFromHandleOrTipDummy(const CikGroup* ikGroup,int ikEleme
     return(retVal);
 }
 
-bool ikCreateEnvironment(int* environmentHandle/*=nullptr*/,bool protectedEnvironment/*=false*/)
+bool ikCreateEnvironment(int* environmentHandle/*=nullptr*/,int flags/*=0*/)
 {
     debugInfo inf(__FUNCTION__);
-    CEnvironment* newCt=new CEnvironment(protectedEnvironment);
+    CEnvironment* newCt=new CEnvironment(flags);
     int eh=CEnvironment::addEnvironment(newCt);
     if (environmentHandle!=nullptr)
         environmentHandle[0]=eh;

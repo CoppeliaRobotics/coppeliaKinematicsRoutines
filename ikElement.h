@@ -11,7 +11,6 @@ class CSceneObject;
 class CikElement
 {
 public:
-    CikElement();
     CikElement(int theTooltip);
     virtual ~CikElement();
 
@@ -41,7 +40,7 @@ public:
     void setConstraints(int constraints);
 
     void getTipTargetDistance(double& linDist,double& angDist) const;
-    static bool getJacobian(CMatrix& jacob,CMatrix& errVect,int ttip,int tbase,int constraints,const C7Vector* altBasePose,double interpolationFactor,std::vector<int>* equTypes,std::vector<int>* jHandles,std::vector<int>* jDofIndex);
+    static bool getJacobian(CMatrix& jacob,CMatrix& errVect,int ttip,int tbase,int constraints,const C7Vector* altBasePose,double interpolationFactor,std::vector<int>* equTypes,std::vector<int>* jHandles,std::vector<int>* jDofIndex,double backCompatibility=1.0);
     void prepareEquations(double interpolationFactor);
 
     CMatrix jacobian;
@@ -51,7 +50,7 @@ public:
     std::vector<int> jointDofIndex;
 
 private:
-    static CMatrix _getNakedJacobian(const CSceneObject* tip,const CSceneObject* target,const CSceneObject* base,const C7Vector* constrBasePose,int constraints,double interpolationFactor,std::vector<int>* jHandles,std::vector<int>* jDofIndex);
+    static CMatrix _getNakedJacobian(const CSceneObject* tip,const CSceneObject* target,const CSceneObject* base,const C7Vector* constrBasePose,int constraints,double interpolationFactor,std::vector<int>* jHandles,std::vector<int>* jDofIndex,double backCompatibility=1.0);
 
     int _ikElementHandle;
     int _tipHandle;
@@ -61,4 +60,5 @@ private:
     bool _isActive;
     double _weights[2]; // linear and angular weights
     double _precisions[2]; // linear and angular precisions
+    double _backCompatibility;
 };

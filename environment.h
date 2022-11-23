@@ -7,7 +7,7 @@ class CEnvironment
 {
 public:
     CEnvironment();
-    CEnvironment(bool protectedEnv);
+    CEnvironment(int flags);
     virtual ~CEnvironment();
 
     static int addEnvironment(CEnvironment* env);
@@ -16,6 +16,8 @@ public:
 
     int getHandle() const;
     bool isProtected() const;
+    int getFlags() const;
+    void setFlags(int f);
     CEnvironment* copyYourself() const;
     CIkGroupContainer* ikGroupContainer;
     CObjectContainer* objectContainer;
@@ -23,8 +25,8 @@ public:
     static CEnvironment* currentEnvironment;
 
 private:
-    bool _protected;
     int _handle;
+    int _flags; // bit0: protected (GUI-IK back-compat.), bit1: back-compatibility, with Jacob./errorV correction with a fact. 0.01
 
     static int _nextHandle;
     static std::vector<CEnvironment*> _allEnvironments;

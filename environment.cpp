@@ -8,14 +8,14 @@ CEnvironment::CEnvironment()
 {
     objectContainer=nullptr;
     ikGroupContainer=nullptr;
-    _protected=false;
+    _flags=0;
 }
 
-CEnvironment::CEnvironment(bool protectedEnv)
+CEnvironment::CEnvironment(int flags)
 {
     objectContainer=new CObjectContainer();
     ikGroupContainer=new CIkGroupContainer();
-    _protected=protectedEnv;
+    _flags=flags;
 }
 
 CEnvironment::~CEnvironment()
@@ -31,9 +31,14 @@ int CEnvironment::getHandle() const
     return(_handle);
 }
 
-bool CEnvironment::isProtected() const
+int CEnvironment::getFlags() const
 {
-    return(_protected);
+    return(_flags);
+}
+
+void CEnvironment::setFlags(int f)
+{
+    _flags=f;
 }
 
 CEnvironment* CEnvironment::copyYourself() const
@@ -41,6 +46,7 @@ CEnvironment* CEnvironment::copyYourself() const
     CEnvironment* duplicate=new CEnvironment();
     duplicate->ikGroupContainer=ikGroupContainer->copyYourself();
     duplicate->objectContainer=objectContainer->copyYourself();
+    duplicate->_flags=_flags;
     return(duplicate);
 }
 
@@ -60,7 +66,7 @@ bool CEnvironment::switchToEnvironment(int handle,bool alsoProtectedEnv)
     { // tries to switch to the first protected environment, for debug purposes
         for (size_t i=0;i<_allEnvironments.size();i++)
         {
-            if (_allEnvironments[i]->_protected)
+            if ((_allEnvironments[i]->_flags&1)!=0)
             {
                 currentEnvironment=_allEnvironments[i];
                 return(true);
@@ -77,7 +83,7 @@ bool CEnvironment::switchToEnvironment(int handle,bool alsoProtectedEnv)
                 {
                     if (_allEnvironments[i]->_handle==handle)
                     {
-                        if ( alsoProtectedEnv||(!_allEnvironments[i]->_protected) )
+                        if ( alsoProtectedEnv||((_allEnvironments[i]->_flags&1)==0) )
                         {
                             currentEnvironment=_allEnvironments[i];
                             return(true);
@@ -86,7 +92,7 @@ bool CEnvironment::switchToEnvironment(int handle,bool alsoProtectedEnv)
                 }
                 return(false);
             }
-            retVal=(alsoProtectedEnv||(!currentEnvironment->_protected));
+            retVal=(alsoProtectedEnv||((currentEnvironment->_flags&1)==0));
         }
     }
     return(retVal);

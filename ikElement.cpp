@@ -3,10 +3,6 @@
 #include "MyMath.h"
 #include <unordered_set>
 
-CikElement::CikElement()
-{
-}
-
 CikElement::CikElement(int theTooltip)
 {
     _tipHandle=theTooltip;
@@ -19,6 +15,9 @@ CikElement::CikElement(int theTooltip)
     _weights[0]=1.0;
     _weights[1]=1.0;
     _ikElementHandle=-1;
+    _backCompatibility=1.0;
+    if ((CEnvironment::currentEnvironment->getFlags()&2)!=0)
+        _backCompatibility=0.01;
 }
 
 CikElement::~CikElement()
@@ -27,7 +26,7 @@ CikElement::~CikElement()
 
 CikElement* CikElement::copyYourself() const
 {
-    CikElement* duplicate=new CikElement();
+    CikElement* duplicate=new CikElement(-1);
 
     duplicate->_ikElementHandle=_ikElementHandle;
     duplicate->_tipHandle=_tipHandle;
@@ -44,6 +43,7 @@ CikElement* CikElement::copyYourself() const
     duplicate->equationTypes.assign(equationTypes.begin(),equationTypes.end());
     duplicate->jacobian.set(jacobian);
     duplicate->errorVector.set(errorVector);
+    duplicate->_backCompatibility=_backCompatibility;
 
     return(duplicate);
 }
@@ -207,10 +207,10 @@ void CikElement::prepareEquations(double interpolationFactor)
     CSceneObject* altBase=CEnvironment::currentEnvironment->objectContainer->getObject(_altBaseHandleForConstraints);
     if (altBase!=nullptr)
         altBasePose=altBase->getCumulativeTransformationPart1();
-    getJacobian(jacobian,errorVector,_tipHandle,_baseHandle,_constraints,&altBasePose,interpolationFactor,&equationTypes,&jointHandles,&jointDofIndex);
+    getJacobian(jacobian,errorVector,_tipHandle,_baseHandle,_constraints,&altBasePose,interpolationFactor,&equationTypes,&jointHandles,&jointDofIndex,_backCompatibility);
 }
 
-bool CikElement::getJacobian(CMatrix& jacob,CMatrix& errVect,int ttip,int tbase,int constraints,const C7Vector* altBasePose,double interpolationFactor,std::vector<int>* equTypes,std::vector<int>* jHandles,std::vector<int>* jDofIndex)
+bool CikElement::getJacobian(CMatrix& jacob,CMatrix& errVect,int ttip,int tbase,int constraints,const C7Vector* altBasePose,double interpolationFactor,std::vector<int>* equTypes,std::vector<int>* jHandles,std::vector<int>* jDofIndex,double backCompatibility/*=1.0*/)
 { // equTypes, jHandles and jDofIndex can be nullptr
     if (jHandles!=nullptr)
         jHandles->clear();
@@ -234,7 +234,7 @@ bool CikElement::getJacobian(CMatrix& jacob,CMatrix& errVect,int ttip,int tbase,
         constrBasePoseInv=altBasePose[0];
     constrBasePoseInv=constrBasePoseInv.getInverse();
     std::vector<double> mem;
-    jacob=_getNakedJacobian(tip,target,base,altBasePose,constraints,interpolationFactor,jHandles,jDofIndex);
+    jacob=_getNakedJacobian(tip,target,base,altBasePose,constraints,interpolationFactor,jHandles,jDofIndex,backCompatibility);
     bool retVal=false;
     if ( (jacob.rows!=0)&&(jacob.cols!=0) )
     {
@@ -301,8 +301,8 @@ bool CikElement::getJacobian(CMatrix& jacob,CMatrix& errVect,int ttip,int tbase,
             {
                 if ((constraints&ik_constraint_alpha_beta)!=0)
                 {
-                    errVect(rowIndex++,0)=euler(0)/dq;
-                    errVect(rowIndex++,0)=euler(1)/dq;
+                    errVect(rowIndex++,0)=backCompatibility*euler(0)/dq;
+                    errVect(rowIndex++,0)=backCompatibility*euler(1)/dq;
                     if (equTypes!=nullptr)
                     {
                         equTypes->push_back(3);
@@ -311,7 +311,7 @@ bool CikElement::getJacobian(CMatrix& jacob,CMatrix& errVect,int ttip,int tbase,
                 }
                 if ((constraints&ik_constraint_gamma)!=0)
                 {
-                    errVect(rowIndex++,0)=euler(2)/dq;
+                    errVect(rowIndex++,0)=backCompatibility*euler(2)/dq;
                     if (equTypes!=nullptr)
                         equTypes->push_back(5);
                 }
@@ -362,24 +362,10 @@ void CikElement::getTipTargetDistance(double& linDist,double& angDist) const
             angDist=fabs((targetTr.getInverse()*tooltipTr).Q.getEulerAngles()(2));
         else
             angDist=0.0;
-        /*
-        printf("Linear dist: %f\n",linDist);
-        printf("Angular dist: %f\n",angDist);
-
-        printf("Tip pose rel to base: ");
-        for (size_t i=0;i<3;i++)
-            printf("%f,",tooltipTr.X(i));
-        printf("%f,%f,%f,%f\n",tooltipTr.Q(1),tooltipTr.Q(2),tooltipTr.Q(3),tooltipTr.Q(0));
-
-        printf("Target pose rel to base: ");
-        for (size_t i=0;i<3;i++)
-            printf("%f,",targetTr.X(i));
-        printf("%f,%f,%f,%f\n",targetTr.Q(1),targetTr.Q(2),targetTr.Q(3),targetTr.Q(0));
-        //*/
     }
 }
 
-CMatrix CikElement::_getNakedJacobian(const CSceneObject* tip,const CSceneObject* target,const CSceneObject* base,const C7Vector* constrBasePose,int constraints,double interpolationFactor,std::vector<int>* jHandles,std::vector<int>* jDofIndex)
+CMatrix CikElement::_getNakedJacobian(const CSceneObject* tip,const CSceneObject* target,const CSceneObject* base,const C7Vector* constrBasePose,int constraints,double interpolationFactor,std::vector<int>* jHandles,std::vector<int>* jDofIndex,double backCompatibility/*=1.0*/)
 { // jHandles and jDofIndex can be nullptr
     size_t rows=0;
     if ((constraints&ik_constraint_x)!=0)
@@ -500,11 +486,11 @@ CMatrix CikElement::_getNakedJacobian(const CSceneObject* tip,const CSceneObject
         {
             if ((constraints&ik_constraint_alpha_beta)!=0)
             {
-                jacobian(rowIndex++,colIndex)=euler(0)/dq;
-                jacobian(rowIndex++,colIndex)=euler(1)/dq;
+                jacobian(rowIndex++,colIndex)=backCompatibility*euler(0)/dq;
+                jacobian(rowIndex++,colIndex)=backCompatibility*euler(1)/dq;
             }
             if ((constraints&ik_constraint_gamma)!=0)
-                jacobian(rowIndex++,colIndex)=euler(2)/dq;
+                jacobian(rowIndex++,colIndex)=backCompatibility*euler(2)/dq;
         }
 
         if (dofIndex==3)
