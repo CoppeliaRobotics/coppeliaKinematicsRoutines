@@ -1,7 +1,8 @@
 #include "ikGroup.h"
 #include "environment.h"
 #include <algorithm>
-
+#include <Eigen/Dense>
+#include <Eigen/QR>
 
 CikGroup::CikGroup()
 {
@@ -564,17 +565,6 @@ int CikGroup::_performOnePass(std::vector<CikElement*>* validElements,double* ma
                     mainErrorVector(i,0)*=w[0];
                 else
                     mainErrorVector(i,0)*=w[1];
-
-                // joint weights, part 1
-                for (size_t j=0;j<mainJacobian.cols;j++)
-                {
-                    double coeff=allJoints[j]->getIkWeight();
-                    if (coeff>=0.0)
-                        coeff=sqrt(coeff);
-                    else
-                        coeff=-sqrt(-coeff);
-                    mainJacobian(i,j)=mainJacobian(i,j)*coeff;
-                }
             }
         }
 
@@ -583,14 +573,8 @@ int CikGroup::_performOnePass(std::vector<CikElement*>* validElements,double* ma
 
         if (calcMethod==ik_method_undamped_pseudo_inverse)
         {
-            CMatrix JT(mainJacobian);
-            JT.transpose();
-            CMatrix pseudoJ(mainJacobian.cols,mainJacobian.rows);
-            CMatrix JJTInv(mainJacobian*JT);
-            if (!JJTInv.inverse())
-                return(ik_calc_cannotinvert);
-            pseudoJ=JT*JJTInv;
-            solution=pseudoJ*mainErrorVector;
+            calcMethod=ik_method_damped_least_squares;
+            dampingFact=0.0;
         }
         if (calcMethod==ik_method_pseudo_inverse)
         {
@@ -598,33 +582,24 @@ int CikGroup::_performOnePass(std::vector<CikElement*>* validElements,double* ma
             dampingFact=0.000001;
         }
         if (calcMethod==ik_method_damped_least_squares)
-        {
+        { // pseudo inverse with damping and joint weights: inv(W)*transp(J)*inv(J*inv(W)*transp(J)+damp*damp*I)
+            CMatrix Winv(mainJacobian.cols,mainJacobian.cols);
+            Winv.clear();
+            for (size_t i=0;i<allJoints.size();i++)
+                Winv(i,i)=allJoints[i]->getIkWeight();
+            CMatrix Idamp(mainJacobian.rows,mainJacobian.rows);
+            Idamp.clear();
+            for (size_t i=0;i<Idamp.rows;i++)
+                Idamp(i,i)=dampingFact*dampingFact;
             CMatrix JT(mainJacobian);
             JT.transpose();
-            CMatrix DLSJ(mainJacobian.cols,mainJacobian.rows);
-            CMatrix JJTInv(mainJacobian*JT);
-            CMatrix ID(mainJacobian.rows,mainJacobian.rows);
-            ID.setIdentity();
-            ID/=1.0/(dampingFact*dampingFact);
-            JJTInv+=ID;
-            if (!JJTInv.inverse())
-                return(ik_calc_cannotinvert);
-            DLSJ=JT*JJTInv;
-            solution=DLSJ*mainErrorVector;
+            solution=Winv*JT*pseudoInverse(mainJacobian*Winv*JT+Idamp)*mainErrorVector;
         }
         if (calcMethod==ik_method_jacobian_transpose)
         {
             CMatrix JT(mainJacobian);
             JT.transpose();
             solution=JT*mainErrorVector;
-        }
-
-        // We take the joint weights into account here (part2):
-        for (size_t i=0;i<mainJacobian.cols;i++)
-        {
-            CJoint* it=allJoints[i];
-            double coeff=sqrt(fabs(it->getIkWeight()));
-            solution(i,0)=solution(i,0)*coeff;
         }
     }
 
@@ -706,6 +681,25 @@ int CikGroup::_performOnePass(std::vector<CikElement*>* validElements,double* ma
         retVal=retVal|ik_calc_limithit;
 
     return(retVal);
+}
+
+CMatrix CikGroup::pseudoInverse(const CMatrix& m)
+{
+    Eigen::MatrixXd m2(m.rows,m.cols);
+    for (size_t i=0;i<m.rows;i++)
+    {
+        for (size_t j=0;j<m.cols;j++)
+            m2(i,j)=m(i,j);
+    }
+    auto t=m2.completeOrthogonalDecomposition();
+    Eigen::MatrixXd pseudoJ=t.pseudoInverse();
+    CMatrix mOut(m.rows,m.rows);
+    for (size_t i=0;i<m.rows;i++)
+    {
+        for (size_t j=0;j<m.rows;j++)
+            mOut(i,j)=pseudoJ(i,j);
+    }
+    return(mOut);
 }
 
 bool CikGroup::computeOnlyJacobian_old(int options)
