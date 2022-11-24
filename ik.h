@@ -93,8 +93,8 @@ bool ikGetJointInterval(int jointHandle,bool* cyclic,double* intervalMinAndRange
 bool ikSetJointInterval(int jointHandle,bool cyclic,const double* intervalMinAndRange=nullptr);
 bool ikGetJointScrewPitch(int jointHandle,double* pitch);
 bool ikSetJointScrewPitch(int jointHandle,double pitch);
-bool ikGetJointIkWeight(int jointHandle,double* ikWeight);
-bool ikSetJointIkWeight(int jointHandle,double ikWeight);
+bool ikGetJointWeight(int jointHandle,double* ikWeight);
+bool ikSetJointWeight(int jointHandle,double ikWeight);
 bool ikGetJointLimitMargin(int jointHandle,double* m);
 bool ikSetJointLimitMargin(int jointHandle,double m);
 bool ikGetJointMaxStepSize(int jointHandle,double* maxStepSize);
@@ -108,17 +108,56 @@ bool ikSetSphericalJointMatrix(int jointHandle,const C3X3Matrix* rotMatrix);
 bool ikGetJointTransformation(int jointHandle,C7Vector* transf);
 bool ikSetSphericalJointQuaternion(int jointHandle,const C4Vector* quaternion);
 
+bool ikGetGroupHandle(const char* ikGroupName,int* ikGroupHandle);
+bool ikDoesGroupExist(const char* ikGroupName);
+bool ikCreateGroup(const char* ikGroupName/*=nullptr*/,int* ikGroupHandle);
+bool ikEraseGroup(int ikGroupHandle);
+
+bool ikGetGroupFlags(int ikGroupHandle,int* flags);
+bool ikSetGroupFlags(int ikGroupHandle,int flags);
+bool ikGetGroupCalculation(int ikGroupHandle,int* method,double* damping,int* maxIterations);
+bool ikSetGroupCalculation(int ikGroupHandle,int method,double damping,int maxIterations);
+bool ikGetGroupJointLimitHits(int ikGroupHandle,std::vector<int>* jointHandles,std::vector<double>* underOrOvershots);
+bool ikGetGroupJoints(int ikGroupHandle,std::vector<int>* jointHandles);
+
+bool ikAddElement(int ikGroupHandle,int tipHandle,int* ikElementHandle);
+bool ikEraseElement(int ikGroupHandle,int ikElementHandle);
+bool ikGetElementFlags(int ikGroupHandle,int ikElementHandle,int* flags);
+bool ikSetElementFlags(int ikGroupHandle,int ikElementHandle,int flags);
+bool ikGetElementBase(int ikGroupHandle,int ikElementHandle,int* baseHandle,int* constraintsBaseHandle);
+bool ikSetElementBase(int ikGroupHandle,int ikElementHandle,int baseHandle,int constraintsBaseHandle=-1);
+bool ikGetElementConstraints(int ikGroupHandle,int ikElementHandle,int* constraints);
+bool ikSetElementConstraints(int ikGroupHandle,int ikElementHandle,int constraints);
+bool ikGetElementPrecision(int ikGroupHandle,int ikElementHandle,double* linearPrecision,double* angularPrecision);
+bool ikSetElementPrecision(int ikGroupHandle,int ikElementHandle,double linearPrecision,double angularPrecision);
+bool ikGetElementWeights(int ikGroupHandle,int ikElementHandle,double* linearWeight,double* angularWeight);
+bool ikSetElementWeights(int ikGroupHandle,int ikElementHandle,double linearWeight,double angularWeight);
+
+bool ikHandleGroup(int ikGroupHandle=ik_handle_all,int* result=nullptr,double* precision=nullptr,bool(*cb)(const int*,std::vector<double>*,const int*,const int*,const int*,const int*,std::vector<double>*,double*)=nullptr);
+bool ikComputeJacobian(int baseHandle,int jointHandle,int constraints,const C7Vector* tipPose,const C7Vector* targetPose,const C7Vector* taltBasePose,std::vector<double>* jacobian,std::vector<double>* errorVect);
+int ikFindConfig(int ikGroupHandle,size_t jointCnt,const int* jointHandles,double thresholdDist,int maxTimeInMs,double* retConfig,const double* metric=nullptr,bool(*validationCallback)(double*)=nullptr);
+
+bool ikGetObjectTransformation(int objectHandle,int relativeToObjectHandle,C7Vector* transf);
+bool ikSetObjectTransformation(int objectHandle,int relativeToObjectHandle,const C7Vector* transf);
+bool ikGetObjectMatrix(int objectHandle,int relativeToObjectHandle,C4X4Matrix* matrix);
+bool ikSetObjectMatrix(int objectHandle,int relativeToObjectHandle,const C4X4Matrix* matrix);
+
+/* backward compatibility */
+bool ikComputeJacobian_old(int ikGroupHandle,int options,bool* success=nullptr);
+double* ikGetJacobian_old(int ikGroupHandle,size_t* matrixSize);
+bool ikGetManipulability_old(int ikGroupHandle,double* manip);
+int ikGetConfigForTipPose(int ikGroupHandle,size_t jointCnt,const int* jointHandles,double thresholdDist,int maxIterations,double* retConfig,const double* metric=nullptr,bool(*validationCallback)(double*)=nullptr,const int* jointOptions=nullptr,const double* lowLimits=nullptr,const double* ranges=nullptr);
+bool ikGetJointIkWeight(int jointHandle,double* ikWeight);
+bool ikSetJointIkWeight(int jointHandle,double ikWeight);
 bool ikGetIkGroupHandle(const char* ikGroupName,int* ikGroupHandle);
 bool ikDoesIkGroupExist(const char* ikGroupName);
-bool ikCreateIkGroup(const char* ikGroupName/*=nullptr*/,int* ikGroupHandle);
+bool ikCreateIkGroup(const char* ikGroupName,int* ikGroupHandle);
 bool ikEraseIkGroup(int ikGroupHandle);
-
 bool ikGetIkGroupFlags(int ikGroupHandle,int* flags);
 bool ikSetIkGroupFlags(int ikGroupHandle,int flags);
 bool ikGetIkGroupCalculation(int ikGroupHandle,int* method,double* damping,int* maxIterations);
 bool ikSetIkGroupCalculation(int ikGroupHandle,int method,double damping,int maxIterations);
 bool ikGetIkGroupJointLimitHits(int ikGroupHandle,std::vector<int>* jointHandles,std::vector<double>* underOrOvershots);
-
 bool ikAddIkElement(int ikGroupHandle,int tipHandle,int* ikElementHandle);
 bool ikEraseIkElement(int ikGroupHandle,int ikElementHandle);
 bool ikGetIkElementFlags(int ikGroupHandle,int ikElementHandle,int* flags);
@@ -131,18 +170,4 @@ bool ikGetIkElementPrecision(int ikGroupHandle,int ikElementHandle,double* linea
 bool ikSetIkElementPrecision(int ikGroupHandle,int ikElementHandle,double linearPrecision,double angularPrecision);
 bool ikGetIkElementWeights(int ikGroupHandle,int ikElementHandle,double* linearWeight,double* angularWeight);
 bool ikSetIkElementWeights(int ikGroupHandle,int ikElementHandle,double linearWeight,double angularWeight);
-
 bool ikHandleIkGroup(int ikGroupHandle=ik_handle_all,int* result=nullptr,double* precision=nullptr,bool(*cb)(const int*,std::vector<double>*,const int*,const int*,const int*,const int*,std::vector<double>*,double*)=nullptr);
-bool ikComputeJacobian(int baseHandle,int jointHandle,int constraints,const C7Vector* tipPose,const C7Vector* targetPose,const C7Vector* taltBasePose,std::vector<double>* jacobian,std::vector<double>* errorVect);
-
-bool ikComputeJacobian_old(int ikGroupHandle,int options,bool* success=nullptr);
-double* ikGetJacobian_old(int ikGroupHandle,size_t* matrixSize);
-bool ikGetManipulability_old(int ikGroupHandle,double* manip);
-
-int ikFindConfig(int ikGroupHandle,size_t jointCnt,const int* jointHandles,double thresholdDist,int maxTimeInMs,double* retConfig,const double* metric=nullptr,bool(*validationCallback)(double*)=nullptr);
-int ikGetConfigForTipPose(int ikGroupHandle,size_t jointCnt,const int* jointHandles,double thresholdDist,int maxIterations,double* retConfig,const double* metric=nullptr,bool(*validationCallback)(double*)=nullptr,const int* jointOptions=nullptr,const double* lowLimits=nullptr,const double* ranges=nullptr);
-
-bool ikGetObjectTransformation(int objectHandle,int relativeToObjectHandle,C7Vector* transf);
-bool ikSetObjectTransformation(int objectHandle,int relativeToObjectHandle,const C7Vector* transf);
-bool ikGetObjectMatrix(int objectHandle,int relativeToObjectHandle,C4X4Matrix* matrix);
-bool ikSetObjectMatrix(int objectHandle,int relativeToObjectHandle,const C4X4Matrix* matrix);

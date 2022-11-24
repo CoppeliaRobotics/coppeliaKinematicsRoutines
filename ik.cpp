@@ -507,7 +507,7 @@ bool ikSetJointPosition(int jointHandle,double position)
     return(retVal);
 }
 
-bool ikDoesIkGroupExist(const char* ikGroupName)
+bool ikDoesGroupExist(const char* ikGroupName)
 {
     debugInfo inf(__FUNCTION__,ikGroupName);
     bool retVal=false;
@@ -519,7 +519,7 @@ bool ikDoesIkGroupExist(const char* ikGroupName)
     return(retVal);
 }
 
-bool ikGetIkGroupHandle(const char* ikGroupName,int* ikGroupHandle)
+bool ikGetGroupHandle(const char* ikGroupName,int* ikGroupHandle)
 {
     debugInfo inf(__FUNCTION__,ikGroupName);
     bool retVal=false;
@@ -537,7 +537,7 @@ bool ikGetIkGroupHandle(const char* ikGroupName,int* ikGroupHandle)
     return(retVal);
 }
 
-bool ikCreateIkGroup(const char* ikGroupName/*=nullptr*/,int* ikGroupHandle)
+bool ikCreateGroup(const char* ikGroupName/*=nullptr*/,int* ikGroupHandle)
 {
     debugInfo inf(__FUNCTION__,ikGroupName);
     bool retVal=false;
@@ -574,7 +574,7 @@ bool ikCreateIkGroup(const char* ikGroupName/*=nullptr*/,int* ikGroupHandle)
     return(retVal);
 }
 
-bool ikEraseIkGroup(int ikGroupHandle)
+bool ikEraseGroup(int ikGroupHandle)
 {
     debugInfo inf(__FUNCTION__,ikGroupHandle);
     bool retVal=false;
@@ -592,7 +592,7 @@ bool ikEraseIkGroup(int ikGroupHandle)
     return(retVal);
 }
 
-bool ikAddIkElement(int ikGroupHandle,int tipHandle,int* ikElementHandle)
+bool ikAddElement(int ikGroupHandle,int tipHandle,int* ikElementHandle)
 {
     debugInfo inf(__FUNCTION__,ikGroupHandle,tipHandle);
     bool retVal=false;
@@ -618,7 +618,7 @@ bool ikAddIkElement(int ikGroupHandle,int tipHandle,int* ikElementHandle)
     return(retVal);
 }
 
-bool ikEraseIkElement(int ikGroupHandle,int ikElementHandle)
+bool ikEraseElement(int ikGroupHandle,int ikElementHandle)
 {
     debugInfo inf(__FUNCTION__,ikGroupHandle,ikElementHandle);
     bool retVal=false;
@@ -640,7 +640,7 @@ bool ikEraseIkElement(int ikGroupHandle,int ikElementHandle)
     return(retVal);
 }
 
-bool ikSetIkElementFlags(int ikGroupHandle,int ikElementHandle,int flags)
+bool ikSetElementFlags(int ikGroupHandle,int ikElementHandle,int flags)
 {
     debugInfo inf(__FUNCTION__,ikGroupHandle,ikElementHandle);
     bool retVal=false;
@@ -663,7 +663,7 @@ bool ikSetIkElementFlags(int ikGroupHandle,int ikElementHandle,int flags)
     return(retVal);
 }
 
-bool ikGetIkElementFlags(int ikGroupHandle,int ikElementHandle,int* flags)
+bool ikGetElementFlags(int ikGroupHandle,int ikElementHandle,int* flags)
 {
     debugInfo inf(__FUNCTION__,ikGroupHandle,ikElementHandle);
     bool retVal=false;
@@ -687,7 +687,7 @@ bool ikGetIkElementFlags(int ikGroupHandle,int ikElementHandle,int* flags)
     return(retVal);
 }
 
-bool ikSetIkElementBase(int ikGroupHandle,int ikElementHandle,int baseHandle,int constraintsBaseHandle/*=-1*/)
+bool ikSetElementBase(int ikGroupHandle,int ikElementHandle,int baseHandle,int constraintsBaseHandle/*=-1*/)
 {
     debugInfo inf(__FUNCTION__,ikGroupHandle,ikElementHandle,baseHandle,constraintsBaseHandle);
     bool retVal=false;
@@ -724,7 +724,7 @@ bool ikSetIkElementBase(int ikGroupHandle,int ikElementHandle,int baseHandle,int
     return(retVal);
 }
 
-bool ikGetIkElementBase(int ikGroupHandle,int ikElementHandle,int* baseHandle,int* constraintsBaseHandle)
+bool ikGetElementBase(int ikGroupHandle,int ikElementHandle,int* baseHandle,int* constraintsBaseHandle)
 {
     debugInfo inf(__FUNCTION__,ikGroupHandle,ikElementHandle);
     bool retVal=false;
@@ -747,7 +747,7 @@ bool ikGetIkElementBase(int ikGroupHandle,int ikElementHandle,int* baseHandle,in
     return(retVal);
 }
 
-bool ikSetIkElementConstraints(int ikGroupHandle,int ikElementHandle,int constraints)
+bool ikSetElementConstraints(int ikGroupHandle,int ikElementHandle,int constraints)
 {
     debugInfo inf(__FUNCTION__,ikGroupHandle,ikElementHandle,constraints);
     bool retVal=false;
@@ -770,7 +770,7 @@ bool ikSetIkElementConstraints(int ikGroupHandle,int ikElementHandle,int constra
     return(retVal);
 }
 
-bool ikGetIkElementConstraints(int ikGroupHandle,int ikElementHandle,int* constraints)
+bool ikGetElementConstraints(int ikGroupHandle,int ikElementHandle,int* constraints)
 {
     debugInfo inf(__FUNCTION__,ikGroupHandle,ikElementHandle);
     bool retVal=false;
@@ -792,7 +792,7 @@ bool ikGetIkElementConstraints(int ikGroupHandle,int ikElementHandle,int* constr
     return(retVal);
 }
 
-bool ikSetIkElementPrecision(int ikGroupHandle,int ikElementHandle,double linearPrecision,double angularPrecision)
+bool ikSetElementPrecision(int ikGroupHandle,int ikElementHandle,double linearPrecision,double angularPrecision)
 {
     debugInfo inf(__FUNCTION__,ikGroupHandle,ikElementHandle);
     bool retVal=false;
@@ -815,7 +815,7 @@ bool ikSetIkElementPrecision(int ikGroupHandle,int ikElementHandle,double linear
     return(retVal);
 }
 
-bool ikGetIkElementPrecision(int ikGroupHandle,int ikElementHandle,double* linearPrecision,double* angularPrecision)
+bool ikGetElementPrecision(int ikGroupHandle,int ikElementHandle,double* linearPrecision,double* angularPrecision)
 {
     debugInfo inf(__FUNCTION__,ikGroupHandle,ikElementHandle);
     bool retVal=false;
@@ -840,7 +840,7 @@ bool ikGetIkElementPrecision(int ikGroupHandle,int ikElementHandle,double* linea
     return(retVal);
 }
 
-bool ikSetIkElementWeights(int ikGroupHandle,int ikElementHandle,double linearWeight,double angularWeight)
+bool ikSetElementWeights(int ikGroupHandle,int ikElementHandle,double linearWeight,double angularWeight)
 {
     debugInfo inf(__FUNCTION__,ikGroupHandle,ikElementHandle);
     bool retVal=false;
@@ -863,7 +863,7 @@ bool ikSetIkElementWeights(int ikGroupHandle,int ikElementHandle,double linearWe
     return(retVal);
 }
 
-bool ikGetIkElementWeights(int ikGroupHandle,int ikElementHandle,double* linearWeight,double* angularWeight)
+bool ikGetElementWeights(int ikGroupHandle,int ikElementHandle,double* linearWeight,double* angularWeight)
 {
     debugInfo inf(__FUNCTION__,ikGroupHandle,ikElementHandle);
     bool retVal=false;
@@ -985,7 +985,7 @@ bool ikGetManipulability_old(int ikGroupHandle,double* manip)
     return(retVal);
 }
 
-bool ikHandleIkGroup(int ikGroupHandle/*=ik_handle_all*/,int* result/*=nullptr*/,double* precision/*=nullptr*/,bool(*cb)(const int*,std::vector<double>*,const int*,const int*,const int*,const int*,std::vector<double>*,double*)/*=nullptr*/)
+bool ikHandleGroup(int ikGroupHandle/*=ik_handle_all*/,int* result/*=nullptr*/,double* precision/*=nullptr*/,bool(*cb)(const int*,std::vector<double>*,const int*,const int*,const int*,const int*,std::vector<double>*,double*)/*=nullptr*/)
 {
     debugInfo inf(__FUNCTION__,ikGroupHandle);
     bool retVal=false;
@@ -1336,7 +1336,7 @@ bool ikSetJointScrewPitch(int jointHandle,double pitch)
     return(retVal);
 }
 
-bool ikSetJointIkWeight(int jointHandle,double ikWeight)
+bool ikSetJointWeight(int jointHandle,double ikWeight)
 {
     debugInfo inf(__FUNCTION__,jointHandle);
     bool retVal=false;
@@ -1355,7 +1355,7 @@ bool ikSetJointIkWeight(int jointHandle,double ikWeight)
     return(retVal);
 }
 
-bool ikGetJointIkWeight(int jointHandle,double* ikWeight)
+bool ikGetJointWeight(int jointHandle,double* ikWeight)
 {
     debugInfo inf(__FUNCTION__,jointHandle);
     bool retVal=false;
@@ -1550,7 +1550,7 @@ bool ikGetJointScrewPitch(int jointHandle,double* pitch)
     return(retVal);
 }
 
-bool ikGetIkGroupJointLimitHits(int ikGroupHandle,std::vector<int>* jointHandles,std::vector<double>* underOrOvershots)
+bool ikGetGroupJointLimitHits(int ikGroupHandle,std::vector<int>* jointHandles,std::vector<double>* underOrOvershots)
 {
     debugInfo inf(__FUNCTION__,ikGroupHandle);
     bool retVal=false;
@@ -1568,7 +1568,25 @@ bool ikGetIkGroupJointLimitHits(int ikGroupHandle,std::vector<int>* jointHandles
     return(retVal);
 }
 
-bool ikGetIkGroupCalculation(int ikGroupHandle,int* method,double* damping,int* maxIterations)
+bool ikGetGroupJoints(int ikGroupHandle,std::vector<int>* jointHandles)
+{
+    debugInfo inf(__FUNCTION__,ikGroupHandle);
+    bool retVal=false;
+    if (hasLaunched())
+    {
+        CikGroup* it=CEnvironment::currentEnvironment->ikGroupContainer->getIkGroup(ikGroupHandle);
+        if (it!=nullptr)
+        {
+            it->getJointHandles(jointHandles[0]);
+            retVal=true;
+        }
+        else
+            _setLastError("Invalid IK group handle: %i",ikGroupHandle);
+    }
+    return(retVal);
+}
+
+bool ikGetGroupCalculation(int ikGroupHandle,int* method,double* damping,int* maxIterations)
 {
     debugInfo inf(__FUNCTION__,ikGroupHandle);
     bool retVal=false;
@@ -1588,7 +1606,7 @@ bool ikGetIkGroupCalculation(int ikGroupHandle,int* method,double* damping,int* 
     return(retVal);
 }
 
-bool ikSetIkGroupCalculation(int ikGroupHandle,int method,double damping,int maxIterations)
+bool ikSetGroupCalculation(int ikGroupHandle,int method,double damping,int maxIterations)
 {
     debugInfo inf(__FUNCTION__,ikGroupHandle,method);
     bool retVal=false;
@@ -1611,7 +1629,7 @@ bool ikSetIkGroupCalculation(int ikGroupHandle,int method,double damping,int max
     return(retVal);
 }
 
-bool ikSetIkGroupFlags(int ikGroupHandle,int flags)
+bool ikSetGroupFlags(int ikGroupHandle,int flags)
 {
     debugInfo inf(__FUNCTION__,ikGroupHandle,flags);
     bool retVal=false;
@@ -1629,7 +1647,7 @@ bool ikSetIkGroupFlags(int ikGroupHandle,int flags)
     return(retVal);
 }
 
-bool ikGetIkGroupFlags(int ikGroupHandle,int* flags)
+bool ikGetGroupFlags(int ikGroupHandle,int* flags)
 {
     debugInfo inf(__FUNCTION__,ikGroupHandle);
     bool retVal=false;
@@ -2107,4 +2125,101 @@ int _getLoadingMapping(const std::vector<int>* map,int oldVal)
             return(map->at(2*i+1));
     }
     return(-1);
+}
+
+bool ikGetJointIkWeight(int jointHandle,double* ikWeight)
+{ /* backward compatibility */
+    return(ikGetJointWeight(jointHandle,ikWeight));
+}
+bool ikSetJointIkWeight(int jointHandle,double ikWeight)
+{ /* backward compatibility */
+    return(ikSetJointWeight(jointHandle,ikWeight));
+}
+bool ikGetIkGroupHandle(const char* ikGroupName,int* ikGroupHandle)
+{ /* backward compatibility */
+    return(ikGetGroupHandle(ikGroupName,ikGroupHandle));
+}
+bool ikDoesIkGroupExist(const char* ikGroupName)
+{ /* backward compatibility */
+    return(ikDoesGroupExist(ikGroupName));
+}
+bool ikCreateIkGroup(const char* ikGroupName,int* ikGroupHandle)
+{ /* backward compatibility */
+    return(ikCreateGroup(ikGroupName,ikGroupHandle));
+}
+bool ikEraseIkGroup(int ikGroupHandle)
+{ /* backward compatibility */
+    return(ikEraseGroup(ikGroupHandle));
+}
+bool ikGetIkGroupFlags(int ikGroupHandle,int* flags)
+{ /* backward compatibility */
+    return(ikGetGroupFlags(ikGroupHandle,flags));
+}
+bool ikSetIkGroupFlags(int ikGroupHandle,int flags)
+{ /* backward compatibility */
+    return(ikSetGroupFlags(ikGroupHandle,flags));
+}
+bool ikGetIkGroupCalculation(int ikGroupHandle,int* method,double* damping,int* maxIterations)
+{ /* backward compatibility */
+    return(ikGetGroupCalculation(ikGroupHandle,method,damping,maxIterations));
+}
+bool ikSetIkGroupCalculation(int ikGroupHandle,int method,double damping,int maxIterations)
+{ /* backward compatibility */
+    return(ikSetGroupCalculation(ikGroupHandle,method,damping,maxIterations));
+}
+bool ikGetIkGroupJointLimitHits(int ikGroupHandle,std::vector<int>* jointHandles,std::vector<double>* underOrOvershots)
+{ /* backward compatibility */
+    return(ikGetGroupJointLimitHits(ikGroupHandle,jointHandles,underOrOvershots));
+}
+bool ikAddIkElement(int ikGroupHandle,int tipHandle,int* ikElementHandle)
+{ /* backward compatibility */
+    return(ikAddElement(ikGroupHandle,tipHandle,ikElementHandle));
+}
+bool ikEraseIkElement(int ikGroupHandle,int ikElementHandle)
+{ /* backward compatibility */
+    return(ikEraseElement(ikGroupHandle,ikElementHandle));
+}
+bool ikGetIkElementFlags(int ikGroupHandle,int ikElementHandle,int* flags)
+{ /* backward compatibility */
+    return(ikGetElementFlags(ikGroupHandle,ikElementHandle,flags));
+}
+bool ikSetIkElementFlags(int ikGroupHandle,int ikElementHandle,int flags)
+{ /* backward compatibility */
+    return(ikSetElementFlags(ikGroupHandle,ikElementHandle,flags));
+}
+bool ikGetIkElementBase(int ikGroupHandle,int ikElementHandle,int* baseHandle,int* constraintsBaseHandle)
+{ /* backward compatibility */
+    return(ikGetElementBase(ikGroupHandle,ikElementHandle,baseHandle,constraintsBaseHandle));
+}
+bool ikSetIkElementBase(int ikGroupHandle,int ikElementHandle,int baseHandle,int constraintsBaseHandle)
+{ /* backward compatibility */
+    return(ikSetElementBase(ikGroupHandle,ikElementHandle,baseHandle,constraintsBaseHandle));
+}
+bool ikGetIkElementConstraints(int ikGroupHandle,int ikElementHandle,int* constraints)
+{ /* backward compatibility */
+    return(ikGetElementConstraints(ikGroupHandle,ikElementHandle,constraints));
+}
+bool ikSetIkElementConstraints(int ikGroupHandle,int ikElementHandle,int constraints)
+{ /* backward compatibility */
+    return(ikSetElementConstraints(ikGroupHandle,ikElementHandle,constraints));
+}
+bool ikGetIkElementPrecision(int ikGroupHandle,int ikElementHandle,double* linearPrecision,double* angularPrecision)
+{ /* backward compatibility */
+    return(ikGetElementPrecision(ikGroupHandle,ikElementHandle,linearPrecision,angularPrecision));
+}
+bool ikSetIkElementPrecision(int ikGroupHandle,int ikElementHandle,double linearPrecision,double angularPrecision)
+{ /* backward compatibility */
+    return(ikSetElementPrecision(ikGroupHandle,ikElementHandle,linearPrecision,angularPrecision));
+}
+bool ikGetIkElementWeights(int ikGroupHandle,int ikElementHandle,double* linearWeight,double* angularWeight)
+{ /* backward compatibility */
+    return(ikGetElementWeights(ikGroupHandle,ikElementHandle,linearWeight,angularWeight));
+}
+bool ikSetIkElementWeights(int ikGroupHandle,int ikElementHandle,double linearWeight,double angularWeight)
+{ /* backward compatibility */
+    return(ikSetElementWeights(ikGroupHandle,ikElementHandle,linearWeight,angularWeight));
+}
+bool ikHandleIkGroup(int ikGroupHandle,int* result,double* precision,bool(*cb)(const int*,std::vector<double>*,const int*,const int*,const int*,const int*,std::vector<double>*,double*))
+{ /* backward compatibility */
+    return(ikHandleGroup(ikGroupHandle,result,precision,cb));
 }

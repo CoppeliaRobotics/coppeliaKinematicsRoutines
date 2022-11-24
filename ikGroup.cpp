@@ -207,6 +207,57 @@ bool CikGroup::getJointLimitHits(std::vector<int>* jointHandles,std::vector<doub
     return(!_jointLimitHits.empty());
 }
 
+void CikGroup::getJointHandles(std::vector<int>& handles)
+{ // returns a joint for each Jacobian column (spherical joints will however have a single entry, even if 3 columns in the Jacobian)
+    handles.clear();
+    // prepare a vector with all valid and active elements:
+    std::vector<CikElement*> validElements;
+    for (size_t elNb=0;elNb<_ikElements.size();elNb++)
+    {
+        CikElement* element=_ikElements[elNb];
+        CDummy* tooltip=CEnvironment::currentEnvironment->objectContainer->getDummy(element->getTipHandle());
+        CSceneObject* base=CEnvironment::currentEnvironment->objectContainer->getObject(element->getBaseHandle());
+        if ( element->getIsActive()&&(tooltip!=nullptr) )
+        {
+            bool valid=false;
+            bool jointPresent=false;
+            bool baseOk=false;
+            CSceneObject* iterat=tooltip;
+            while ( (iterat!=base)&&(iterat!=nullptr) )
+            {
+                iterat=iterat->getParentObject();
+                if (iterat==base)
+                {
+                    baseOk=true;
+                    if (jointPresent)
+                        valid=true;
+                }
+                if ( (iterat!=base)&&(iterat!=nullptr)&&(iterat->getObjectType()==ik_objecttype_joint) )
+                {
+                    if ((static_cast<CJoint*>(iterat))->getJointMode()==ik_jointmode_ik)
+                        jointPresent=true;
+                }
+            }
+            if (valid)
+                validElements.push_back(element);
+        }
+    }
+    if (validElements.size()!=0)
+    {
+        for (size_t elNb=0;elNb<validElements.size();elNb++)
+        {
+            CikElement* element=validElements[elNb];
+            element->prepareEquations(1.0);
+        }
+        _performOnePass(&validElements,nullptr,true,2,nullptr);
+        for (size_t i=0;i<_jointHandles.size();i++)
+        {
+            if (_jointDofIndex[i]==0)
+                handles.push_back(_jointHandles[i]);
+        }
+    }
+}
+
 int CikGroup::computeGroupIk(double precision[2],bool forInternalFunctionality,bool(*cb)(const int*,std::vector<double>*,const int*,const int*,const int*,const int*,std::vector<double>*,double*))
 { // Return value is one ik_resultinfo...-value
     if (precision!=nullptr)
@@ -219,11 +270,8 @@ int CikGroup::computeGroupIk(double precision[2],bool forInternalFunctionality,b
     if ((_options&ik_group_enabled)==0)
         return(ik_calc_notperformed|ik_calc_notwithintolerance); // group is disabled!
 
-    // Now we prepare a vector with all valid and active elements:
+    // prepare a vector with all valid and active elements:
     std::vector<CikElement*> validElements;
-    validElements.reserve(_ikElements.size());
-    validElements.clear();
-
     for (size_t elNb=0;elNb<_ikElements.size();elNb++)
     {
         CikElement* element=_ikElements[elNb];
@@ -291,7 +339,7 @@ int CikGroup::computeGroupIk(double precision[2],bool forInternalFunctionality,b
         CEnvironment::currentEnvironment->objectContainer->memorizeJointConfig(memorizedConf_handles,memorizedConfPass_vals);
 
         double maxStepFact;
-        int resultInfo=_performOnePass(&validElements,&maxStepFact,forInternalFunctionality,false,cb);
+        int resultInfo=_performOnePass(&validElements,&maxStepFact,forInternalFunctionality,0,cb);
         cumulResultInfo=cumulResultInfo|resultInfo;
 
         if ( ((_options&ik_group_ignoremaxsteps)==0)&&((resultInfo&ik_calc_stepstoobig)!=0) )
@@ -356,13 +404,14 @@ int CikGroup::computeGroupIk(double precision[2],bool forInternalFunctionality,b
     return(cumulResultInfo);
 }
 
-int CikGroup::_performOnePass(std::vector<CikElement*>* validElements,double* maxStepFact,bool forInternalFunctionality,bool computeOnlyJacobian,bool(*cb)(const int*,std::vector<double>*,const int*,const int*,const int*,const int*,std::vector<double>*,double*))
+int CikGroup::_performOnePass(std::vector<CikElement*>* validElements,double* maxStepFact,bool forInternalFunctionality,int operation,bool(*cb)(const int*,std::vector<double>*,const int*,const int*,const int*,const int*,std::vector<double>*,double*))
 {   // Return value: one of ik_resultinfo...-values
+    // operation: 0=compute a pass, 1=compute Jacobian only, 2=get involved joint handles only
     if (maxStepFact!=nullptr)
         maxStepFact[0]=0.0;
     // We prepare a vector of all used joints and a counter for the number of rows:
     std::vector<CJoint*> allJoints;
-    _jointHandles.clear();
+    _jointHandles.clear(); // going through the Jacobian cols
     _jointDofIndex.clear();
     for (size_t elNb=0;elNb<validElements->size();elNb++)
     {
@@ -389,10 +438,11 @@ int CikGroup::_performOnePass(std::vector<CikElement*>* validElements,double* ma
             }
         }
     }
-    //---------------------------------------------------------------------------
+    if (operation==2)
+        return(0); // get involved joints only
 
-    _elementHandles.clear();
-    _equationType.clear();
+    std::vector<int> _elementHandles; // going through the Jacobian rows
+    std::vector<int> _equationType; // going through the Jacobian rows. 0-2: x,y,z, 3-5: alpha,beta,gamma, 6=jointLimits, 7=jointDependency
     CMatrix mainJacobian(0,allJoints.size());
     CMatrix mainErrorVector(0,1);
 
@@ -482,8 +532,8 @@ int CikGroup::_performOnePass(std::vector<CikElement*>* validElements,double* ma
     }
 
     _lastJacobian.set(mainJacobian);
-    if (computeOnlyJacobian)
-        return(0);
+    if (operation==1)
+        return(0); // compute jacobian only
 
     // Now we just have to solve:
     CMatrix solution(mainJacobian.cols,1);

@@ -42,6 +42,7 @@ public:
     int getOptions() const;
 
     int computeGroupIk(double precision[2],bool forInternalFunctionality,bool(*cb)(const int*,std::vector<double>*,const int*,const int*,const int*,const int*,std::vector<double>*,double*));
+    void getJointHandles(std::vector<int>& handles);
 
     bool getJointLimitHits(std::vector<int>* jointHandles,std::vector<double>* underOrOvershots) const;
 
@@ -54,7 +55,7 @@ public:
 
 
 private:
-    int _performOnePass(std::vector<CikElement*>* validElements,double* maxStepFact,bool forInternalFunctionality,bool computeOnlyJacobian,bool(*cb)(const int*,std::vector<double>*,const int*,const int*,const int*,const int*,std::vector<double>*,double*));
+    int _performOnePass(std::vector<CikElement*>* validElements,double* maxStepFact,bool forInternalFunctionality,int operation,bool(*cb)(const int*,std::vector<double>*,const int*,const int*,const int*,const int*,std::vector<double>*,double*));
 
     std::vector<CikElement*> _ikElements;
     int _objectHandle;
@@ -69,8 +70,6 @@ private:
     CMatrix _lastJacobian_flipped; // for backw. compatibility. Cols are from tip to base
     std::vector<int> _jointHandles; // going through the Jacobian cols
     std::vector<int> _jointDofIndex; // going through the Jacobian cols
-    std::vector<int> _elementHandles; // going through the Jacobian rows
-    std::vector<int> _equationType; // going through the Jacobian rows. 0-2: x,y,z, 3-5: alpha,beta,gamma, 6=jointLimits, 7=jointDependency
 
     bool _explicitHandling_old;
 };
