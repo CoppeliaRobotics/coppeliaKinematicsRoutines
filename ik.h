@@ -130,8 +130,8 @@ bool ikGetElementConstraints(int ikGroupHandle,int ikElementHandle,int* constrai
 bool ikSetElementConstraints(int ikGroupHandle,int ikElementHandle,int constraints);
 bool ikGetElementPrecision(int ikGroupHandle,int ikElementHandle,double* linearPrecision,double* angularPrecision);
 bool ikSetElementPrecision(int ikGroupHandle,int ikElementHandle,double linearPrecision,double angularPrecision);
-bool ikGetElementWeights(int ikGroupHandle,int ikElementHandle,double* linearWeight,double* angularWeight);
-bool ikSetElementWeights(int ikGroupHandle,int ikElementHandle,double linearWeight,double angularWeight);
+bool ikGetElementWeights(int ikGroupHandle,int ikElementHandle,double* linearWeight,double* angularWeight,double* elementWeight=nullptr);
+bool ikSetElementWeights(int ikGroupHandle,int ikElementHandle,double linearWeight,double angularWeight,double elementWeight);
 
 bool ikHandleGroup(int ikGroupHandle=ik_handle_all,int* result=nullptr,double* precision=nullptr,bool(*cb)(const int*,std::vector<double>*,const int*,const int*,const int*,const int*,std::vector<double>*,double*)=nullptr);
 bool ikComputeJacobian(int baseHandle,int jointHandle,int constraints,const C7Vector* tipPose,const C7Vector* targetPose,const C7Vector* taltBasePose,std::vector<double>* jacobian,std::vector<double>* errorVect);

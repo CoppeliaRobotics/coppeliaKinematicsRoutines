@@ -223,6 +223,8 @@ double CJoint::getIkWeight() const
 
 void CJoint::setIkWeight(double newWeight)
 {
+    if (newWeight<0.00001)
+        newWeight=0.00001;
     _ikWeight=newWeight;
 }
 

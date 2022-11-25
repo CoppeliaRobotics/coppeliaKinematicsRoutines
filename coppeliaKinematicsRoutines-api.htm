@@ -726,7 +726,7 @@ td.section { margin: 0; padding: 0; }
 </tr>
 <tr class="apiTableTr">
 <td class="apiTableLeftCSyn">Synopsis</td>
-<td class="apiTableRightCSyn">bool ikGetElementWeights(int ikGroupHandle,int ikElementHandle,double* linearWeight,double* angularWeight)</td>
+<td class="apiTableRightCSyn">bool ikGetElementWeights(int ikGroupHandle,int ikElementHandle,double* linearWeight,double* angularWeight,double* elementWeight=nullptr)</td>
 </tr>
 <tr class="apiTableTr">
 <td class="apiTableLeftCParam">Arguments</td>
@@ -735,6 +735,7 @@ td.section { margin: 0; padding: 0; }
 <div><strong>ikElementHandle</strong>: the IK element handle, or X, where X=handleOfTipDummy|ik_handleflag_tipdummy (if several IK elements with the same tip dummy exist, then the first encountered will be selected).</div>
 <div><strong>linearWeight</strong>: the linear resolution weight, in return.</div>
 <div><strong>angularWeight</strong>: the angular resolution weight, in return.</div>
+<div><strong>elementWeight</strong>: the overall weight for that IK element, in return.</div>
 </td>
 </tr>
 <tr class="apiTableTr">
@@ -1682,7 +1683,7 @@ td.section { margin: 0; padding: 0; }
 </tr>
 <tr class="apiTableTr">
 <td class="apiTableLeftCSyn">Synopsis</td>
-<td class="apiTableRightCSyn">bool ikSetElementWeights(int ikGroupHandle,int ikElementHandle,double linearWeight,double angularWeight)</td>
+<td class="apiTableRightCSyn">bool ikSetElementWeights(int ikGroupHandle,int ikElementHandle,double linearWeight,double angularWeight,double elementWeight)</td>
 </tr>
 <tr class="apiTableTr">
 <td class="apiTableLeftCParam">Arguments</td>
@@ -1691,6 +1692,7 @@ td.section { margin: 0; padding: 0; }
 <div><strong>ikElementHandle</strong>: the IK element handle, or X, where X=handleOfTipDummy|ik_handleflag_tipdummy (if several IK elements with the same tip dummy exist, then the first encountered will be selected).</div>
 <div><strong>linearWeight</strong>: the desired linear resolution weight.</div>
 <div><strong>angularWeight</strong>: the desired angular resolution weight.</div>
+<div><strong>elementWeight</strong>: the desired overall weight for that IK element.</div>
 </td>
 </tr>
 <tr class="apiTableTr">

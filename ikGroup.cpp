@@ -443,7 +443,8 @@ int CikGroup::_performOnePass(std::vector<CikElement*>* validElements,double* ma
         return(0); // get involved joints only
 
     std::vector<int> _elementHandles; // going through the Jacobian rows
-    std::vector<int> _equationType; // going through the Jacobian rows. 0-2: x,y,z, 3-5: alpha,beta,gamma, 6=jointLimits, 7=jointDependency
+    std::vector<CikElement*> _elements; // going through the Jacobian rows
+    std::vector<int> _equationType; // going through the Jacobian rows. 0-2: x,y,z, 3-5: alpha,beta,gamma, 6=jointLimits
     CMatrix mainJacobian(0,allJoints.size());
     CMatrix mainErrorVector(0,1);
 
@@ -457,6 +458,7 @@ int CikGroup::_performOnePass(std::vector<CikElement*>* validElements,double* ma
             mainJacobian.resize(rows,allJoints.size(),0.0);
             mainErrorVector.resize(rows,1,0.0);
             _elementHandles.push_back(element->getIkElementHandle());
+            _elements.push_back(element);
             _equationType.push_back(element->equationTypes[i]);
             mainErrorVector(currentRow,0)=element->errorVector(i,0);
             // Now we set the delta-parts:
@@ -553,18 +555,27 @@ int CikGroup::_performOnePass(std::vector<CikElement*>* validElements,double* ma
         if (!forInternalFunctionality)
             _lastJacobian.set(mainJacobian);
 
-        // Handle position/orientation & joint weights:
-        for (size_t i=0;i<mainJacobian.rows;i++)
+        // position/orientation weights, and element weights:
+        for (size_t i=0;i<_elements.size();i++)
         {
             if (_equationType[i]<=5)
             {
-                // position/orientation weights:
-                double w[2];
-                getIkElement(_elementHandles[i])->getWeights(w);
+                double w[3];
+                _elements[i]->getWeights(w);
                 if (_equationType[i]<=2)
-                    mainErrorVector(i,0)*=w[0];
+                    mainErrorVector(i,0)*=w[0]*w[2];
                 else
-                    mainErrorVector(i,0)*=w[1];
+                    mainErrorVector(i,0)*=w[1]*w[2];
+            }
+        }
+
+        bool useJointWeights=false;
+        for (size_t j=0;j<allJoints.size();j++)
+        {
+            if (allJoints[j]->getIkWeight()!=1.0)
+            {
+                useJointWeights=true;
+                break;
             }
         }
 
@@ -583,17 +594,22 @@ int CikGroup::_performOnePass(std::vector<CikElement*>* validElements,double* ma
         }
         if (calcMethod==ik_method_damped_least_squares)
         { // pseudo inverse with damping and joint weights: inv(W)*transp(J)*inv(J*inv(W)*transp(J)+damp*damp*I)
-            CMatrix Winv(mainJacobian.cols,mainJacobian.cols);
-            Winv.clear();
-            for (size_t i=0;i<allJoints.size();i++)
-                Winv(i,i)=allJoints[i]->getIkWeight();
             CMatrix Idamp(mainJacobian.rows,mainJacobian.rows);
             Idamp.clear();
             for (size_t i=0;i<Idamp.rows;i++)
                 Idamp(i,i)=dampingFact*dampingFact;
             CMatrix JT(mainJacobian);
             JT.transpose();
-            solution=Winv*JT*pseudoInverse(mainJacobian*Winv*JT+Idamp)*mainErrorVector;
+            if (useJointWeights)
+            {
+                CMatrix Winv(mainJacobian.cols,mainJacobian.cols);
+                Winv.clear();
+                for (size_t i=0;i<allJoints.size();i++)
+                    Winv(i,i)=allJoints[i]->getIkWeight();
+                solution=Winv*JT*pseudoInverse(mainJacobian*Winv*JT+Idamp)*mainErrorVector;
+            }
+            else
+                solution=JT*pseudoInverse(mainJacobian*JT+Idamp)*mainErrorVector;
         }
         if (calcMethod==ik_method_jacobian_transpose)
         {

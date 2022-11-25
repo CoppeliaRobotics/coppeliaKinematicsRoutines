@@ -14,6 +14,7 @@ CikElement::CikElement(int theTooltip)
     _precisions[1]=0.1*degToRad;
     _weights[0]=1.0;
     _weights[1]=1.0;
+    _weights[2]=1.0;
     _ikElementHandle=-1;
     _backCompatibility=1.0;
     if ((CEnvironment::currentEnvironment->getFlags()&2)!=0)
@@ -36,6 +37,7 @@ CikElement* CikElement::copyYourself() const
     duplicate->_isActive=_isActive;
     duplicate->_weights[0]=_weights[0];
     duplicate->_weights[1]=_weights[1];
+    duplicate->_weights[2]=_weights[2];
     duplicate->_precisions[0]=_precisions[0];
     duplicate->_precisions[1]=_precisions[1];
     duplicate->jointHandles.assign(jointHandles.begin(),jointHandles.end());
@@ -173,16 +175,18 @@ void CikElement::setConstraints(int constraints)
     _constraints=constraints;
 }
 
-void CikElement::getWeights(double w[2]) const
+void CikElement::getWeights(double w[3]) const
 {
     w[0]=_weights[0];
     w[1]=_weights[1];
+    w[2]=_weights[2];
 }
 
-void CikElement::setWeights(const double w[2])
+void CikElement::setWeights(const double w[3])
 {
     _weights[0]=w[0];
     _weights[1]=w[1];
+    _weights[2]=w[2];
 }
 
 void CikElement::getPrecisions(double p[2]) const

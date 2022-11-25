@@ -840,7 +840,7 @@ bool ikGetElementPrecision(int ikGroupHandle,int ikElementHandle,double* linearP
     return(retVal);
 }
 
-bool ikSetElementWeights(int ikGroupHandle,int ikElementHandle,double linearWeight,double angularWeight)
+bool ikSetElementWeights(int ikGroupHandle,int ikElementHandle,double linearWeight,double angularWeight,double elementWeight)
 {
     debugInfo inf(__FUNCTION__,ikGroupHandle,ikElementHandle);
     bool retVal=false;
@@ -852,7 +852,7 @@ bool ikSetElementWeights(int ikGroupHandle,int ikElementHandle,double linearWeig
             CikElement* ikElement=getIkElementFromHandleOrTipDummy(ikGroup,ikElementHandle);
             if (ikElement!=nullptr)
             {
-                double w[2]={linearWeight,angularWeight};
+                double w[3]={linearWeight,angularWeight,elementWeight};
                 ikElement->setWeights(w);
                 retVal=true;
             }
@@ -863,7 +863,7 @@ bool ikSetElementWeights(int ikGroupHandle,int ikElementHandle,double linearWeig
     return(retVal);
 }
 
-bool ikGetElementWeights(int ikGroupHandle,int ikElementHandle,double* linearWeight,double* angularWeight)
+bool ikGetElementWeights(int ikGroupHandle,int ikElementHandle,double* linearWeight,double* angularWeight,double* elementWeight/*=nullptr*/)
 {
     debugInfo inf(__FUNCTION__,ikGroupHandle,ikElementHandle);
     bool retVal=false;
@@ -875,10 +875,12 @@ bool ikGetElementWeights(int ikGroupHandle,int ikElementHandle,double* linearWei
             CikElement* ikElement=getIkElementFromHandleOrTipDummy(ikGroup,ikElementHandle);
             if (ikElement!=nullptr)
             {
-                double w[2];
+                double w[3];
                 ikElement->getWeights(w);
                 linearWeight[0]=w[0];
                 angularWeight[0]=w[1];
+                if (elementWeight!=nullptr)
+                    elementWeight[0]=w[2];
                 retVal=true;
             }
         }
@@ -2217,7 +2219,7 @@ bool ikGetIkElementWeights(int ikGroupHandle,int ikElementHandle,double* linearW
 }
 bool ikSetIkElementWeights(int ikGroupHandle,int ikElementHandle,double linearWeight,double angularWeight)
 { /* backward compatibility */
-    return(ikSetElementWeights(ikGroupHandle,ikElementHandle,linearWeight,angularWeight));
+    return(ikSetElementWeights(ikGroupHandle,ikElementHandle,linearWeight,angularWeight,1.0));
 }
 bool ikHandleIkGroup(int ikGroupHandle,int* result,double* precision,bool(*cb)(const int*,std::vector<double>*,const int*,const int*,const int*,const int*,std::vector<double>*,double*))
 { /* backward compatibility */

@@ -32,8 +32,8 @@ public:
     bool getIsActive() const;
     void setIsActive(bool isActive);
 
-    void getWeights(double w[2]) const;
-    void setWeights(const double w[2]);
+    void getWeights(double w[3]) const;
+    void setWeights(const double w[3]);
     void getPrecisions(double p[2]) const;
     void setPrecisions(const double p[2]);
     int getConstraints() const;
@@ -58,7 +58,7 @@ private:
     int _altBaseHandleForConstraints;
     int _constraints;
     bool _isActive;
-    double _weights[2]; // linear and angular weights
+    double _weights[3]; // linear, angular, and element weights
     double _precisions[2]; // linear and angular precisions
     double _backCompatibility;
 };
