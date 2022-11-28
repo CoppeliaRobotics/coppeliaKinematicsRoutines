@@ -406,7 +406,7 @@ int CikGroup::computeGroupIk(double precision[2],bool forInternalFunctionality,b
 }
 
 int CikGroup::_performOnePass(std::vector<CikElement*>* validElements,double* maxStepFact,bool forInternalFunctionality,int operation,bool(*cb)(const int*,std::vector<double>*,const int*,const int*,const int*,const int*,std::vector<double>*,double*))
-{   // Return value: one of ik_resultinfo...-values
+{   // Return value: one of ik_calc_...-values
     // operation: 0=compute a pass, 1=compute Jacobian only, 2=get involved joint handles only
     if (maxStepFact!=nullptr)
         maxStepFact[0]=0.0;
@@ -538,6 +538,9 @@ int CikGroup::_performOnePass(std::vector<CikElement*>* validElements,double* ma
     if (operation==1)
         return(0); // compute jacobian only
 
+    if (_elementHandles.size()==0)
+        return(ik_calc_cannotinvert);
+
     // Now we just have to solve:
     CMatrix solution(mainJacobian.cols,1);
     bool computeHere=true;
@@ -547,9 +550,12 @@ int CikGroup::_performOnePass(std::vector<CikElement*>* validElements,double* ma
         computeHere=!cb(js,&mainJacobian.data,_equationType.data(),_elementHandles.data(),_jointHandles.data(),_jointDofIndex.data(),&mainErrorVector.data,solution.data.data());
         mainJacobian.rows=mainJacobian.data.size()/mainJacobian.cols;
         mainErrorVector.rows=mainJacobian.rows;
-        _equationType.resize(mainJacobian.rows,8);
+        if (mainJacobian.rows==0)
+            return(ik_calc_cannotinvert);
+        _equationType.resize(mainJacobian.rows,8); // custom
+        _elementHandles.resize(mainJacobian.rows,_elementHandles[0]); // we can't guess, so we take the first
+        _elements.resize(mainJacobian.rows,_elements[0]); // we can't guess, so we take the first
     }
-
     if (computeHere)
     {
         if (!forInternalFunctionality)
