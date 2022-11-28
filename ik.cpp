@@ -901,7 +901,7 @@ bool ikComputeJacobian(int baseHandle,int jointHandle,int constraints,const C7Ve
         CDummy* target=CEnvironment::currentEnvironment->objectContainer->getDummy(CEnvironment::currentEnvironment->objectContainer->createDummy(nullptr));
         tip->setLocalTransformation(*tipPose);
         target->setLocalTransformation(*targetPose);
-        tip->setLinkedDummyHandle(target->getObjectHandle(),true);
+        tip->setTargetDummyHandle(target->getObjectHandle());
         CJoint* tipJoint=CEnvironment::currentEnvironment->objectContainer->getJoint(jointHandle);
         if (tipJoint!=nullptr)
         {
@@ -1158,26 +1158,26 @@ bool ikCreateDummy(const char* dummyName/*=nullptr*/,int* dummyHandle)
     return(retVal);
 }
 
-bool ikSetLinkedDummy(int dummyHandle,int linkedDummyHandle)
+bool ikSetTargetDummy(int dummyHandle,int targetDummyHandle)
 {
-    debugInfo inf(__FUNCTION__,dummyHandle,linkedDummyHandle);
+    debugInfo inf(__FUNCTION__,dummyHandle,targetDummyHandle);
     bool retVal=false;
     if (hasLaunched())
     {
         CDummy* it=CEnvironment::currentEnvironment->objectContainer->getDummy(dummyHandle);
         if (it!=nullptr)
         {
-            CDummy* it2=CEnvironment::currentEnvironment->objectContainer->getDummy(linkedDummyHandle);
-            if ( (it2!=nullptr)||(linkedDummyHandle==-1) )
+            CDummy* it2=CEnvironment::currentEnvironment->objectContainer->getDummy(targetDummyHandle);
+            if ( (it2!=nullptr)||(targetDummyHandle==-1) )
             {
                 if (it2==nullptr)
-                    it->setLinkedDummyHandle(-1,false);
+                    it->setTargetDummyHandle(-1);
                 else
-                    it->setLinkedDummyHandle(linkedDummyHandle,false);
+                    it->setTargetDummyHandle(targetDummyHandle);
                 retVal=true;
             }
             else
-                _setLastError("Invalid linked dummy handle: %i",linkedDummyHandle);
+                _setLastError("Invalid linked dummy handle: %i",targetDummyHandle);
         }
         else
             _setLastError("Invalid dummy handle: %i",dummyHandle);
@@ -1185,7 +1185,7 @@ bool ikSetLinkedDummy(int dummyHandle,int linkedDummyHandle)
     return(retVal);
 }
 
-bool ikGetLinkedDummy(int dummyHandle,int* linkedDummyHandle)
+bool ikGetTargetDummy(int dummyHandle,int* targetDummyHandle)
 {
     debugInfo inf(__FUNCTION__,dummyHandle);
     bool retVal=false;
@@ -1194,7 +1194,7 @@ bool ikGetLinkedDummy(int dummyHandle,int* linkedDummyHandle)
         CDummy* it=CEnvironment::currentEnvironment->objectContainer->getDummy(dummyHandle);
         if (it!=nullptr)
         {
-            linkedDummyHandle[0]=it->getLinkedDummyHandle();
+            targetDummyHandle[0]=it->getTargetDummyHandle();
             retVal=true;
         }
         else
@@ -2127,6 +2127,51 @@ int _getLoadingMapping(const std::vector<int>* map,int oldVal)
             return(map->at(2*i+1));
     }
     return(-1);
+}
+
+bool ikSetLinkedDummy(int dummyHandle,int linkedDummyHandle)
+{ /* backward compatibility */
+    debugInfo inf(__FUNCTION__,dummyHandle,linkedDummyHandle);
+    bool retVal=false;
+    if (hasLaunched())
+    {
+        CDummy* it=CEnvironment::currentEnvironment->objectContainer->getDummy(dummyHandle);
+        if (it!=nullptr)
+        {
+            CDummy* it2=CEnvironment::currentEnvironment->objectContainer->getDummy(linkedDummyHandle);
+            if ( (it2!=nullptr)||(linkedDummyHandle==-1) )
+            {
+                if (it2==nullptr)
+                    it->setLinkedDummyHandle_old(-1,false);
+                else
+                    it->setLinkedDummyHandle_old(linkedDummyHandle,false);
+                retVal=true;
+            }
+            else
+                _setLastError("Invalid linked dummy handle: %i",linkedDummyHandle);
+        }
+        else
+            _setLastError("Invalid dummy handle: %i",dummyHandle);
+    }
+    return(retVal);
+}
+
+bool ikGetLinkedDummy(int dummyHandle,int* linkedDummyHandle)
+{ /* backward compatibility */
+    debugInfo inf(__FUNCTION__,dummyHandle);
+    bool retVal=false;
+    if (hasLaunched())
+    {
+        CDummy* it=CEnvironment::currentEnvironment->objectContainer->getDummy(dummyHandle);
+        if (it!=nullptr)
+        {
+            linkedDummyHandle[0]=it->getLinkedDummyHandle_old();
+            retVal=true;
+        }
+        else
+            _setLastError("Invalid dummy handle: %i",dummyHandle);
+    }
+    return(retVal);
 }
 
 bool ikGetJointIkWeight(int jointHandle,double* ikWeight)

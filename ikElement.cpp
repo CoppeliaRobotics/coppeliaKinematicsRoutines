@@ -115,7 +115,11 @@ int CikElement::getTargetHandle() const
     int retVal=-1;
     CDummy* tip=CEnvironment::currentEnvironment->objectContainer->getDummy(_tipHandle);
     if (tip!=nullptr)
-        retVal=tip->getLinkedDummyHandle();
+    {
+        retVal=tip->getTargetDummyHandle();
+        if (retVal==-1)
+            retVal=tip->getLinkedDummyHandle_old(); // for backward compatibility
+    }
     return(retVal);
 }
 
@@ -229,7 +233,9 @@ bool CikElement::getJacobian(CMatrix& jacob,CMatrix& errVect,int ttip,int tbase,
     CSceneObject* base=CEnvironment::currentEnvironment->objectContainer->getObject(tbase);
     if ( (tip==nullptr)||((base!=nullptr)&&(!tip->isObjectAffiliatedWith(base))) )
         return(false);
-    CDummy* target=CEnvironment::currentEnvironment->objectContainer->getDummy(tip->getLinkedDummyHandle());
+    CDummy* target=CEnvironment::currentEnvironment->objectContainer->getDummy(tip->getTargetDummyHandle());
+    if (target==nullptr)
+        target=CEnvironment::currentEnvironment->objectContainer->getDummy(tip->getLinkedDummyHandle_old()); // for backward compatibility
     C7Vector constrBasePoseInv;
     constrBasePoseInv.setIdentity();
     if (base!=nullptr)

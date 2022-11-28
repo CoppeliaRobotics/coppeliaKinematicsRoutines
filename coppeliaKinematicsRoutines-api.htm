@@ -60,12 +60,12 @@ td.section { margin: 0; padding: 0; }
 <a href="?#ikGetJointType">ikGetJointType</a>
 <a href="?#ikGetJointWeight">ikGetJointWeight</a>
 <a href="?#ikGetLastError">ikGetLastError</a>
-<a href="?#ikGetLinkedDummy">ikGetLinkedDummy</a>
 <a href="?#ikGetObjectHandle">ikGetObjectHandle</a>
 <a href="?#ikGetObjectMatrix">ikGetObjectMatrix</a>
 <a href="?#ikGetObjectParent">ikGetObjectParent</a>
 <a href="?#ikGetObjects">ikGetObjects</a>
 <a href="?#ikGetObjectTransformation">ikGetObjectTransformation</a>
+<a href="?#ikGetTargetDummy">ikGetTargetDummy</a>
 <a href="?#ikHandleGroup">ikHandleGroup</a>
 <a href="?#ikLoad">ikLoad</a>
 <a href="?#ikReleaseBuffer">ikReleaseBuffer</a>
@@ -85,12 +85,12 @@ td.section { margin: 0; padding: 0; }
 <a href="?#ikSetJointPosition">ikSetJointPosition</a>
 <a href="?#ikSetJointScrewPitch">ikSetJointScrewPitch</a>
 <a href="?#ikSetJointWeight">ikSetJointWeight</a>
-<a href="?#ikSetLinkedDummy">ikSetLinkedDummy</a>
 <a href="?#ikSetObjectMatrix">ikSetObjectMatrix</a>
 <a href="?#ikSetObjectParent">ikSetObjectParent</a>
 <a href="?#ikSetObjectTransformation">ikSetObjectTransformation</a>
 <a href="?#ikSetSphericalJointMatrix">ikSetSphericalJointMatrix</a>
 <a href="?#ikSetSphericalJointQuaternion">ikSetSphericalJointQuaternion</a>
+<a href="?#ikSettargetDummy">ikSetTargetDummy</a>
 <a href="?#ikSwitchEnvironment">ikSwitchEnvironment</a></pre></td></tr>
 
 <tr><td id="category" class="section">
@@ -127,8 +127,8 @@ td.section { margin: 0; padding: 0; }
 <pre class=lightGreyBox>
 <a href="?#ikCreateDummy">ikCreateDummy</a>
 <a href="?#ikEraseObject">ikEraseObject</a>
-<a href="?#ikGetLinkedDummy">ikGetLinkedDummy</a>
-<a href="?#ikSetLinkedDummy">ikSetLinkedDummy</a>
+<a href="?#ikGetTargetDummy">ikGetTargetDummy</a>
+<a href="?#ikSetTargetDummy">ikSetTargetDummy</a>
 </pre>
 
 
@@ -1259,7 +1259,7 @@ td.section { margin: 0; padding: 0; }
 <table class="apiTable">
 <tr class="apiTableTr">
 <td class="apiTableLeftDescr">Description</td>
-<td class="apiTableRightDescr">Retrieves the handle of a dummy linked to this one.</td>
+<td class="apiTableRightDescr">Deprecated. Use <a href="#ikGetTargetDummy">ikGetTargetDummy</a> instead</td>
 </tr>
 <tr class="apiTableTr">
 <td class="apiTableLeftCSyn">Synopsis</td>
@@ -1429,6 +1429,35 @@ td.section { margin: 0; padding: 0; }
 <tr class="apiTableTr">
 <td class="apiTableLeftDescr">See also</td>
 <td class="apiTableRightDescr"><a href="#ikSetObjectTransformation">ikSetObjectTransformation</a>, <a href="#ikGetObjectMatrix">ikGetObjectMatrix</a>, <a href="#ikGetJointTransformation">ikGetJointTransformation</a>, <a href="#ikGetObjectHandle">ikGetObjectHandle</a></td>
+</tr>
+</table>
+<br>
+
+<p class="subsectionBar">
+<a name="ikGetTargetDummy" id="ikGetTargetDummy"></a>ikGetTargetDummy</p>
+<table class="apiTable">
+<tr class="apiTableTr">
+<td class="apiTableLeftDescr">Description</td>
+<td class="apiTableRightDescr">Retrieves the handle of the target dummy associated with a tip dummy</td>
+</tr>
+<tr class="apiTableTr">
+<td class="apiTableLeftCSyn">Synopsis</td>
+<td class="apiTableRightCSyn">bool ikGetTargetDummy(int tipDummyHandle,int* targetDummyHandle)</td>
+</tr>
+<tr class="apiTableTr">
+<td class="apiTableLeftCParam">Arguments</td>
+<td class="apiTableRightCParam">
+<div><strong>tipDummyHandle</strong>: the handle of the tip dummy</div>
+<div><strong>targetDummyHandle</strong>: the handle of the target dummy, in return. Is -1 if no target is associated with the tip dummy</div>
+</td>
+</tr>
+<tr class="apiTableTr">
+<td class="apiTableLeftCRet">Return value</td>
+<td class="apiTableRightCRet">true in case of success.</td>
+</tr>
+<tr class="apiTableTr">
+<td class="apiTableLeftDescr">See also</td>
+<td class="apiTableRightDescr"><a href="#ikSetTargetDummy">ikSetTargetDummy</a>, <a href="#ikGetObjectHandle">ikGetObjectHandle</a></td>
 </tr>
 </table>
 <br>
@@ -2014,7 +2043,7 @@ td.section { margin: 0; padding: 0; }
 <table class="apiTable">
 <tr class="apiTableTr">
 <td class="apiTableLeftDescr">Description</td>
-<td class="apiTableRightDescr">Links this dummy object to another dummy object, or detaches it from another dummy object.</td>
+<td class="apiTableRightDescr">Deprecated. Use <a href="#ikSetTargetDummy">ikSetTargetDummy instead</a></td>
 </tr>
 <tr class="apiTableTr">
 <td class="apiTableLeftCSyn">Synopsis</td>
@@ -2182,6 +2211,35 @@ td.section { margin: 0; padding: 0; }
 <tr class="apiTableTr">
 <td class="apiTableLeftDescr">See also</td>
 <td class="apiTableRightDescr"><a href="#ikGetJointTransformation">ikGetJointTransformation</a>, <a href="#ikSetSphericalJointMatrix">ikSetSphericalJointMatrix</a>, <a href="#ikSetJointPosition">ikSetJointPosition</a>, <a href="#ikGetObjectHandle">ikGetObjectHandle</a></td>
+</tr>
+</table>
+<br>
+
+<p class="subsectionBar">
+<a name="ikSetTargetDummy" id="ikSetTargetDummy"></a>ikSetTargetDummy</p>
+<table class="apiTable">
+<tr class="apiTableTr">
+<td class="apiTableLeftDescr">Description</td>
+<td class="apiTableRightDescr">Associates a tip dummy with a target dummy, or removes that association</td>
+</tr>
+<tr class="apiTableTr">
+<td class="apiTableLeftCSyn">Synopsis</td>
+<td class="apiTableRightCSyn">bool ikSetTargetDummy(int tipDummyHandle,int targetDummyHandle)</td>
+</tr>
+<tr class="apiTableTr">
+<td class="apiTableLeftCParam">Arguments</td>
+<td class="apiTableRightCParam">
+<div><strong>tipDummyHandle</strong>: the handle of the tip dummy</div>
+<div><strong>targetDummyHandle</strong>: the handle of the dummy to become the target of the tip, or -1 to remove an existing target association from the tip dummy</div>
+</td>
+</tr>
+<tr class="apiTableTr">
+<td class="apiTableLeftCRet">Return value</td>
+<td class="apiTableRightCRet">true in case of success.</td>
+</tr>
+<tr class="apiTableTr">
+<td class="apiTableLeftDescr">See also</td>
+<td class="apiTableRightDescr"><a href="#ikGetTargetDummy">ikGetTargetDummy</a>, <a href="#ikGetObjectHandle">ikGetObjectHandle</a></td>
 </tr>
 </table>
 <br>

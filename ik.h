@@ -82,8 +82,8 @@ bool ikGetObjectParent(int objectHandle,int* parentObjectHandle);
 bool ikSetObjectParent(int objectHandle,int parentObjectHandle,bool keepInPlace);
 
 bool ikCreateDummy(const char* dummyName/*=nullptr*/,int* dummyHandle);
-bool ikGetLinkedDummy(int dummyHandle,int* linkedDummyHandle);
-bool ikSetLinkedDummy(int dummyHandle,int linkedDummyHandle);
+bool ikGetTargetDummy(int dummyHandle,int* targetDummyHandle);
+bool ikSetTargetDummy(int dummyHandle,int targetDummyHandle);
 
 bool ikCreateJoint(const char* jointName/*=nullptr*/,int jointType,int* jointHandle);
 bool ikGetJointType(int jointHandle,int* theType);
@@ -171,3 +171,5 @@ bool ikSetIkElementPrecision(int ikGroupHandle,int ikElementHandle,double linear
 bool ikGetIkElementWeights(int ikGroupHandle,int ikElementHandle,double* linearWeight,double* angularWeight);
 bool ikSetIkElementWeights(int ikGroupHandle,int ikElementHandle,double linearWeight,double angularWeight);
 bool ikHandleIkGroup(int ikGroupHandle=ik_handle_all,int* result=nullptr,double* precision=nullptr,bool(*cb)(const int*,std::vector<double>*,const int*,const int*,const int*,const int*,std::vector<double>*,double*)=nullptr);
+bool ikGetLinkedDummy(int dummyHandle,int* linkedDummyHandle);
+bool ikSetLinkedDummy(int dummyHandle,int linkedDummyHandle);

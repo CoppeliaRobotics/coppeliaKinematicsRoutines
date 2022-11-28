@@ -5,7 +5,8 @@ CDummy::CDummy()
 {
     _objectType=ik_objecttype_dummy;
     _objectName="dummy";
-    _linkedDummyHandle=-1;
+    _targetDummyHandle=-1;
+    _linkedDummyHandle_old=-1; // backward compatibility
 }
 
 CDummy::~CDummy()
@@ -15,8 +16,11 @@ CDummy::~CDummy()
 bool CDummy::announceSceneObjectWillBeErased(int objectHandle)
 {
     announceSceneObjectWillBeErasedMain(objectHandle);
-    if (_linkedDummyHandle==objectHandle)
-        setLinkedDummyHandle(-1,false);
+    if (_targetDummyHandle==objectHandle)
+        _targetDummyHandle=-1;
+    // backward compatibility:
+    if (_linkedDummyHandle_old==objectHandle)
+        setLinkedDummyHandle_old(-1,false);
     return(false);
 }
 
@@ -28,7 +32,8 @@ void CDummy::announceIkGroupWillBeErased(int ikGroupHandle)
 void CDummy::performSceneObjectLoadingMapping(const std::vector<int>* map)
 {
     performSceneObjectLoadingMappingMain(map);
-    _linkedDummyHandle=_getLoadingMapping(map,_linkedDummyHandle);
+    _linkedDummyHandle_old=_getLoadingMapping(map,_linkedDummyHandle_old); // backward compatibility
+    _targetDummyHandle=_getLoadingMapping(map,_targetDummyHandle);
 }
 
 void CDummy::serialize(CSerialization& ar)
@@ -36,12 +41,12 @@ void CDummy::serialize(CSerialization& ar)
     serializeMain(ar);
     if (ar.isWriting())
     {
-        ar.writeInt(_linkedDummyHandle);
-        ar.writeInt(_linkedDummyHandle); // previously link type
+        ar.writeInt(_targetDummyHandle);
+        ar.writeInt(_targetDummyHandle); // previously link type
     }
     else
     {
-        _linkedDummyHandle=ar.readInt();
+        _targetDummyHandle=ar.readInt();
         ar.readInt(); // previously link type
     }
 }
@@ -50,36 +55,48 @@ CSceneObject* CDummy::copyYourself() const
 {
     CDummy* duplicate=(CDummy*)CSceneObject::copyYourself();
 
-    duplicate->_linkedDummyHandle=_linkedDummyHandle;
+    duplicate->_linkedDummyHandle_old=_linkedDummyHandle_old; // backward compatibility
+    duplicate->_targetDummyHandle=_targetDummyHandle;
 
     return(duplicate);
 }
 
-int CDummy::getLinkedDummyHandle() const
+int CDummy::getTargetDummyHandle() const
 {
-    return(_linkedDummyHandle);
+    return(_targetDummyHandle);
 }
 
-void CDummy::setLinkedDummyHandle(int theHandle,bool setDirectly)
+void CDummy::setTargetDummyHandle(int theHandle)
 {
-    if (_linkedDummyHandle!=theHandle)
+    if (_targetDummyHandle!=theHandle)
+        _targetDummyHandle=theHandle;
+}
+
+int CDummy::getLinkedDummyHandle_old() const
+{ // backward compatibility
+    return(_linkedDummyHandle_old);
+}
+
+void CDummy::setLinkedDummyHandle_old(int theHandle,bool setDirectly)
+{ // backward compatibility
+    if (_linkedDummyHandle_old!=theHandle)
     {
         if (setDirectly)
-            _linkedDummyHandle=theHandle;
+            _linkedDummyHandle_old=theHandle;
         else
         {
-            CDummy* oldLinkedDummy=CEnvironment::currentEnvironment->objectContainer->getDummy(_linkedDummyHandle);
+            CDummy* oldLinkedDummy=CEnvironment::currentEnvironment->objectContainer->getDummy(_linkedDummyHandle_old);
             if (oldLinkedDummy!=nullptr)
-                oldLinkedDummy->setLinkedDummyHandle(-1,true);
+                oldLinkedDummy->setLinkedDummyHandle_old(-1,true);
             CDummy* newLinkedDummy=CEnvironment::currentEnvironment->objectContainer->getDummy(theHandle);
             if (newLinkedDummy!=nullptr)
             {
-                newLinkedDummy->setLinkedDummyHandle(-1,false);
-                _linkedDummyHandle=theHandle;
-                newLinkedDummy->setLinkedDummyHandle(_objectHandle,true);
+                newLinkedDummy->setLinkedDummyHandle_old(-1,false);
+                _linkedDummyHandle_old=theHandle;
+                newLinkedDummy->setLinkedDummyHandle_old(_objectHandle,true);
             }
             else
-                _linkedDummyHandle=-1;
+                _linkedDummyHandle_old=-1;
         }
     }
 }

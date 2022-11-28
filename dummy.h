@@ -16,9 +16,13 @@ public:
     void serialize(CSerialization& ar);
 
     CSceneObject* copyYourself() const;
-    int getLinkedDummyHandle() const;
-    void setLinkedDummyHandle(int theHandle,bool setDirectly);
+    int getTargetDummyHandle() const;
+    void setTargetDummyHandle(int theHandle);
+
+    int getLinkedDummyHandle_old() const;
+    void setLinkedDummyHandle_old(int theHandle,bool setDirectly);
 
 protected:
-    int _linkedDummyHandle;
+    int _targetDummyHandle;
+    int _linkedDummyHandle_old; // for backward compatibility
 };
