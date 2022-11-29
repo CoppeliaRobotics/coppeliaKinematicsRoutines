@@ -1173,14 +1173,21 @@ bool ikSetTargetDummy(int dummyHandle,int targetDummyHandle)
                 if (it2==nullptr)
                     it->setTargetDummyHandle(-1);
                 else
-                    it->setTargetDummyHandle(targetDummyHandle);
-                retVal=true;
+                {
+                    if ( (it->getTargetDummyHandle()!=1)&&(it->getTargetDummyHandle()!=targetDummyHandle) )
+                        _setLastError("Tip dummy has already a different target");
+                    else
+                    {
+                        it->setTargetDummyHandle(targetDummyHandle);
+                        retVal=true;
+                    }
+                }
             }
             else
-                _setLastError("Invalid linked dummy handle: %i",targetDummyHandle);
+                _setLastError("Invalid target dummy handle: %i",targetDummyHandle);
         }
         else
-            _setLastError("Invalid dummy handle: %i",dummyHandle);
+            _setLastError("Invalid tip dummy handle: %i",dummyHandle);
     }
     return(retVal);
 }
