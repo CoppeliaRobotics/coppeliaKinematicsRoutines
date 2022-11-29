@@ -1177,7 +1177,7 @@ bool ikSetTargetDummy(int dummyHandle,int targetDummyHandle)
                 }
                 else
                 {
-                    if ( (it->getTargetDummyHandle()!=1)&&(it->getTargetDummyHandle()!=targetDummyHandle) )
+                    if ( (it->getTargetDummyHandle()!=-1)&&(it->getTargetDummyHandle()!=targetDummyHandle) )
                         _setLastError("Tip dummy has already a different target");
                     else
                     {
