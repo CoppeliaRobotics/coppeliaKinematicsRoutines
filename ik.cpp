@@ -1171,7 +1171,10 @@ bool ikSetTargetDummy(int dummyHandle,int targetDummyHandle)
             if ( (it2!=nullptr)||(targetDummyHandle==-1) )
             {
                 if (it2==nullptr)
+                {
                     it->setTargetDummyHandle(-1);
+                    retVal=true;
+                }
                 else
                 {
                     if ( (it->getTargetDummyHandle()!=1)&&(it->getTargetDummyHandle()!=targetDummyHandle) )
