@@ -26,7 +26,6 @@ public:
     size_t getIkElementCount() const;
     CikElement* getIkElementFromIndex(size_t index) const;
 
-
     int getObjectHandle() const;
     void setObjectHandle(int handle);
     std::string getObjectName() const;
@@ -42,6 +41,7 @@ public:
     int getOptions() const;
 
     int computeGroupIk(double precision[2],bool forInternalFunctionality,bool(*cb)(const int*,std::vector<double>*,const int*,const int*,const int*,const int*,std::vector<double>*,double*));
+    bool computeGroupIk(CMatrix& jacobian,CMatrix& errorVect);
     void getJointHandles(std::vector<int>& handles);
 
     bool getJointLimitHits(std::vector<int>* jointHandles,std::vector<double>* underOrOvershots) const;
@@ -67,6 +67,7 @@ private:
     int _options; // bits set: 0=enabled,1=ignoreMaxStepSize,2=restoreIfPosNotReached,3=restoreIfOrientationNotReached,4=failOnJointLimitHit,5=forbidOvershoot,6=doJointLimitCorrections
 
     CMatrix _lastJacobian;
+    CMatrix _lastErrorVector;
     CMatrix _lastJacobian_flipped; // for backw. compatibility. Cols are from tip to base
     std::vector<int> _jointHandles; // going through the Jacobian cols
     std::vector<int> _jointDofIndex; // going through the Jacobian cols

@@ -259,6 +259,67 @@ void CikGroup::getJointHandles(std::vector<int>& handles)
     }
 }
 
+bool CikGroup::computeGroupIk(CMatrix& jacobian,CMatrix& errorVect)
+{
+    bool retVal=false;
+    std::vector<CikElement*> validElements;
+    for (size_t elNb=0;elNb<_ikElements.size();elNb++)
+    {
+        CikElement* element=_ikElements[elNb];
+        CDummy* tooltip=CEnvironment::currentEnvironment->objectContainer->getDummy(element->getTipHandle());
+        CSceneObject* base=CEnvironment::currentEnvironment->objectContainer->getObject(element->getBaseHandle());
+        bool valid=true;
+        if (!element->getIsActive())
+            valid=false;
+        if (tooltip==nullptr)
+            valid=false; // should normally never happen!
+        // We check that tooltip is parented with base and has at least one joint in-between:
+        if (valid)
+        {
+            valid=false;
+            bool jointPresent=false;
+            bool baseOk=false;
+            CSceneObject* iterat=tooltip;
+            while ( (iterat!=base)&&(iterat!=nullptr) )
+            {
+                iterat=iterat->getParentObject();
+                if (iterat==base)
+                {
+                    baseOk=true;
+                    if (jointPresent)
+                        valid=true;
+                }
+                if ( (iterat!=base)&&(iterat!=nullptr)&&(iterat->getObjectType()==ik_objecttype_joint) )
+                {
+                    if ((static_cast<CJoint*>(iterat))->getJointMode()==ik_jointmode_ik)
+                        jointPresent=true;
+                }
+            }
+            if (!valid)
+            {
+                element->setIsActive(false); // This element has an error
+                if (!baseOk)
+                    element->setBaseHandle(-1); // The base was illegal!
+            }
+        }
+        if (valid)
+            validElements.push_back(element);
+    }
+    if (validElements.size()!=0)
+    {
+        retVal=true;
+        for (size_t elNb=0;elNb<validElements.size();elNb++)
+        {
+            CikElement* element=validElements[elNb];
+            element->prepareEquations(1.0);
+        }
+        _performOnePass(&validElements,nullptr,true,1,nullptr);
+        jacobian=_lastJacobian;
+        errorVect=_lastErrorVector;
+    }
+    return(retVal);
+}
+
 int CikGroup::computeGroupIk(double precision[2],bool forInternalFunctionality,bool(*cb)(const int*,std::vector<double>*,const int*,const int*,const int*,const int*,std::vector<double>*,double*))
 { // Return value is one ik_resultinfo...-value
     if (precision!=nullptr)
@@ -535,6 +596,7 @@ int CikGroup::_performOnePass(std::vector<CikElement*>* validElements,double* ma
     }
 
     _lastJacobian.set(mainJacobian);
+    _lastErrorVector.set(mainErrorVector);
     if (operation==1)
         return(0); // compute jacobian only
 
@@ -780,7 +842,7 @@ bool CikGroup::computeOnlyJacobian_old(int options)
         CikElement* element=validElements[elNb];
         element->prepareEquations(1.0);
     }
-    int retVal=_performOnePass(&validElements,nullptr,false,true,nullptr);
+    int retVal=_performOnePass(&validElements,nullptr,false,1,nullptr);
     CEnvironment::currentEnvironment->objectContainer->restoreJointConfig(memorizedConf_handles,memorizedConf_vals);
     return(retVal!=ik_calc_cannotinvert);
 }

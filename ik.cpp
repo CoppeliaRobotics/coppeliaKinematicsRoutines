@@ -925,6 +925,34 @@ bool ikComputeJacobian(int baseHandle,int jointHandle,int constraints,const C7Ve
     return(retVal);
 }
 
+bool ikComputeGroupJacobian(int ikGroupHandle,std::vector<double>* jacobian,std::vector<double>* errorVect)
+{
+    bool retVal=false;
+    if (hasLaunched())
+    {
+        CMatrix jacob;
+        CMatrix errVect;
+
+        CikGroup* group=CEnvironment::currentEnvironment->ikGroupContainer->getIkGroup(ikGroupHandle);
+        if (group!=nullptr)
+        {
+            if (group->computeGroupIk(jacob,errVect))
+            {
+                if (jacobian!=nullptr)
+                    jacobian->assign(jacob.data.begin(),jacob.data.end());
+                if (errorVect!=nullptr)
+                    errorVect->assign(errVect.data.begin(),errVect.data.end());
+                retVal=true;
+            }
+            else
+                _setLastError("Failed getting the Jacobian");
+        }
+        else
+            _setLastError("Invalid IK group handle: %i",ikGroupHandle);
+    }
+    return(retVal);
+}
+
 bool ikComputeJacobian_old(int ikGroupHandle,int options,bool* success/*=nullptr*/)
 {
     debugInfo inf(__FUNCTION__,ikGroupHandle,options);
