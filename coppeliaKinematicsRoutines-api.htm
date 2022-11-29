@@ -27,6 +27,7 @@ td.section { margin: 0; padding: 0; }
 
 <tr><td id="alphabetical" class="section"><pre class="lightGreyBox">
 <a href="?#ikAddElement">ikAddElement</a>
+<a href="?#ikComputeGroupJacobian">ikComputeGroupJacobian</a>
 <a href="?#ikComputeJacobian">ikComputeJacobian</a>
 <a href="?#ikCreateDummy">ikCreateDummy</a>
 <a href="?#ikCreateEnvironment">ikCreateEnvironment</a>
@@ -195,6 +196,7 @@ td.section { margin: 0; padding: 0; }
 <pre class=lightGreyBox>
 <a href="?#ikHandleGroup">ikHandleGroup</a>
 <a href="?#ikFindConfig">ikFindConfig</a>
+<a href="?#ikComputeGroupJacobian">ikComputeGroupJacobian</a>
 <a href="?#ikComputeJacobian">ikComputeJacobian</a>
 </pre>
 </td></tr>
@@ -231,6 +233,38 @@ td.section { margin: 0; padding: 0; }
 <br>
 
 <p class="subsectionBar">
+<a name="ikComputeGroupJacobian" id="ikComputeGroupJacobian"></a>ikComputeGroupJacobian</p>
+<table class="apiTable">
+<tr class="apiTableTr">
+<td class="apiTableLeftDescr">Description</td>
+<td class="apiTableRightDescr">Computes the Jacobian and error vector for an IK group</td>
+</tr>
+<tr class="apiTableTr">
+<td class="apiTableLeftCSyn">Synopsis</td>
+<td class="apiTableRightCSyn">bool ikComputeGroupJacobian(int ikGroupHandle,std::vector<double>* jacobian,std::vector<double>* errorVect)</td>
+</tr>
+<tr class="apiTableTr">
+<td class="apiTableLeftCParam">Arguments</td>
+<td class="apiTableRightCParam">
+<div><strong>ikGroupHandle</strong>: the handle of the IK group</div>
+<div><strong>jacobian</strong>: the jacobian in return (row major order). Each row corresponds to one constraint in following order: x, y, z, alpha, beta, gamma. Each column corresponds to one joint, from base to tip. Can be nullptr</div>
+<div><strong>errorVect</strong>: the error vector between the target and the tip. Can be nullptr</div>
+</td>
+</tr>
+<tr class="apiTableTr">
+<td class="apiTableLeftCRet">Return value</td>
+<td class="apiTableRightCRet">true in case of success.</td>
+</tr>
+<tr class="apiTableTr">
+<td class="apiTableLeftDescr">See also</td>
+<td class="apiTableRightDescr"><a href="#ikHandleGroup">ikComputeJacobian</a>, <a href="#ikHandleGroup">ikHandleGroup</a></td>
+</tr>
+</table>
+<br>
+
+
+
+<p class="subsectionBar">
 <a name="ikComputeJacobian" id="ikComputeJacobian"></a>ikComputeJacobian</p>
 <table class="apiTable">
 <tr class="apiTableTr">
@@ -260,10 +294,13 @@ td.section { margin: 0; padding: 0; }
 </tr>
 <tr class="apiTableTr">
 <td class="apiTableLeftDescr">See also</td>
-<td class="apiTableRightDescr"><a href="#ikHandleGroup">ikHandleGroup</a></td>
+<td class="apiTableRightDescr"><a href="#ikHandleGroup">ikComputeGroupJacobian</a>, <a href="#ikHandleGroup">ikHandleGroup</a></td>
 </tr>
 </table>
 <br>
+
+
+
 
 <p class="subsectionBar">
 <a name="ikCreateEnvironment" id="ikCreateEnvironment"></a>ikCreateEnvironment</p>

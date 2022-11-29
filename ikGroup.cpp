@@ -674,10 +674,10 @@ int CikGroup::_performOnePass(std::vector<CikElement*>* validElements,double* ma
                 Winv.clear();
                 for (size_t i=0;i<allJoints.size();i++)
                     Winv(i,i)=allJoints[i]->getIkWeight();
-                solution=Winv*JT*pseudoInverse(mainJacobian*Winv*JT+Idamp)*mainErrorVector;
+                solution=Winv*JT*pinv(mainJacobian*Winv*JT+Idamp,mainErrorVector);
             }
             else
-                solution=JT*pseudoInverse(mainJacobian*JT+Idamp)*mainErrorVector;
+                solution=JT*pinv(mainJacobian*JT+Idamp,mainErrorVector);
         }
         if (calcMethod==ik_method_jacobian_transpose)
         {
@@ -767,7 +767,7 @@ int CikGroup::_performOnePass(std::vector<CikElement*>* validElements,double* ma
     return(retVal);
 }
 
-CMatrix CikGroup::pseudoInverse(const CMatrix& m)
+CMatrix CikGroup::pinv(const CMatrix& m,const CMatrix& e)
 {
     Eigen::MatrixXd m2(m.rows,m.cols);
     for (size_t i=0;i<m.rows;i++)
@@ -776,12 +776,18 @@ CMatrix CikGroup::pseudoInverse(const CMatrix& m)
             m2(i,j)=m(i,j);
     }
     auto t=m2.completeOrthogonalDecomposition();
-    Eigen::MatrixXd pseudoJ=t.pseudoInverse();
-    CMatrix mOut(m.rows,m.rows);
-    for (size_t i=0;i<m.rows;i++)
+    Eigen::MatrixXd e2(e.rows,e.cols);
+    for (size_t i=0;i<e.rows;i++)
     {
-        for (size_t j=0;j<m.rows;j++)
-            mOut(i,j)=pseudoJ(i,j);
+        for (size_t j=0;j<e.cols;j++)
+            e2(i,j)=e(i,j);
+    }
+    Eigen::MatrixXd q=t.solve(e2);
+    CMatrix mOut(q.rows(),q.cols());
+    for (int i=0;i<q.rows();i++)
+    {
+        for (int j=0;j<q.cols();j++)
+            mOut(i,j)=q(i,j);
     }
     return(mOut);
 }

@@ -53,7 +53,7 @@ public:
     bool getExplicitHandling_old() const;
     void setAllInvolvedJointsToPassiveMode_old();
 
-    static CMatrix pseudoInverse(const CMatrix& m);
+    static CMatrix pinv(const CMatrix& m,const CMatrix& e);
 
 private:
     int _performOnePass(std::vector<CikElement*>* validElements,double* maxStepFact,bool forInternalFunctionality,int operation,bool(*cb)(const int*,std::vector<double>*,const int*,const int*,const int*,const int*,std::vector<double>*,double*));
