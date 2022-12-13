@@ -400,6 +400,9 @@ CMatrix CikElement::_getNakedJacobian(const CSceneObject* tip,const CSceneObject
             if (joint->getJointMode()==ik_jointmode_ik)
             {
                 int d=joint->getDependencyJointHandle();
+                bool involveDependentJoints=false; // for now, dependent joints are invisible
+                if ( (d!=-1)&&(!involveDependentJoints) )
+                    joint=nullptr;
                 while (d!=-1)
                 { // follow joints from slave to master, if applicable
                     joint=CEnvironment::currentEnvironment->objectContainer->getJoint(d);
