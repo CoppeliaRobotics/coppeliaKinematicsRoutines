@@ -50,7 +50,6 @@
 #define ik_calc_notwithintolerance 16
 #define ik_calc_stepstoobig 32
 #define ik_calc_limithit 64
-#define ik_calc_movingaway 128
 
 #define ik_group_enabled 1
 #define ik_group_ignoremaxsteps 2

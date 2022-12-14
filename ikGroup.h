@@ -7,7 +7,7 @@
 #include "dummy.h"
 #include <map>
 
-class CikGroup  
+class CikGroup
 {
 public:
     CikGroup();
@@ -40,7 +40,7 @@ public:
     void setOptions(int options);
     int getOptions() const;
 
-    int computeGroupIk(double precision[2],bool forInternalFunctionality,bool(*cb)(const int*,std::vector<double>*,const int*,const int*,const int*,const int*,std::vector<double>*,double*));
+    int computeGroupIk(double precision[2],bool(*cb)(const int*,std::vector<double>*,const int*,const int*,const int*,const int*,std::vector<double>*,double*));
     bool computeGroupIk(CMatrix& jacobian,CMatrix& errorVect);
     void getJointHandles(std::vector<int>& handles);
 
@@ -49,14 +49,18 @@ public:
     const double* getLastJacobianData_old(size_t matrixSize[2]);
     double getLastManipulabilityValue_old(bool& ok) const;
     double getDeterminant_old(const CMatrix& m,const std::vector<size_t>* activeRows,const std::vector<size_t>* activeColumns) const;
-    bool computeOnlyJacobian_old(int options);
+    bool computeOnlyJacobian_old();
     bool getExplicitHandling_old() const;
     void setAllInvolvedJointsToPassiveMode_old();
 
-    static CMatrix pinv(const CMatrix& m,const CMatrix& e);
+    bool prepareJointHandles(std::vector<CikElement*>* validElements,std::vector<CJoint*>* allJoints,std::vector<int>* allJointDofIndices);
+    int computeDq(std::vector<CikElement*>* validElements,bool nakedJacobianOnly,bool(*cb)(const int*,std::vector<double>*,const int*,const int*,const int*,const int*,std::vector<double>*,double*));
+    static CMatrix pinv(const CMatrix& J,const CMatrix& dE,CMatrix* Jinv);
+    static int checkDq(const std::vector<CJoint*>& joints,const CMatrix& dq,double* maxStepFact,std::map<int,double>* jointLimitHits);
+    static void applyDq(const std::vector<CJoint*>& joints,const CMatrix& dq);
+
 
 private:
-    int _performOnePass(std::vector<CikElement*>* validElements,double* maxStepFact,bool forInternalFunctionality,int operation,bool(*cb)(const int*,std::vector<double>*,const int*,const int*,const int*,const int*,std::vector<double>*,double*));
     std::vector<CikElement*> _ikElements;
     int _objectHandle;
     std::string _objectName;
@@ -64,13 +68,16 @@ private:
     double _dlsFactor;
     int _calculationMethod;
     std::map<int,double> _jointLimitHits;
-    int _options; // bits set: 0=enabled,1=ignoreMaxStepSize,2=restoreIfPosNotReached,3=restoreIfOrientationNotReached,4=failOnJointLimitHit,5=forbidOvershoot,6=doJointLimitCorrections
+    int _options; // ik_group_enabled and similar
 
-    CMatrix _lastJacobian;
-    CMatrix _lastErrorVector;
-    CMatrix _lastJacobian_flipped; // for backw. compatibility. Cols are from tip to base
+    CMatrix _jacobian;
+    CMatrix _jacobianPseudoinv;
+    CMatrix _dE;
+    CMatrix _dQ;
+    std::vector<CJoint*> _joints; // going through the Jacobian cols
     std::vector<int> _jointHandles; // going through the Jacobian cols
     std::vector<int> _jointDofIndex; // going through the Jacobian cols
 
     bool _explicitHandling_old;
+    CMatrix _lastJacobian_flipped; // for backw. compatibility. Cols are from tip to base
 };

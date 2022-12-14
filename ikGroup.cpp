@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <Eigen/Dense>
 #include <Eigen/QR>
+#include <unordered_set>
 
 CikGroup::CikGroup()
 {
@@ -123,7 +124,7 @@ CikGroup* CikGroup::copyYourself() const
     duplicate->_calculationMethod=_calculationMethod;
     duplicate->_options=_options;
     duplicate->_explicitHandling_old=_explicitHandling_old;
-    duplicate->_lastJacobian.set(_lastJacobian);
+    duplicate->_jacobian.set(_jacobian);
 
     return(duplicate);
 }
@@ -149,7 +150,7 @@ CikElement* CikGroup::getIkElement(int elementHandle) const
 }
 
 CikElement* CikGroup::getIkElementWithTooltipHandle(int tooltipHandle) const
-{ 
+{
     if (tooltipHandle==-1)
         return(nullptr);
     for (size_t i=0;i<_ikElements.size();i++)
@@ -250,7 +251,7 @@ void CikGroup::getJointHandles(std::vector<int>& handles)
             CikElement* element=validElements[elNb];
             element->prepareEquations(1.0);
         }
-        _performOnePass(&validElements,nullptr,true,2,nullptr);
+        prepareJointHandles(&validElements,nullptr,nullptr);
         for (size_t i=0;i<_jointHandles.size();i++)
         {
             if (_jointDofIndex[i]==0)
@@ -313,14 +314,15 @@ bool CikGroup::computeGroupIk(CMatrix& jacobian,CMatrix& errorVect)
             CikElement* element=validElements[elNb];
             element->prepareEquations(1.0);
         }
-        _performOnePass(&validElements,nullptr,true,1,nullptr);
-        jacobian=_lastJacobian;
-        errorVect=_lastErrorVector;
+        prepareJointHandles(&validElements,nullptr,nullptr);
+        computeDq(&validElements,true,nullptr);
+        jacobian=_jacobian;
+        errorVect=_dE;
     }
     return(retVal);
 }
 
-int CikGroup::computeGroupIk(double precision[2],bool forInternalFunctionality,bool(*cb)(const int*,std::vector<double>*,const int*,const int*,const int*,const int*,std::vector<double>*,double*))
+int CikGroup::computeGroupIk(double precision[2],bool(*cb)(const int*,std::vector<double>*,const int*,const int*,const int*,const int*,std::vector<double>*,double*))
 { // Return value is one ik_resultinfo...-value
     if (precision!=nullptr)
     {
@@ -361,7 +363,7 @@ int CikGroup::computeGroupIk(double precision[2],bool forInternalFunctionality,b
                         valid=true;
                 }
                 if ( (iterat!=base)&&(iterat!=nullptr)&&(iterat->getObjectType()==ik_objecttype_joint) )
-                { 
+                {
                     if ((static_cast<CJoint*>(iterat))->getJointMode()==ik_jointmode_ik)
                         jointPresent=true;
                 }
@@ -400,8 +402,14 @@ int CikGroup::computeGroupIk(double precision[2],bool forInternalFunctionality,b
         std::vector<double> memorizedConfPass_vals;
         CEnvironment::currentEnvironment->objectContainer->memorizeJointConfig(memorizedConf_handles,memorizedConfPass_vals);
 
-        double maxStepFact;
-        int resultInfo=_performOnePass(&validElements,&maxStepFact,forInternalFunctionality,0,cb);
+        prepareJointHandles(&validElements,nullptr,nullptr);
+        int resultInfo=computeDq(&validElements,false,cb);
+        double maxStepFact=0.0;
+        if (resultInfo==0)
+        {
+            resultInfo=checkDq(_joints,_dQ,&maxStepFact,&_jointLimitHits);
+            applyDq(_joints,_dQ);
+        }
         cumulResultInfo=cumulResultInfo|resultInfo;
 
         if ( ((_options&ik_group_ignoremaxsteps)==0)&&((resultInfo&ik_calc_stepstoobig)!=0) )
@@ -466,15 +474,28 @@ int CikGroup::computeGroupIk(double precision[2],bool forInternalFunctionality,b
     return(cumulResultInfo);
 }
 
-int CikGroup::_performOnePass(std::vector<CikElement*>* validElements,double* maxStepFact,bool forInternalFunctionality,int operation,bool(*cb)(const int*,std::vector<double>*,const int*,const int*,const int*,const int*,std::vector<double>*,double*))
-{   // Return value: one of ik_calc_...-values
-    // operation: 0=compute a pass, 1=compute Jacobian only, 2=get involved joint handles only
-    if (maxStepFact!=nullptr)
-        maxStepFact[0]=0.0;
-    // We prepare a vector of all used joints and a counter for the number of rows:
-    std::vector<CJoint*> allJoints;
-    _jointHandles.clear(); // going through the Jacobian cols
-    _jointDofIndex.clear();
+bool CikGroup::prepareJointHandles(std::vector<CikElement*>* validElements,std::vector<CJoint*>* allJoints,std::vector<int>* allJointDofIndices)
+{ // allJoints and allJointDofIndices can contain additional joints to consider. In output, those will contain the totality
+    // going through the Jacobian cols:
+    if (allJoints!=nullptr)
+    {
+        _joints.assign(allJoints->begin(),allJoints->end());
+        _jointDofIndex.assign(allJointDofIndices->begin(),allJointDofIndices->end()); // spherical joints have 3 entries
+    }
+    else
+    {
+        _joints.clear();
+        _jointDofIndex.clear();
+    }
+    _jointHandles.clear();
+    std::unordered_set<int> allJ;
+    for (size_t i=0;i<_joints.size();i++)
+    {
+        int h=_joints[i]->getObjectHandle();
+        _jointHandles.push_back(h);
+        allJ.insert(3*h+_jointDofIndex[i]);
+    }
+    bool retVal=false;
     for (size_t elNb=0;elNb<validElements->size();elNb++)
     {
         CikElement* element=validElements->at(elNb);
@@ -482,46 +503,45 @@ int CikGroup::_performOnePass(std::vector<CikElement*>* validElements,double* ma
         {
             int current=element->jointHandles[i];
             int currentDofIndex=element->jointDofIndex[i];
-            // We check if that joint is already present:
-            bool present=false;
-            for (size_t j=0;j<allJoints.size();j++)
-            {
-                if ( (allJoints[j]->getObjectHandle()==current)&&(_jointDofIndex[j]==currentDofIndex) )
-                {
-                    present=true;
-                    break;
-                }
-            }
-            if (!present)
-            {
-                allJoints.push_back(CEnvironment::currentEnvironment->objectContainer->getJoint(current));
+            retVal=true;
+            if (allJ.find(3*current+currentDofIndex)==allJ.end())
+            { // make sure we do not add more than one occurence of the same joint
+                _joints.push_back(CEnvironment::currentEnvironment->objectContainer->getJoint(current));
                 _jointHandles.push_back(current);
                 _jointDofIndex.push_back(currentDofIndex);
+                allJ.insert(3*current+currentDofIndex);
             }
         }
     }
-    if (operation==2)
-        return(0); // get involved joints only
+    if (allJoints!=nullptr)
+    {
+        allJoints->assign(_joints.begin(),_joints.end());
+        allJointDofIndices->assign(_jointDofIndex.begin(),_jointDofIndex.end());
+    }
+    return(retVal);
+}
 
+int CikGroup::computeDq(std::vector<CikElement*>* validElements,bool nakedJacobianOnly,bool(*cb)(const int*,std::vector<double>*,const int*,const int*,const int*,const int*,std::vector<double>*,double*))
+{   // Return value: one of ik_calc_...-values
     std::vector<int> _elementHandles; // going through the Jacobian rows
     std::vector<CikElement*> _elements; // going through the Jacobian rows
     std::vector<int> _equationType; // going through the Jacobian rows. 0-2: x,y,z, 3-5: alpha,beta,gamma, 6=jointLimits
-    CMatrix mainJacobian(0,allJoints.size());
-    CMatrix mainErrorVector(0,1);
+    _jacobian.resize(0,_joints.size(),0.0);
+    _dE.resize(0,1,0.0);
 
     for (size_t elNb=0;elNb<validElements->size();elNb++)
     { // position and orientation constraints for all IK elements in that group:
         CikElement* element=validElements->at(elNb);
         for (size_t i=0;i<element->errorVector.rows;i++)
         { // We go through the rows:
-            size_t rows=mainJacobian.rows+1;
+            size_t rows=_jacobian.rows+1;
             size_t currentRow=rows-1;
-            mainJacobian.resize(rows,allJoints.size(),0.0);
-            mainErrorVector.resize(rows,1,0.0);
+            _jacobian.resize(rows,_joints.size(),0.0);
+            _dE.resize(rows,1,0.0);
             _elementHandles.push_back(element->getIkElementHandle());
             _elements.push_back(element);
             _equationType.push_back(element->equationTypes[i]);
-            mainErrorVector(currentRow,0)=element->errorVector(i,0);
+            _dE(currentRow,0)=element->errorVector(i,0);
             // Now we set the delta-parts:
             for (size_t j=0;j<element->jacobian.cols;j++)
             { // We go through the columns:
@@ -529,18 +549,18 @@ int CikGroup::_performOnePass(std::vector<CikElement*>* validElements,double* ma
                 int jointHandle=element->jointHandles[j];
                 int dofIndex=element->jointDofIndex[j];
                 size_t index=0;
-                while ( (allJoints[index]->getObjectHandle()!=jointHandle)||(_jointDofIndex[index]!=dofIndex) )
+                while ( (_joints[index]->getObjectHandle()!=jointHandle)||(_jointDofIndex[index]!=dofIndex) )
                     index++;
-                mainJacobian(currentRow,index)=element->jacobian(i,j);
+                _jacobian(currentRow,index)=element->jacobian(i,j);
             }
         }
     }
 
     if ((_options&ik_group_avoidlimits)!=0)
     { // handle joint limits by counter-acting:
-        for (size_t jointCounter=0;jointCounter<allJoints.size();jointCounter++)
+        for (size_t jointCounter=0;jointCounter<_joints.size();jointCounter++)
         {
-            CJoint* it=allJoints[jointCounter];
+            CJoint* it=_joints[jointCounter];
             double minVal=it->getPositionIntervalMin();
             double range=it->getPositionIntervalRange();
             double limitMargin=it->getLimitMargin();
@@ -583,46 +603,41 @@ int CikGroup::_performOnePass(std::vector<CikElement*>* validElements,double* ma
                 // If we are over the treshhold of more than 5%:
                 // (important in case target and tooltip are within tolerance)
 
-                int rows=mainJacobian.rows+1;
+                int rows=_jacobian.rows+1;
                 int currentRow=rows-1;
-                mainJacobian.resize(rows,allJoints.size(),0.0);
-                mainErrorVector.resize(rows,1,0.0);
+                _jacobian.resize(rows,_joints.size(),0.0);
+                _dE.resize(rows,1,0.0);
                 _elementHandles.push_back(-1);
                 _equationType.push_back(6);
-                mainJacobian(currentRow,jointCounter)=activate;
-                mainErrorVector(currentRow,0)=eq;
+                _jacobian(currentRow,jointCounter)=activate;
+                _dE(currentRow,0)=eq;
             }
         }
     }
 
-    _lastJacobian.set(mainJacobian);
-    _lastErrorVector.set(mainErrorVector);
-    if (operation==1)
-        return(0); // compute jacobian only
+    if (nakedJacobianOnly)
+        return(0);
 
     if (_elementHandles.size()==0)
         return(ik_calc_cannotinvert);
 
     // Now we just have to solve:
-    CMatrix solution(mainJacobian.cols,1);
+    _dQ.resize(_jacobian.cols,1,0.0);
     bool computeHere=true;
     if (cb)
     {
-        int js[2]={int(mainJacobian.rows),int(mainJacobian.cols)};
-        computeHere=!cb(js,&mainJacobian.data,_equationType.data(),_elementHandles.data(),_jointHandles.data(),_jointDofIndex.data(),&mainErrorVector.data,solution.data.data());
-        mainJacobian.rows=mainJacobian.data.size()/mainJacobian.cols;
-        mainErrorVector.rows=mainJacobian.rows;
-        if (mainJacobian.rows==0)
+        int js[2]={int(_jacobian.rows),int(_jacobian.cols)};
+        computeHere=!cb(js,&_jacobian.data,_equationType.data(),_elementHandles.data(),_jointHandles.data(),_jointDofIndex.data(),&_dE.data,_dQ.data.data());
+        _jacobian.rows=_jacobian.data.size()/_jacobian.cols;
+        _dE.rows=_jacobian.rows;
+        if (_jacobian.rows==0)
             return(ik_calc_cannotinvert);
-        _equationType.resize(mainJacobian.rows,8); // custom
-        _elementHandles.resize(mainJacobian.rows,_elementHandles[0]); // we can't guess, so we take the first
-        _elements.resize(mainJacobian.rows,_elements[0]); // we can't guess, so we take the first
+        _equationType.resize(_jacobian.rows,8); // custom
+        _elementHandles.resize(_jacobian.rows,_elementHandles[0]); // we can't guess, so we take the first
+        _elements.resize(_jacobian.rows,_elements[0]); // we can't guess, so we take the first
     }
     if (computeHere)
     {
-        if (!forInternalFunctionality)
-            _lastJacobian.set(mainJacobian);
-
         // position/orientation weights, and element weights:
         for (size_t i=0;i<_elements.size();i++)
         {
@@ -631,16 +646,16 @@ int CikGroup::_performOnePass(std::vector<CikElement*>* validElements,double* ma
                 double w[3];
                 _elements[i]->getWeights(w);
                 if (_equationType[i]<=2)
-                    mainErrorVector(i,0)*=w[0]*w[2];
+                    _dE(i,0)*=w[0]*w[2];
                 else
-                    mainErrorVector(i,0)*=w[1]*w[2];
+                    _dE(i,0)*=w[1]*w[2];
             }
         }
 
         bool useJointWeights=false;
-        for (size_t j=0;j<allJoints.size();j++)
+        for (size_t j=0;j<_joints.size();j++)
         {
-            if (allJoints[j]->getIkWeight()!=1.0)
+            if (_joints[j]->getIkWeight()!=1.0)
             {
                 useJointWeights=true;
                 break;
@@ -662,137 +677,149 @@ int CikGroup::_performOnePass(std::vector<CikElement*>* validElements,double* ma
         }
         if (calcMethod==ik_method_damped_least_squares)
         { // pseudo inverse with damping and joint weights: inv(W)*transp(J)*inv(J*inv(W)*transp(J)+damp*damp*I)
-            CMatrix Idamp(mainJacobian.rows,mainJacobian.rows);
+            CMatrix Idamp(_jacobian.rows,_jacobian.rows);
             Idamp.clear();
             for (size_t i=0;i<Idamp.rows;i++)
                 Idamp(i,i)=dampingFact*dampingFact;
-            CMatrix JT(mainJacobian);
+            CMatrix JT(_jacobian);
             JT.transpose();
+            CMatrix c;
             if (useJointWeights)
             {
-                CMatrix Winv(mainJacobian.cols,mainJacobian.cols);
+                CMatrix Winv(_jacobian.cols,_jacobian.cols);
                 Winv.clear();
-                for (size_t i=0;i<allJoints.size();i++)
-                    Winv(i,i)=allJoints[i]->getIkWeight();
-                solution=Winv*JT*pinv(mainJacobian*Winv*JT+Idamp,mainErrorVector);
+                for (size_t i=0;i<_joints.size();i++)
+                    Winv(i,i)=_joints[i]->getIkWeight();
+                CMatrix a=Winv*JT;
+                CMatrix b=_jacobian*Winv*JT+Idamp;
+                _dQ=a*pinv(b,_dE,&c);
+                _jacobianPseudoinv=a*c;
+                _jacobian=b;
             }
             else
-                solution=JT*pinv(mainJacobian*JT+Idamp,mainErrorVector);
+            {
+                CMatrix b=_jacobian*JT+Idamp;
+                _dQ=JT*pinv(b,_dE,&c);
+                _jacobianPseudoinv=JT*c;
+                _jacobian=b;
+            }
         }
         if (calcMethod==ik_method_jacobian_transpose)
         {
-            CMatrix JT(mainJacobian);
+            CMatrix JT(_jacobian);
             JT.transpose();
-            solution=JT*mainErrorVector;
+            _dQ=JT*_dE;
         }
     }
 
-    int retVal=0;
-
-    // We check if some variations are too big:
-    for (size_t i=0;i<mainJacobian.cols;i++)
+    for (size_t i=0;i<_dQ.rows;i++)
     {
-        CJoint* it=allJoints[i];
+        CJoint* it=_joints[i];
         if (it->getJointType()!=ik_jointtype_prismatic)
-            solution(i,0)=atan2(sin(solution(i,0)),cos(solution(i,0)));
-        if (fabs(solution(i,0))>it->getMaxStepSize())
+            _dQ(i,0)=atan2(sin(_dQ(i,0)),cos(_dQ(i,0)));
+    }
+    return(0);
+}
+
+void CikGroup::applyDq(const std::vector<CJoint*>& joints,const CMatrix& dq)
+{ // Set the computed values
+    for (size_t i=0;i<dq.rows;i++)
+    {
+        CJoint* it=joints[i];
+        if (it->getJointType()==ik_jointtype_spherical)
+        {
+            C4Vector tr;
+            tr.setEulerAngles(dq(i,0),dq(i+1,0),dq(i+2,0));
+            it->setSphericalTransformation(it->getSphericalTransformation()*tr);
+            i+=2;
+        }
+        else
+            it->setPosition(it->getPosition()+dq(i,0));
+    }
+}
+
+int CikGroup::checkDq(const std::vector<CJoint*>& joints,const CMatrix& dq,double* maxStepFact,std::map<int,double>* jointLimitHits)
+{
+    int retVal=0;
+    // We check if some variations are too big:
+    if (maxStepFact!=nullptr)
+        maxStepFact[0]=0.0;
+    for (size_t i=0;i<dq.rows;i++)
+    {
+        CJoint* it=joints[i];
+        if (fabs(dq(i,0))>it->getMaxStepSize())
             retVal=retVal|ik_calc_stepstoobig;
         if (maxStepFact!=nullptr)
         {
             if (it->getMaxStepSize()>0.0)
             {
-                double v=fabs(solution(i,0))/it->getMaxStepSize();
+                double v=fabs(dq(i,0))/it->getMaxStepSize();
                 if (v>maxStepFact[0])
                     maxStepFact[0]=v;
             }
         }
     }
 
-    // Measure tip-target distances before applying new values:
-    std::vector<double> distBefore;
-    for (size_t elNb=0;elNb<validElements->size();elNb++)
-    {
-        CikElement* element=validElements->at(elNb);
-        double lin,ang;
-        element->getTipTargetDistance(lin,ang);
-        distBefore.push_back(lin);
-        distBefore.push_back(ang);
-    }
-
-    // Set the computed values
-    for (size_t i=0;i<mainJacobian.cols;i++)
-    {
-        CJoint* it=allJoints[i];
-        if (it->getJointType()==ik_jointtype_spherical)
-        {
-            C4Vector tr;
-            tr.setEulerAngles(solution(i,0),solution(i+1,0),solution(i+2,0));
-            it->setSphericalTransformation(it->getSphericalTransformation()*tr);
-            i+=2;
-        }
-        else
-            it->setPosition(it->getPosition()+solution(i,0));
-    }
-
-    for (size_t elNb=0;elNb<validElements->size();elNb++)
-    {
-        CikElement* element=validElements->at(elNb);
-        double lin,ang;
-        element->getTipTargetDistance(lin,ang);
-        bool linOvershoot=(lin>0.001)&&(lin>distBefore[2*elNb+0]*1.1); // tolerate 10% overshoot
-        bool angOvershoot=(ang>0.1*piValD2/180.0)&&(ang>distBefore[2*elNb+1]*1.1); // tolerate 10% overshoot
-        if (linOvershoot||angOvershoot)
-        {
-            retVal=retVal|ik_calc_movingaway; // we overshot
-            break;
-        }
-    }
-
     // Check which joints hit a joint limit:
-    for (size_t i=0;i<mainJacobian.cols;i++)
+    for (size_t i=0;i<dq.rows;i++)
     {
-        CJoint* it=allJoints[i];
+        CJoint* it=joints[i];
         if ( (it->getJointType()!=ik_jointtype_spherical)&&(!it->getPositionIsCyclic()) )
         {
-            double nv=it->getPosition()+solution(i,0);
-            if ( (solution(i,0)>0.0)&&(nv>it->getPositionIntervalMin()+it->getPositionIntervalRange()) )
-                _jointLimitHits[it->getObjectHandle()]=nv-(it->getPositionIntervalMin()+it->getPositionIntervalRange());
-            if ( (solution(i,0)<0.0)&&(nv<it->getPositionIntervalMin()) )
-                _jointLimitHits[it->getObjectHandle()]=nv-it->getPositionIntervalMin();
+            double nv=it->getPosition()+dq(i,0);
+            if ( (dq(i,0)>0.0)&&(nv>it->getPositionIntervalMin()+it->getPositionIntervalRange()) )
+            {
+                if (jointLimitHits!=nullptr)
+                    jointLimitHits[0][it->getObjectHandle()]=nv-(it->getPositionIntervalMin()+it->getPositionIntervalRange());
+                retVal=retVal|ik_calc_limithit;
+            }
+            if ( (dq(i,0)<0.0)&&(nv<it->getPositionIntervalMin()) )
+            {
+                if (jointLimitHits!=nullptr)
+                    jointLimitHits[0][it->getObjectHandle()]=nv-it->getPositionIntervalMin();
+                retVal=retVal|ik_calc_limithit;
+            }
         }
     }
-    if (!_jointLimitHits.empty())
-        retVal=retVal|ik_calc_limithit;
-
     return(retVal);
 }
 
-CMatrix CikGroup::pinv(const CMatrix& m,const CMatrix& e)
+CMatrix CikGroup::pinv(const CMatrix& J,const CMatrix& dE,CMatrix* Jinv)
 {
-    Eigen::MatrixXd m2(m.rows,m.cols);
-    for (size_t i=0;i<m.rows;i++)
+    Eigen::MatrixXd jacob(J.rows,J.cols);
+    for (size_t i=0;i<J.rows;i++)
     {
-        for (size_t j=0;j<m.cols;j++)
-            m2(i,j)=m(i,j);
+        for (size_t j=0;j<J.cols;j++)
+            jacob(i,j)=J(i,j);
     }
-    auto t=m2.completeOrthogonalDecomposition();
-    Eigen::MatrixXd e2(e.rows,e.cols);
-    for (size_t i=0;i<e.rows;i++)
+    auto jacob_od=jacob.completeOrthogonalDecomposition();
+    Eigen::MatrixXd de(dE.rows,dE.cols);
+    for (size_t i=0;i<dE.rows;i++)
     {
-        for (size_t j=0;j<e.cols;j++)
-            e2(i,j)=e(i,j);
+        for (size_t j=0;j<dE.cols;j++)
+            de(i,j)=dE(i,j);
     }
-    Eigen::MatrixXd q=t.solve(e2);
-    CMatrix mOut(q.rows(),q.cols());
-    for (int i=0;i<q.rows();i++)
+    if (Jinv!=nullptr)
     {
-        for (int j=0;j<q.cols();j++)
-            mOut(i,j)=q(i,j);
+        Eigen::MatrixXd jacobInv=jacob_od.pseudoInverse();
+        Jinv->resize(jacobInv.rows(),jacobInv.cols(),0.0);
+        for (int i=0;i<jacobInv.rows();i++)
+        {
+            for (int j=0;j<jacobInv.cols();j++)
+                Jinv[0](i,j)=jacobInv(i,j);
+        }
     }
-    return(mOut);
+    Eigen::MatrixXd dq=jacob_od.solve(de);
+    CMatrix dQ(dq.rows(),dq.cols());
+    for (int i=0;i<dq.rows();i++)
+    {
+        for (int j=0;j<dq.cols();j++)
+            dQ(i,j)=dq(i,j);
+    }
+    return(dQ);
 }
 
-bool CikGroup::computeOnlyJacobian_old(int options)
+bool CikGroup::computeOnlyJacobian_old()
 {
     // Now we prepare a vector with all valid and active elements:
     std::vector<CikElement*> validElements;
@@ -848,27 +875,28 @@ bool CikGroup::computeOnlyJacobian_old(int options)
         CikElement* element=validElements[elNb];
         element->prepareEquations(1.0);
     }
-    int retVal=_performOnePass(&validElements,nullptr,false,1,nullptr);
+    prepareJointHandles(&validElements,nullptr,nullptr);
+    int retVal=computeDq(&validElements,true,nullptr);
     CEnvironment::currentEnvironment->objectContainer->restoreJointConfig(memorizedConf_handles,memorizedConf_vals);
     return(retVal!=ik_calc_cannotinvert);
 }
 
 const double*  CikGroup::getLastJacobianData_old(size_t matrixSize[2])
 { // back compat. function. Deprecated
-    if (_lastJacobian.data.size()==0)
+    if (_jacobian.data.size()==0)
         return(nullptr);
-    matrixSize[0]=_lastJacobian.cols;
-    matrixSize[1]=_lastJacobian.rows;
-    _lastJacobian_flipped=_lastJacobian;
-    for (size_t i=0;i<_lastJacobian.rows;i++)
+    matrixSize[0]=_jacobian.cols;
+    matrixSize[1]=_jacobian.rows;
+    _lastJacobian_flipped=_jacobian;
+    for (size_t i=0;i<_jacobian.rows;i++)
     {
         size_t jj=0;
-        for (size_t j=_lastJacobian.cols;j>0;j--)
+        for (size_t j=_jacobian.cols;j>0;j--)
         {
             size_t cnt=size_t(_jointDofIndex[j-1]+1);
             j=j-cnt+1;
             for (size_t k=0;k<cnt;k++)
-                _lastJacobian_flipped(i,jj++)=_lastJacobian(i,j-1+k);
+                _lastJacobian_flipped(i,jj++)=_jacobian(i,j-1+k);
         }
     }
     return(_lastJacobian_flipped.data.data());
@@ -878,14 +906,14 @@ const double*  CikGroup::getLastJacobianData_old(size_t matrixSize[2])
 double  CikGroup::getLastManipulabilityValue_old(bool& ok) const
 {
     double retVal=0.0;
-    if (_lastJacobian.data.size()==0)
+    if (_jacobian.data.size()==0)
         ok=false;
     else
     {
         ok=true;
-        CMatrix JT(_lastJacobian);
+        CMatrix JT(_jacobian);
         JT.transpose();
-        CMatrix JJT(_lastJacobian*JT);
+        CMatrix JJT(_jacobian*JT);
         retVal=sqrt(getDeterminant_old(JJT,nullptr,nullptr));
     }
     return(retVal);

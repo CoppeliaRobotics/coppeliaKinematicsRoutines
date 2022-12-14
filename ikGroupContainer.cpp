@@ -99,7 +99,7 @@ int CIkGroupContainer::computeAllIkGroups(bool exceptExplicitHandling)
             if ((!exceptExplicitHandling)||(!ikGroups[i]->getExplicitHandling_old()))
             {
                 int res=0;
-                res=ikGroups[i]->computeGroupIk(nullptr,false,nullptr);
+                res=ikGroups[i]->computeGroupIk(nullptr,nullptr);
                 if (res!=ik_result_not_performed)
                     performedCount++;
             }
@@ -118,4 +118,10 @@ void CIkGroupContainer::addIkGroup(CikGroup* anIkGroup,bool keepCurrentHandle)
         anIkGroup->setObjectHandle(newHandle);
     }
     ikGroups.push_back(anIkGroup);
+}
+
+int CIkGroupContainer::computeIk(std::vector<int>& groupHandles,double precision[2],bool forInternalFunctionality,bool(*cb)(const int*,std::vector<double>*,const int*,const int*,const int*,const int*,std::vector<double>*,double*))
+{
+    return(0);
+
 }

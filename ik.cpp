@@ -962,7 +962,7 @@ bool ikComputeJacobian_old(int ikGroupHandle,int options,bool* success/*=nullptr
         CikGroup* it=CEnvironment::currentEnvironment->ikGroupContainer->getIkGroup(ikGroupHandle);
         if (it!=nullptr)
         {
-            bool succ=it->computeOnlyJacobian_old(options);
+            bool succ=it->computeOnlyJacobian_old();
             retVal=true;
             if (success!=nullptr)
                 success[0]=succ;
@@ -1030,7 +1030,7 @@ bool ikHandleGroup(int ikGroupHandle/*=ik_handle_all*/,int* result/*=nullptr*/,d
             { // explicit handling
                 if (it->getExplicitHandling_old())
                 {
-                    int res=it->computeGroupIk(precision,false,cb);
+                    int res=it->computeGroupIk(precision,cb);
                     if (result!=nullptr)
                         result[0]=res;
                     retVal=true;
@@ -1826,7 +1826,7 @@ int ikFindConfig(int ikGroupHandle,size_t jointCnt,const int* jointHandles,doubl
         if (cumulatedDist<=thresholdDist)
         {
             int err=ik_calc_notperformed|ik_calc_notwithintolerance|ik_calc_cannotinvert;
-            if ( (ikGroup->computeGroupIk(nullptr,true,nullptr)&err)==0 ) // allow here also the Jacobian callback, at a later stage
+            if ( (ikGroup->computeGroupIk(nullptr,nullptr)&err)==0 ) // allow here also the Jacobian callback, at a later stage
             { // 3.1 We found a configuration that works!
                 /*
                 // 3.2 Check joint limits:
@@ -2082,7 +2082,7 @@ int ikGetConfigForTipPose(int ikGroupHandle,size_t jointCnt,const int* jointHand
                     if (cumulatedDist<=thresholdDist)
                     {
                         int err=ik_calc_notperformed|ik_calc_notwithintolerance|ik_calc_cannotinvert;
-                        if ( (ikGroup->computeGroupIk(nullptr,true,nullptr)&err)==0 )
+                        if ( (ikGroup->computeGroupIk(nullptr,nullptr)&err)==0 )
                         { // 3.1 We found a configuration that works!
                             // 3.2 Check joint limits:
                             bool limitsOk=true;
