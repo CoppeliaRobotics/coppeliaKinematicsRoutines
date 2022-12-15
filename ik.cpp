@@ -1015,22 +1015,22 @@ bool ikGetManipulability_old(int ikGroupHandle,double* manip)
     return(retVal);
 }
 
-bool ikHandleGroup(int ikGroupHandle/*=ik_handle_all*/,int* result/*=nullptr*/,double* precision/*=nullptr*/,bool(*cb)(const int*,std::vector<double>*,const int*,const int*,const int*,const int*,std::vector<double>*,double*)/*=nullptr*/)
+bool ikHandleGroups(const std::vector<int>* ikGroupHandles,int* result/*=nullptr*/,double* precision/*=nullptr*/,bool(*cb)(const int*,std::vector<double>*,const int*,const int*,const int*,const int*,std::vector<double>*,double*)/*=nullptr*/)
 {
-    debugInfo inf(__FUNCTION__,ikGroupHandle);
+//    debugInfo inf(__FUNCTION__,ikGroupHandle);
     bool retVal=false;
     if (hasLaunched())
     {
-        CikGroup* it=CEnvironment::currentEnvironment->ikGroupContainer->getIkGroup(ikGroupHandle);
-        if ( (ikGroupHandle==ik_handle_all)||(it!=nullptr) )
-        {
-            if (ikGroupHandle<0)
-                retVal=CEnvironment::currentEnvironment->ikGroupContainer->computeAllIkGroups(false);
-            else
-            { // explicit handling
+        if ( (ikGroupHandles==nullptr)||(ikGroupHandles->size()==0)||(ikGroupHandles->at(0)==ik_handle_all) )
+            retVal=CEnvironment::currentEnvironment->ikGroupContainer->computeAllIkGroups(false);
+        else
+        { // explicit handling, which is default
+            CikGroup* it=CEnvironment::currentEnvironment->ikGroupContainer->getIkGroup(ikGroupHandles->at(0));
+            if (it!=nullptr)
+            {
                 if (it->getExplicitHandling_old())
                 {
-                    int res=it->computeGroupIk(precision,cb);
+                    int res=CEnvironment::currentEnvironment->ikGroupContainer->computeIk(ikGroupHandles[0],precision,cb);
                     if (result!=nullptr)
                         result[0]=res;
                     retVal=true;
@@ -1038,9 +1038,9 @@ bool ikHandleGroup(int ikGroupHandle/*=ik_handle_all*/,int* result/*=nullptr*/,d
                 else
                     _setLastError("IK group cannot explicitely be handled");
             }
+            else
+                _setLastError("Invalid IK group handle: %i",ikGroupHandles->at(0));
         }
-        else
-            _setLastError("Invalid IK group handle: %i",ikGroupHandle);
     }
     return(retVal);
 }
@@ -1826,7 +1826,7 @@ int ikFindConfig(int ikGroupHandle,size_t jointCnt,const int* jointHandles,doubl
         if (cumulatedDist<=thresholdDist)
         {
             int err=ik_calc_notperformed|ik_calc_notwithintolerance|ik_calc_cannotinvert;
-            if ( (ikGroup->computeGroupIk(nullptr,nullptr)&err)==0 ) // allow here also the Jacobian callback, at a later stage
+            if ( (CEnvironment::currentEnvironment->ikGroupContainer->computeIk(ikGroup->getObjectHandle(),nullptr,nullptr)&err)==0 )
             { // 3.1 We found a configuration that works!
                 /*
                 // 3.2 Check joint limits:
@@ -2082,7 +2082,7 @@ int ikGetConfigForTipPose(int ikGroupHandle,size_t jointCnt,const int* jointHand
                     if (cumulatedDist<=thresholdDist)
                     {
                         int err=ik_calc_notperformed|ik_calc_notwithintolerance|ik_calc_cannotinvert;
-                        if ( (ikGroup->computeGroupIk(nullptr,nullptr)&err)==0 )
+                        if ( (CEnvironment::currentEnvironment->ikGroupContainer->computeIk(ikGroup->getObjectHandle(),nullptr,nullptr)&err)==0 )
                         { // 3.1 We found a configuration that works!
                             // 3.2 Check joint limits:
                             bool limitsOk=true;
@@ -2306,5 +2306,7 @@ bool ikSetIkElementWeights(int ikGroupHandle,int ikElementHandle,double linearWe
 }
 bool ikHandleIkGroup(int ikGroupHandle,int* result,double* precision,bool(*cb)(const int*,std::vector<double>*,const int*,const int*,const int*,const int*,std::vector<double>*,double*))
 { /* backward compatibility */
-    return(ikHandleGroup(ikGroupHandle,result,precision,cb));
+    std::vector<int> handles;
+    handles.push_back(ikGroupHandle);
+    return(ikHandleGroups(&handles,result,precision,cb));
 }

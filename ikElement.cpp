@@ -169,6 +169,33 @@ void CikElement::setIsActive(bool isActive)
     _isActive=isActive;
 }
 
+bool CikElement::getIsValid() const
+{
+    if (!_isActive)
+        return(false);
+    CDummy* tooltip=CEnvironment::currentEnvironment->objectContainer->getDummy(_tipHandle);
+    CSceneObject* base=CEnvironment::currentEnvironment->objectContainer->getObject(_baseHandle);
+    if (tooltip==nullptr)
+        return(false);
+    // We check that tooltip is parented with base and has at least one joint in-between:
+    bool hasJoint=false;
+    bool hasBase=false;
+    CSceneObject* iterat=tooltip;
+    while ( (iterat!=base)&&(iterat!=nullptr) )
+    {
+        iterat=iterat->getParentObject();
+        if (iterat==base)
+            hasBase=true;
+        if ( (iterat!=base)&&(iterat!=nullptr)&&(iterat->getObjectType()==ik_objecttype_joint) )
+        {
+            CJoint* joint=(CJoint*)iterat;
+            if ( (joint->getJointMode()==ik_jointmode_ik)&&(joint->getDependencyJointHandle()==-1) )
+                hasJoint=true;
+        }
+    }
+    return(hasJoint&&hasBase);
+}
+
 int CikElement::getConstraints() const
 {
     return(_constraints);
@@ -205,7 +232,7 @@ void CikElement::setPrecisions(const double p[2])
     _precisions[1]=p[1];
 }
 
-void CikElement::prepareEquations(double interpolationFactor)
+void CikElement::prepareRawJacobian(double interpolationFactor)
 {
     C7Vector altBasePose;
     altBasePose.setIdentity();

@@ -19,7 +19,8 @@ public:
     void announceSceneObjectWillBeErased(int objectHandle);
     void announceIkGroupWillBeErased(int ikGroupHandle);
     int computeAllIkGroups(bool exceptExplicitHandling);
-    int computeIk(std::vector<int>& groupHandles,double precision[2],bool forInternalFunctionality,bool(*cb)(const int*,std::vector<double>*,const int*,const int*,const int*,const int*,std::vector<double>*,double*));
+    int computeIk(int groupHandle,double precision[2],bool(*cb)(const int*,std::vector<double>*,const int*,const int*,const int*,const int*,std::vector<double>*,double*));
+    int computeIk(const std::vector<int>& groupHandles,double precision[2],bool(*cb)(const int*,std::vector<double>*,const int*,const int*,const int*,const int*,std::vector<double>*,double*));
 
 
     std::vector<CikGroup*> ikGroups;

@@ -31,6 +31,7 @@ public:
     void setRelatedJointsToPassiveMode_old();
     bool getIsActive() const;
     void setIsActive(bool isActive);
+    bool getIsValid() const;
 
     void getWeights(double w[3]) const;
     void setWeights(const double w[3]);
@@ -41,7 +42,7 @@ public:
 
     void getTipTargetDistance(double& linDist,double& angDist) const;
     static bool getJacobian(CMatrix& jacob,CMatrix& errVect,int ttip,int tbase,int constraints,const C7Vector* altBasePose,double interpolationFactor,std::vector<int>* equTypes,std::vector<int>* jHandles,std::vector<int>* jDofIndex,double backCompatibility=1.0);
-    void prepareEquations(double interpolationFactor);
+    void prepareRawJacobian(double interpolationFactor);
 
     CMatrix jacobian;
     CMatrix errorVector;

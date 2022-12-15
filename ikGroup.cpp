@@ -124,7 +124,11 @@ CikGroup* CikGroup::copyYourself() const
     duplicate->_calculationMethod=_calculationMethod;
     duplicate->_options=_options;
     duplicate->_explicitHandling_old=_explicitHandling_old;
+    duplicate->_nakedJacobian.set(_nakedJacobian);
     duplicate->_jacobian.set(_jacobian);
+    duplicate->_jacobianPseudoinv.set(_jacobianPseudoinv);
+    duplicate->_E.set(_E);
+    duplicate->_dQ.set(_dQ);
 
     return(duplicate);
 }
@@ -197,6 +201,11 @@ bool CikGroup::announceIkGroupWillBeErased(int ikGroupHandle)
     return(false);
 }
 
+void CikGroup::clearJointLimitHits()
+{
+    _jointLimitHits.clear();
+}
+
 bool CikGroup::getJointLimitHits(std::vector<int>* jointHandles,std::vector<double>* underOrOvershots) const
 {
     for (auto it=_jointLimitHits.begin();it!=_jointLimitHits.end();++it)
@@ -246,12 +255,8 @@ void CikGroup::getJointHandles(std::vector<int>& handles)
     }
     if (validElements.size()!=0)
     {
-        for (size_t elNb=0;elNb<validElements.size();elNb++)
-        {
-            CikElement* element=validElements[elNb];
-            element->prepareEquations(1.0);
-        }
-        prepareJointHandles(&validElements,nullptr,nullptr);
+        prepareRawJacobians(validElements,1.0);
+        selectJoints(&validElements,nullptr,nullptr);
         for (size_t i=0;i<_jointHandles.size();i++)
         {
             if (_jointDofIndex[i]==0)
@@ -263,218 +268,41 @@ void CikGroup::getJointHandles(std::vector<int>& handles)
 bool CikGroup::computeGroupIk(CMatrix& jacobian,CMatrix& errorVect)
 {
     bool retVal=false;
+
     std::vector<CikElement*> validElements;
-    for (size_t elNb=0;elNb<_ikElements.size();elNb++)
-    {
-        CikElement* element=_ikElements[elNb];
-        CDummy* tooltip=CEnvironment::currentEnvironment->objectContainer->getDummy(element->getTipHandle());
-        CSceneObject* base=CEnvironment::currentEnvironment->objectContainer->getObject(element->getBaseHandle());
-        bool valid=true;
-        if (!element->getIsActive())
-            valid=false;
-        if (tooltip==nullptr)
-            valid=false; // should normally never happen!
-        // We check that tooltip is parented with base and has at least one joint in-between:
-        if (valid)
-        {
-            valid=false;
-            bool jointPresent=false;
-            bool baseOk=false;
-            CSceneObject* iterat=tooltip;
-            while ( (iterat!=base)&&(iterat!=nullptr) )
-            {
-                iterat=iterat->getParentObject();
-                if (iterat==base)
-                {
-                    baseOk=true;
-                    if (jointPresent)
-                        valid=true;
-                }
-                if ( (iterat!=base)&&(iterat!=nullptr)&&(iterat->getObjectType()==ik_objecttype_joint) )
-                {
-                    if ((static_cast<CJoint*>(iterat))->getJointMode()==ik_jointmode_ik)
-                        jointPresent=true;
-                }
-            }
-            if (!valid)
-            {
-                element->setIsActive(false); // This element has an error
-                if (!baseOk)
-                    element->setBaseHandle(-1); // The base was illegal!
-            }
-        }
-        if (valid)
-            validElements.push_back(element);
-    }
-    if (validElements.size()!=0)
+    if (getValidElements(validElements))
     {
         retVal=true;
-        for (size_t elNb=0;elNb<validElements.size();elNb++)
-        {
-            CikElement* element=validElements[elNb];
-            element->prepareEquations(1.0);
-        }
-        prepareJointHandles(&validElements,nullptr,nullptr);
+        prepareRawJacobians(validElements,1.0);
+        selectJoints(&validElements,nullptr,nullptr);
         computeDq(&validElements,true,nullptr);
-        jacobian=_jacobian;
-        errorVect=_dE;
+        jacobian=_nakedJacobian;
+        errorVect=_E;
     }
     return(retVal);
 }
 
-int CikGroup::computeGroupIk(double precision[2],bool(*cb)(const int*,std::vector<double>*,const int*,const int*,const int*,const int*,std::vector<double>*,double*))
-{ // Return value is one ik_resultinfo...-value
-    if (precision!=nullptr)
+bool CikGroup::getValidElements(std::vector<CikElement*>& el)
+{
+    for (size_t i=0;i<_ikElements.size();i++)
     {
-        precision[0]=0.0;
-        precision[1]=0.0;
+        CikElement* element=_ikElements[i];
+        if (element->getIsValid())
+            el.push_back(element);
     }
-
-    _jointLimitHits.clear();
-    if ((_options&ik_group_enabled)==0)
-        return(ik_calc_notperformed|ik_calc_notwithintolerance); // group is disabled!
-
-    // prepare a vector with all valid and active elements:
-    std::vector<CikElement*> validElements;
-    for (size_t elNb=0;elNb<_ikElements.size();elNb++)
-    {
-        CikElement* element=_ikElements[elNb];
-        CDummy* tooltip=CEnvironment::currentEnvironment->objectContainer->getDummy(element->getTipHandle());
-        CSceneObject* base=CEnvironment::currentEnvironment->objectContainer->getObject(element->getBaseHandle());
-        bool valid=true;
-        if (!element->getIsActive())
-            valid=false;
-        if (tooltip==nullptr)
-            valid=false; // should normally never happen!
-        // We check that tooltip is parented with base and has at least one joint in-between:
-        if (valid)
-        {
-            valid=false;
-            bool jointPresent=false;
-            bool baseOk=false;
-            CSceneObject* iterat=tooltip;
-            while ( (iterat!=base)&&(iterat!=nullptr) )
-            {
-                iterat=iterat->getParentObject();
-                if (iterat==base)
-                {
-                    baseOk=true;
-                    if (jointPresent)
-                        valid=true;
-                }
-                if ( (iterat!=base)&&(iterat!=nullptr)&&(iterat->getObjectType()==ik_objecttype_joint) )
-                {
-                    if ((static_cast<CJoint*>(iterat))->getJointMode()==ik_jointmode_ik)
-                        jointPresent=true;
-                }
-            }
-            if (!valid)
-            {
-                element->setIsActive(false); // This element has an error
-                if (!baseOk)
-                    element->setBaseHandle(-1); // The base was illegal!
-            }
-        }
-        if (valid)
-            validElements.push_back(element);
-    }
-    // Now validElements contains all valid elements we have to use in the following computation!
-    if (validElements.size()==0)
-        return(ik_calc_notperformed|ik_calc_notwithintolerance);
-
-    std::vector<int> memorizedConf_handles;
-    std::vector<double> memorizedConf_vals;
-    CEnvironment::currentEnvironment->objectContainer->memorizeJointConfig(memorizedConf_handles,memorizedConf_vals);
-
-    // Here we have the main iteration loop:
-    double interpolFact=1.0; // We first try to solve in one step
-    int cumulResultInfo=0;
-    bool withinPosition,withinOrientation;
-    for (int iterationNb=0;iterationNb<_maxIterations;iterationNb++)
-    {
-        // Here we prepare all element equations:
-        for (size_t elNb=0;elNb<validElements.size();elNb++)
-        {
-            CikElement* element=validElements[elNb];
-            element->prepareEquations(interpolFact);
-        }
-
-        std::vector<double> memorizedConfPass_vals;
-        CEnvironment::currentEnvironment->objectContainer->memorizeJointConfig(memorizedConf_handles,memorizedConfPass_vals);
-
-        prepareJointHandles(&validElements,nullptr,nullptr);
-        int resultInfo=computeDq(&validElements,false,cb);
-        double maxStepFact=0.0;
-        if (resultInfo==0)
-        {
-            resultInfo=checkDq(_joints,_dQ,&maxStepFact,&_jointLimitHits);
-            applyDq(_joints,_dQ);
-        }
-        cumulResultInfo=cumulResultInfo|resultInfo;
-
-        if ( ((_options&ik_group_ignoremaxsteps)==0)&&((resultInfo&ik_calc_stepstoobig)!=0) )
-        { // Joint variations not within tolerance. Retry by interpolating:
-            interpolFact=interpolFact/(maxStepFact*1.1); // 10% tolerance
-            CEnvironment::currentEnvironment->objectContainer->restoreJointConfig(memorizedConf_handles,memorizedConfPass_vals);
-            iterationNb--; // redo this pass
-        }
-        else
-        {
-            if ( (maxStepFact<0.8)&&(interpolFact<1.0) )
-            { // Joint variations are not too large: try to return to a non-interpolated target:
-                interpolFact=interpolFact/(maxStepFact*1.1); // 10% tolerance
-                if (interpolFact>1.0)
-                    interpolFact=1.0;
-            }
-        }
-
-        // We check if all IK elements are under the required precision
-        withinPosition=true;
-        withinOrientation=true;;
-        for (size_t elNb=0;elNb<validElements.size();elNb++)
-        {
-            CikElement* element=validElements[elNb];
-            double lp,ap;
-            element->getTipTargetDistance(lp,ap);
-            double pr[2];
-            element->getPrecisions(pr);
-            if (lp>pr[0])
-                withinPosition=false;
-            if (ap>pr[1])
-                withinOrientation=false;
-            if (precision!=nullptr)
-            {
-                if (lp>precision[0])
-                    precision[0]=lp;
-                if (ap>precision[1])
-                    precision[1]=ap;
-            }
-        }
-        if ( (!withinPosition)||(!withinOrientation) )
-            cumulResultInfo=cumulResultInfo|ik_calc_notwithintolerance;
-        if ( (cumulResultInfo&ik_calc_cannotinvert)!=0)
-            break; // unrecoverable error
-        if ( ((cumulResultInfo&ik_calc_limithit)!=0)&&((_options&ik_group_stoponlimithit)!=0) )
-            break;
-        if (withinPosition&&withinOrientation)
-        {
-            cumulResultInfo=cumulResultInfo&(~ik_calc_notwithintolerance);
-            break;
-        }
-    }
-
-    bool restoreConfig=false;
-    if ( (cumulResultInfo&ik_calc_cannotinvert)!=0 )
-        restoreConfig=true;
-    if ( (cumulResultInfo&ik_calc_notwithintolerance)!=0 ) // notwithintolerance cannot always be considered as an error and results are applied by default
-        restoreConfig=( (((_options&ik_group_restoreonbadlintol)!=0)&&(!withinPosition))||(((_options&ik_group_restoreonbadangtol)!=0)&&(!withinOrientation)) );
-    if (restoreConfig)
-        CEnvironment::currentEnvironment->objectContainer->restoreJointConfig(memorizedConf_handles,memorizedConf_vals);
-
-    return(cumulResultInfo);
+    return(el.size()>0);
 }
 
-bool CikGroup::prepareJointHandles(std::vector<CikElement*>* validElements,std::vector<CJoint*>* allJoints,std::vector<int>* allJointDofIndices)
+void CikGroup::prepareRawJacobians(std::vector<CikElement*>& el,double interpolFact)
+{
+    for (size_t i=0;i<el.size();i++)
+    {
+        CikElement* element=el[i];
+        element->prepareRawJacobian(interpolFact);
+    }
+}
+
+bool CikGroup::selectJoints(std::vector<CikElement*>* validElements,std::vector<CJoint*>* allJoints,std::vector<int>* allJointDofIndices)
 { // allJoints and allJointDofIndices can contain additional joints to consider. In output, those will contain the totality
     // going through the Jacobian cols:
     if (allJoints!=nullptr)
@@ -526,22 +354,22 @@ int CikGroup::computeDq(std::vector<CikElement*>* validElements,bool nakedJacobi
     std::vector<int> _elementHandles; // going through the Jacobian rows
     std::vector<CikElement*> _elements; // going through the Jacobian rows
     std::vector<int> _equationType; // going through the Jacobian rows. 0-2: x,y,z, 3-5: alpha,beta,gamma, 6=jointLimits
-    _jacobian.resize(0,_joints.size(),0.0);
-    _dE.resize(0,1,0.0);
+    _nakedJacobian.resize(0,_joints.size(),0.0);
+    _E.resize(0,1,0.0);
 
     for (size_t elNb=0;elNb<validElements->size();elNb++)
     { // position and orientation constraints for all IK elements in that group:
         CikElement* element=validElements->at(elNb);
         for (size_t i=0;i<element->errorVector.rows;i++)
         { // We go through the rows:
-            size_t rows=_jacobian.rows+1;
+            size_t rows=_nakedJacobian.rows+1;
             size_t currentRow=rows-1;
-            _jacobian.resize(rows,_joints.size(),0.0);
-            _dE.resize(rows,1,0.0);
+            _nakedJacobian.resize(rows,_joints.size(),0.0);
+            _E.resize(rows,1,0.0);
             _elementHandles.push_back(element->getIkElementHandle());
             _elements.push_back(element);
             _equationType.push_back(element->equationTypes[i]);
-            _dE(currentRow,0)=element->errorVector(i,0);
+            _E(currentRow,0)=element->errorVector(i,0);
             // Now we set the delta-parts:
             for (size_t j=0;j<element->jacobian.cols;j++)
             { // We go through the columns:
@@ -551,7 +379,7 @@ int CikGroup::computeDq(std::vector<CikElement*>* validElements,bool nakedJacobi
                 size_t index=0;
                 while ( (_joints[index]->getObjectHandle()!=jointHandle)||(_jointDofIndex[index]!=dofIndex) )
                     index++;
-                _jacobian(currentRow,index)=element->jacobian(i,j);
+                _nakedJacobian(currentRow,index)=element->jacobian(i,j);
             }
         }
     }
@@ -603,14 +431,14 @@ int CikGroup::computeDq(std::vector<CikElement*>* validElements,bool nakedJacobi
                 // If we are over the treshhold of more than 5%:
                 // (important in case target and tooltip are within tolerance)
 
-                int rows=_jacobian.rows+1;
+                int rows=int(_nakedJacobian.rows)+1;
                 int currentRow=rows-1;
-                _jacobian.resize(rows,_joints.size(),0.0);
-                _dE.resize(rows,1,0.0);
+                _nakedJacobian.resize(rows,_joints.size(),0.0);
+                _E.resize(rows,1,0.0);
                 _elementHandles.push_back(-1);
                 _equationType.push_back(6);
-                _jacobian(currentRow,jointCounter)=activate;
-                _dE(currentRow,0)=eq;
+                _nakedJacobian(currentRow,jointCounter)=activate;
+                _E(currentRow,0)=eq;
             }
         }
     }
@@ -622,19 +450,19 @@ int CikGroup::computeDq(std::vector<CikElement*>* validElements,bool nakedJacobi
         return(ik_calc_cannotinvert);
 
     // Now we just have to solve:
-    _dQ.resize(_jacobian.cols,1,0.0);
+    _dQ.resize(_nakedJacobian.cols,1,0.0);
     bool computeHere=true;
     if (cb)
     {
-        int js[2]={int(_jacobian.rows),int(_jacobian.cols)};
-        computeHere=!cb(js,&_jacobian.data,_equationType.data(),_elementHandles.data(),_jointHandles.data(),_jointDofIndex.data(),&_dE.data,_dQ.data.data());
-        _jacobian.rows=_jacobian.data.size()/_jacobian.cols;
-        _dE.rows=_jacobian.rows;
-        if (_jacobian.rows==0)
+        int js[2]={int(_nakedJacobian.rows),int(_nakedJacobian.cols)};
+        computeHere=!cb(js,&_nakedJacobian.data,_equationType.data(),_elementHandles.data(),_jointHandles.data(),_jointDofIndex.data(),&_E.data,_dQ.data.data());
+        _nakedJacobian.rows=_nakedJacobian.data.size()/_nakedJacobian.cols;
+        _E.rows=_nakedJacobian.rows;
+        if (_nakedJacobian.rows==0)
             return(ik_calc_cannotinvert);
-        _equationType.resize(_jacobian.rows,8); // custom
-        _elementHandles.resize(_jacobian.rows,_elementHandles[0]); // we can't guess, so we take the first
-        _elements.resize(_jacobian.rows,_elements[0]); // we can't guess, so we take the first
+        _equationType.resize(_nakedJacobian.rows,8); // custom
+        _elementHandles.resize(_nakedJacobian.rows,_elementHandles[0]); // we can't guess, so we take the first
+        _elements.resize(_nakedJacobian.rows,_elements[0]); // we can't guess, so we take the first
     }
     if (computeHere)
     {
@@ -646,9 +474,9 @@ int CikGroup::computeDq(std::vector<CikElement*>* validElements,bool nakedJacobi
                 double w[3];
                 _elements[i]->getWeights(w);
                 if (_equationType[i]<=2)
-                    _dE(i,0)*=w[0]*w[2];
+                    _E(i,0)*=w[0]*w[2];
                 else
-                    _dE(i,0)*=w[1]*w[2];
+                    _E(i,0)*=w[1]*w[2];
             }
         }
 
@@ -677,38 +505,40 @@ int CikGroup::computeDq(std::vector<CikElement*>* validElements,bool nakedJacobi
         }
         if (calcMethod==ik_method_damped_least_squares)
         { // pseudo inverse with damping and joint weights: inv(W)*transp(J)*inv(J*inv(W)*transp(J)+damp*damp*I)
-            CMatrix Idamp(_jacobian.rows,_jacobian.rows);
+            CMatrix Idamp(_nakedJacobian.rows,_nakedJacobian.rows);
             Idamp.clear();
             for (size_t i=0;i<Idamp.rows;i++)
                 Idamp(i,i)=dampingFact*dampingFact;
-            CMatrix JT(_jacobian);
+            CMatrix JT(_nakedJacobian);
             JT.transpose();
             CMatrix c;
             if (useJointWeights)
             {
-                CMatrix Winv(_jacobian.cols,_jacobian.cols);
+                CMatrix Winv(_nakedJacobian.cols,_nakedJacobian.cols);
                 Winv.clear();
                 for (size_t i=0;i<_joints.size();i++)
                     Winv(i,i)=_joints[i]->getIkWeight();
                 CMatrix a=Winv*JT;
-                CMatrix b=_jacobian*Winv*JT+Idamp;
-                _dQ=a*pinv(b,_dE,&c);
+                CMatrix b=_nakedJacobian*Winv*JT+Idamp;
+                _dQ=a*pinv(b,_E,&c);
                 _jacobianPseudoinv=a*c;
                 _jacobian=b;
             }
             else
             {
-                CMatrix b=_jacobian*JT+Idamp;
-                _dQ=JT*pinv(b,_dE,&c);
+                CMatrix b=_nakedJacobian*JT+Idamp;
+                _dQ=JT*pinv(b,_E,&c);
                 _jacobianPseudoinv=JT*c;
                 _jacobian=b;
             }
         }
         if (calcMethod==ik_method_jacobian_transpose)
         {
-            CMatrix JT(_jacobian);
+            CMatrix JT(_nakedJacobian);
             JT.transpose();
-            _dQ=JT*_dE;
+            _dQ=JT*_E;
+            _jacobianPseudoinv=JT;
+            _jacobian=_nakedJacobian;
         }
     }
 
@@ -721,39 +551,66 @@ int CikGroup::computeDq(std::vector<CikElement*>* validElements,bool nakedJacobi
     return(0);
 }
 
-void CikGroup::applyDq(const std::vector<CJoint*>& joints,const CMatrix& dq)
-{ // Set the computed values
-    for (size_t i=0;i<dq.rows;i++)
+const CMatrix& CikGroup::getNakedJacobian() const
+{
+    return(_nakedJacobian);
+}
+
+const CMatrix& CikGroup::getJacobian() const
+{
+    return(_jacobian);
+}
+
+const CMatrix& CikGroup::getInvJacobian() const
+{
+    return(_jacobianPseudoinv);
+}
+
+const CMatrix& CikGroup::getDq() const
+{
+    return(_dQ);
+}
+
+
+void CikGroup::applyDq(const CMatrix* dq)
+{ // Set the computed values. dq can be nullptr
+    const CMatrix* ddq=dq;
+    if (ddq==nullptr)
+        ddq=&_dQ;
+    for (size_t i=0;i<ddq->rows;i++)
     {
-        CJoint* it=joints[i];
+        CJoint* it=_joints[i];
         if (it->getJointType()==ik_jointtype_spherical)
         {
             C4Vector tr;
-            tr.setEulerAngles(dq(i,0),dq(i+1,0),dq(i+2,0));
+            tr.setEulerAngles(ddq[0](i,0),ddq[0](i+1,0),ddq[0](i+2,0));
             it->setSphericalTransformation(it->getSphericalTransformation()*tr);
             i+=2;
         }
         else
-            it->setPosition(it->getPosition()+dq(i,0));
+            it->setPosition(it->getPosition()+ddq[0](i,0));
     }
 }
 
-int CikGroup::checkDq(const std::vector<CJoint*>& joints,const CMatrix& dq,double* maxStepFact,std::map<int,double>* jointLimitHits)
-{
+int CikGroup::checkDq(const CMatrix* dq,double* maxStepFact)
+{ // dq can be nullptr
+    const CMatrix* ddq=dq;
+    if (ddq==nullptr)
+        ddq=&_dQ;
     int retVal=0;
     // We check if some variations are too big:
     if (maxStepFact!=nullptr)
         maxStepFact[0]=0.0;
-    for (size_t i=0;i<dq.rows;i++)
+    for (size_t i=0;i<_joints.size();i++)
     {
-        CJoint* it=joints[i];
-        if (fabs(dq(i,0))>it->getMaxStepSize())
+        CJoint* it=_joints[i];
+        if (fabs(ddq[0](i,0))>it->getMaxStepSize())
             retVal=retVal|ik_calc_stepstoobig;
         if (maxStepFact!=nullptr)
         {
             if (it->getMaxStepSize()>0.0)
             {
-                double v=fabs(dq(i,0))/it->getMaxStepSize();
+                double v=fabs(ddq[0](i,0))/it->getMaxStepSize();
                 if (v>maxStepFact[0])
                     maxStepFact[0]=v;
             }
@@ -761,22 +618,20 @@ int CikGroup::checkDq(const std::vector<CJoint*>& joints,const CMatrix& dq,doubl
     }
 
     // Check which joints hit a joint limit:
-    for (size_t i=0;i<dq.rows;i++)
+    for (size_t i=0;i<_joints.size();i++)
     {
-        CJoint* it=joints[i];
+        CJoint* it=_joints[i];
         if ( (it->getJointType()!=ik_jointtype_spherical)&&(!it->getPositionIsCyclic()) )
         {
-            double nv=it->getPosition()+dq(i,0);
-            if ( (dq(i,0)>0.0)&&(nv>it->getPositionIntervalMin()+it->getPositionIntervalRange()) )
+            double nv=it->getPosition()+ddq[0](i,0);
+            if ( (ddq[0](i,0)>0.0)&&(nv>it->getPositionIntervalMin()+it->getPositionIntervalRange()) )
             {
-                if (jointLimitHits!=nullptr)
-                    jointLimitHits[0][it->getObjectHandle()]=nv-(it->getPositionIntervalMin()+it->getPositionIntervalRange());
+                _jointLimitHits[it->getObjectHandle()]=nv-(it->getPositionIntervalMin()+it->getPositionIntervalRange());
                 retVal=retVal|ik_calc_limithit;
             }
-            if ( (dq(i,0)<0.0)&&(nv<it->getPositionIntervalMin()) )
+            if ( (ddq[0](i,0)<0.0)&&(nv<it->getPositionIntervalMin()) )
             {
-                if (jointLimitHits!=nullptr)
-                    jointLimitHits[0][it->getObjectHandle()]=nv-it->getPositionIntervalMin();
+                _jointLimitHits[it->getObjectHandle()]=nv-it->getPositionIntervalMin();
                 retVal=retVal|ik_calc_limithit;
             }
         }
@@ -784,7 +639,7 @@ int CikGroup::checkDq(const std::vector<CJoint*>& joints,const CMatrix& dq,doubl
     return(retVal);
 }
 
-CMatrix CikGroup::pinv(const CMatrix& J,const CMatrix& dE,CMatrix* Jinv)
+CMatrix CikGroup::pinv(const CMatrix& J,const CMatrix& E,CMatrix* Jinv)
 {
     Eigen::MatrixXd jacob(J.rows,J.cols);
     for (size_t i=0;i<J.rows;i++)
@@ -793,11 +648,11 @@ CMatrix CikGroup::pinv(const CMatrix& J,const CMatrix& dE,CMatrix* Jinv)
             jacob(i,j)=J(i,j);
     }
     auto jacob_od=jacob.completeOrthogonalDecomposition();
-    Eigen::MatrixXd de(dE.rows,dE.cols);
-    for (size_t i=0;i<dE.rows;i++)
+    Eigen::MatrixXd e(E.rows,E.cols);
+    for (size_t i=0;i<E.rows;i++)
     {
-        for (size_t j=0;j<dE.cols;j++)
-            de(i,j)=dE(i,j);
+        for (size_t j=0;j<E.cols;j++)
+            e(i,j)=E(i,j);
     }
     if (Jinv!=nullptr)
     {
@@ -809,7 +664,7 @@ CMatrix CikGroup::pinv(const CMatrix& J,const CMatrix& dE,CMatrix* Jinv)
                 Jinv[0](i,j)=jacobInv(i,j);
         }
     }
-    Eigen::MatrixXd dq=jacob_od.solve(de);
+    Eigen::MatrixXd dq=jacob_od.solve(e);
     CMatrix dQ(dq.rows(),dq.cols());
     for (int i=0;i<dq.rows();i++)
     {
@@ -821,61 +676,16 @@ CMatrix CikGroup::pinv(const CMatrix& J,const CMatrix& dE,CMatrix* Jinv)
 
 bool CikGroup::computeOnlyJacobian_old()
 {
-    // Now we prepare a vector with all valid and active elements:
     std::vector<CikElement*> validElements;
-
-    for (size_t elNb=0;elNb<_ikElements.size();elNb++)
-    {
-        CikElement* element=_ikElements[elNb];
-        CDummy* tooltip=CEnvironment::currentEnvironment->objectContainer->getDummy(element->getTipHandle());
-        CSceneObject* base=CEnvironment::currentEnvironment->objectContainer->getObject(element->getBaseHandle());
-        bool valid=true;
-        if (!element->getIsActive())
-            valid=false;
-        if (tooltip==nullptr)
-            valid=false; // should normally never happen!
-        // We check that tooltip is parented with base and has at least one joint in-between:
-        if (valid)
-        {
-            valid=false;
-            bool jointPresent=false;
-            bool baseOk=false;
-            CSceneObject* iterat=tooltip;
-            while ( (iterat!=base)&&(iterat!=nullptr) )
-            {
-                iterat=iterat->getParentObject();
-                if (iterat==base)
-                {
-                    baseOk=true;
-                    if (jointPresent)
-                        valid=true;
-                }
-                if ( (iterat!=base)&&(iterat!=nullptr)&&(iterat->getObjectType()==ik_objecttype_joint) )
-                {
-                    if ((static_cast<CJoint*>(iterat))->getJointMode()==ik_jointmode_ik)
-                        jointPresent=true;
-                }
-            }
-        }
-        if (valid)
-            validElements.push_back(element);
-    }
-
-    // Now validElements contains all valid elements we have to use in the following computation!
-    if (validElements.size()==0)
-        return(false); // error
+    if (!getValidElements(validElements))
+        return(false);
 
     std::vector<int> memorizedConf_handles;
     std::vector<double> memorizedConf_vals;
     CEnvironment::currentEnvironment->objectContainer->memorizeJointConfig(memorizedConf_handles,memorizedConf_vals);
 
-    // Here we prepare all element equations:
-    for (size_t elNb=0;elNb<validElements.size();elNb++)
-    {
-        CikElement* element=validElements[elNb];
-        element->prepareEquations(1.0);
-    }
-    prepareJointHandles(&validElements,nullptr,nullptr);
+    prepareRawJacobians(validElements,1.0);
+    selectJoints(&validElements,nullptr,nullptr);
     int retVal=computeDq(&validElements,true,nullptr);
     CEnvironment::currentEnvironment->objectContainer->restoreJointConfig(memorizedConf_handles,memorizedConf_vals);
     return(retVal!=ik_calc_cannotinvert);
@@ -883,20 +693,20 @@ bool CikGroup::computeOnlyJacobian_old()
 
 const double*  CikGroup::getLastJacobianData_old(size_t matrixSize[2])
 { // back compat. function. Deprecated
-    if (_jacobian.data.size()==0)
+    if (_nakedJacobian.data.size()==0)
         return(nullptr);
-    matrixSize[0]=_jacobian.cols;
-    matrixSize[1]=_jacobian.rows;
-    _lastJacobian_flipped=_jacobian;
-    for (size_t i=0;i<_jacobian.rows;i++)
+    matrixSize[0]=_nakedJacobian.cols;
+    matrixSize[1]=_nakedJacobian.rows;
+    _lastJacobian_flipped=_nakedJacobian;
+    for (size_t i=0;i<_nakedJacobian.rows;i++)
     {
         size_t jj=0;
-        for (size_t j=_jacobian.cols;j>0;j--)
+        for (size_t j=_nakedJacobian.cols;j>0;j--)
         {
             size_t cnt=size_t(_jointDofIndex[j-1]+1);
             j=j-cnt+1;
             for (size_t k=0;k<cnt;k++)
-                _lastJacobian_flipped(i,jj++)=_jacobian(i,j-1+k);
+                _lastJacobian_flipped(i,jj++)=_nakedJacobian(i,j-1+k);
         }
     }
     return(_lastJacobian_flipped.data.data());
@@ -906,14 +716,14 @@ const double*  CikGroup::getLastJacobianData_old(size_t matrixSize[2])
 double  CikGroup::getLastManipulabilityValue_old(bool& ok) const
 {
     double retVal=0.0;
-    if (_jacobian.data.size()==0)
+    if (_nakedJacobian.data.size()==0)
         ok=false;
     else
     {
         ok=true;
-        CMatrix JT(_jacobian);
+        CMatrix JT(_nakedJacobian);
         JT.transpose();
-        CMatrix JJT(_jacobian*JT);
+        CMatrix JJT(_nakedJacobian*JT);
         retVal=sqrt(getDeterminant_old(JJT,nullptr,nullptr));
     }
     return(retVal);

@@ -40,10 +40,12 @@ public:
     void setOptions(int options);
     int getOptions() const;
 
-    int computeGroupIk(double precision[2],bool(*cb)(const int*,std::vector<double>*,const int*,const int*,const int*,const int*,std::vector<double>*,double*));
+    bool getValidElements(std::vector<CikElement*>& el);
+    void prepareRawJacobians(std::vector<CikElement*>& el,double interpolFact);
     bool computeGroupIk(CMatrix& jacobian,CMatrix& errorVect);
     void getJointHandles(std::vector<int>& handles);
 
+    void clearJointLimitHits();
     bool getJointLimitHits(std::vector<int>* jointHandles,std::vector<double>* underOrOvershots) const;
 
     const double* getLastJacobianData_old(size_t matrixSize[2]);
@@ -53,12 +55,17 @@ public:
     bool getExplicitHandling_old() const;
     void setAllInvolvedJointsToPassiveMode_old();
 
-    bool prepareJointHandles(std::vector<CikElement*>* validElements,std::vector<CJoint*>* allJoints,std::vector<int>* allJointDofIndices);
+    bool selectJoints(std::vector<CikElement*>* validElements,std::vector<CJoint*>* allJoints,std::vector<int>* allJointDofIndices);
     int computeDq(std::vector<CikElement*>* validElements,bool nakedJacobianOnly,bool(*cb)(const int*,std::vector<double>*,const int*,const int*,const int*,const int*,std::vector<double>*,double*));
-    static CMatrix pinv(const CMatrix& J,const CMatrix& dE,CMatrix* Jinv);
-    static int checkDq(const std::vector<CJoint*>& joints,const CMatrix& dq,double* maxStepFact,std::map<int,double>* jointLimitHits);
-    static void applyDq(const std::vector<CJoint*>& joints,const CMatrix& dq);
+    int checkDq(const CMatrix* dq,double* maxStepFact);
+    void applyDq(const CMatrix* dq);
 
+    const CMatrix& getNakedJacobian() const;
+    const CMatrix& getJacobian() const;
+    const CMatrix& getInvJacobian() const;
+    const CMatrix& getDq() const;
+
+    static CMatrix pinv(const CMatrix& J,const CMatrix& E,CMatrix* Jinv);
 
 private:
     std::vector<CikElement*> _ikElements;
@@ -70,9 +77,10 @@ private:
     std::map<int,double> _jointLimitHits;
     int _options; // ik_group_enabled and similar
 
+    CMatrix _nakedJacobian;
     CMatrix _jacobian;
     CMatrix _jacobianPseudoinv;
-    CMatrix _dE;
+    CMatrix _E;
     CMatrix _dQ;
     std::vector<CJoint*> _joints; // going through the Jacobian cols
     std::vector<int> _jointHandles; // going through the Jacobian cols
