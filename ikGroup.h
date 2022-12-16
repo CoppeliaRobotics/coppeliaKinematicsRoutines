@@ -56,7 +56,7 @@ public:
     void setAllInvolvedJointsToPassiveMode_old();
 
     bool selectJoints(std::vector<CikElement*>* validElements,std::vector<CJoint*>* allJoints,std::vector<int>* allJointDofIndices);
-    int computeDq(std::vector<CikElement*>* validElements,bool nakedJacobianOnly,bool(*cb)(const int*,std::vector<double>*,const int*,const int*,const int*,const int*,std::vector<double>*,double*));
+    int computeDq(std::vector<CikElement*>* validElements,bool nakedJacobianOnly,int(*cb)(const int*,double*,const int*,const int*,const int*,const int*,double*,double*,double*));
     int checkDq(const CMatrix* dq,double* maxStepFact);
     void applyDq(const CMatrix* dq);
 

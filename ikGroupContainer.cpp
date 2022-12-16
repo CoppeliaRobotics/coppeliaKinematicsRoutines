@@ -120,14 +120,14 @@ void CIkGroupContainer::addIkGroup(CikGroup* anIkGroup,bool keepCurrentHandle)
     ikGroups.push_back(anIkGroup);
 }
 
-int CIkGroupContainer::computeIk(int groupHandle,double precision[2],bool(*cb)(const int*,std::vector<double>*,const int*,const int*,const int*,const int*,std::vector<double>*,double*))
+int CIkGroupContainer::computeIk(int groupHandle,double precision[2],int(*cb)(const int*,double*,const int*,const int*,const int*,const int*,double*,double*,double*))
 { // Return value is one ik_resultinfo...-value
     std::vector<int> gr;
     gr.push_back(groupHandle);
     return(computeIk(gr,precision,cb));
 }
 
-int CIkGroupContainer::computeIk(const std::vector<int>& groupHandles,double precision[2],bool(*cb)(const int*,std::vector<double>*,const int*,const int*,const int*,const int*,std::vector<double>*,double*))
+int CIkGroupContainer::computeIk(const std::vector<int>& groupHandles,double precision[2],int(*cb)(const int*,double*,const int*,const int*,const int*,const int*,double*,double*,double*))
 { // Return value is one ik_resultinfo...-value
     if (precision!=nullptr)
     {

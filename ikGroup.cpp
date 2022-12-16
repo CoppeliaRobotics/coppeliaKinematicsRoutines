@@ -349,7 +349,7 @@ bool CikGroup::selectJoints(std::vector<CikElement*>* validElements,std::vector<
     return(retVal);
 }
 
-int CikGroup::computeDq(std::vector<CikElement*>* validElements,bool nakedJacobianOnly,bool(*cb)(const int*,std::vector<double>*,const int*,const int*,const int*,const int*,std::vector<double>*,double*))
+int CikGroup::computeDq(std::vector<CikElement*>* validElements,bool nakedJacobianOnly,int(*cb)(const int*,double*,const int*,const int*,const int*,const int*,double*,double*,double*))
 {   // Return value: one of ik_calc_...-values
     std::vector<int> _elementHandles; // going through the Jacobian rows
     std::vector<CikElement*> _elements; // going through the Jacobian rows
@@ -451,18 +451,22 @@ int CikGroup::computeDq(std::vector<CikElement*>* validElements,bool nakedJacobi
 
     // Now we just have to solve:
     _dQ.resize(_nakedJacobian.cols,1,0.0);
+    _jacobian=_nakedJacobian;
     bool computeHere=true;
     if (cb)
     {
-        int js[2]={int(_nakedJacobian.rows),int(_nakedJacobian.cols)};
-        computeHere=!cb(js,&_nakedJacobian.data,_equationType.data(),_elementHandles.data(),_jointHandles.data(),_jointDofIndex.data(),&_E.data,_dQ.data.data());
-        _nakedJacobian.rows=_nakedJacobian.data.size()/_nakedJacobian.cols;
-        _E.rows=_nakedJacobian.rows;
-        if (_nakedJacobian.rows==0)
-            return(ik_calc_cannotinvert);
-        _equationType.resize(_nakedJacobian.rows,8); // custom
-        _elementHandles.resize(_nakedJacobian.rows,_elementHandles[0]); // we can't guess, so we take the first
-        _elements.resize(_nakedJacobian.rows,_elements[0]); // we can't guess, so we take the first
+        int js[2]={int(_jacobian.rows),int(_jacobian.cols)};
+        _jacobianPseudoinv.resize(_jacobian.cols,_jacobian.rows,0.0);
+        int res=cb(js,_jacobian.data.data(),_equationType.data(),_elementHandles.data(),_jointHandles.data(),_jointDofIndex.data(),_E.data.data(),_dQ.data.data(),_jacobianPseudoinv.data.data());
+        computeHere=((res&1)==0);
+        if (computeHere)
+        {
+            if ((res&2)!=0)
+            { // the callback provided a Jacobian pseudoinverse, but no dQ. We compute dQ here:
+                _dQ=_jacobianPseudoinv*_E;
+                computeHere=false;
+            }
+        }
     }
     if (computeHere)
     {
@@ -505,28 +509,28 @@ int CikGroup::computeDq(std::vector<CikElement*>* validElements,bool nakedJacobi
         }
         if (calcMethod==ik_method_damped_least_squares)
         { // pseudo inverse with damping and joint weights: inv(W)*transp(J)*inv(J*inv(W)*transp(J)+damp*damp*I)
-            CMatrix Idamp(_nakedJacobian.rows,_nakedJacobian.rows);
+            CMatrix Idamp(_jacobian.rows,_jacobian.rows);
             Idamp.clear();
             for (size_t i=0;i<Idamp.rows;i++)
                 Idamp(i,i)=dampingFact*dampingFact;
-            CMatrix JT(_nakedJacobian);
+            CMatrix JT(_jacobian);
             JT.transpose();
             CMatrix c;
             if (useJointWeights)
             {
-                CMatrix Winv(_nakedJacobian.cols,_nakedJacobian.cols);
+                CMatrix Winv(_jacobian.cols,_jacobian.cols);
                 Winv.clear();
                 for (size_t i=0;i<_joints.size();i++)
                     Winv(i,i)=_joints[i]->getIkWeight();
                 CMatrix a=Winv*JT;
-                CMatrix b=_nakedJacobian*Winv*JT+Idamp;
+                CMatrix b=_jacobian*Winv*JT+Idamp;
                 _dQ=a*pinv(b,_E,&c);
                 _jacobianPseudoinv=a*c;
                 _jacobian=b;
             }
             else
             {
-                CMatrix b=_nakedJacobian*JT+Idamp;
+                CMatrix b=_jacobian*JT+Idamp;
                 _dQ=JT*pinv(b,_E,&c);
                 _jacobianPseudoinv=JT*c;
                 _jacobian=b;
@@ -534,11 +538,10 @@ int CikGroup::computeDq(std::vector<CikElement*>* validElements,bool nakedJacobi
         }
         if (calcMethod==ik_method_jacobian_transpose)
         {
-            CMatrix JT(_nakedJacobian);
+            CMatrix JT(_jacobian);
             JT.transpose();
             _dQ=JT*_E;
             _jacobianPseudoinv=JT;
-            _jacobian=_nakedJacobian;
         }
     }
 
