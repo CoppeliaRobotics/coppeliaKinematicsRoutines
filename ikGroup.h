@@ -60,12 +60,12 @@ public:
     int checkDq(const CMatrix* dq,double* maxStepFact);
     void applyDq(const CMatrix* dq);
 
-    const CMatrix& getNakedJacobian() const;
     const CMatrix& getJacobian() const;
     const CMatrix& getInvJacobian() const;
     const CMatrix& getDq() const;
 
     static CMatrix pinv(const CMatrix& J,const CMatrix& E,CMatrix* Jinv);
+    static CMatrix inv(const CMatrix& M);
 
 private:
     std::vector<CikElement*> _ikElements;
@@ -77,7 +77,6 @@ private:
     std::map<int,double> _jointLimitHits;
     int _options; // ik_group_enabled and similar
 
-    CMatrix _nakedJacobian;
     CMatrix _jacobian;
     CMatrix _jacobianPseudoinv;
     CMatrix _E;

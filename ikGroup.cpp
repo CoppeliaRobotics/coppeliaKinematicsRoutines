@@ -124,7 +124,6 @@ CikGroup* CikGroup::copyYourself() const
     duplicate->_calculationMethod=_calculationMethod;
     duplicate->_options=_options;
     duplicate->_explicitHandling_old=_explicitHandling_old;
-    duplicate->_nakedJacobian.set(_nakedJacobian);
     duplicate->_jacobian.set(_jacobian);
     duplicate->_jacobianPseudoinv.set(_jacobianPseudoinv);
     duplicate->_E.set(_E);
@@ -276,7 +275,6 @@ bool CikGroup::computeGroupIk(CMatrix& jacobian,CMatrix& errorVect)
         prepareRawJacobians(validElements,1.0);
         selectJoints(&validElements,nullptr,nullptr);
         computeDq(&validElements,true,nullptr);
-        jacobian=_nakedJacobian;
         errorVect=_E;
     }
     return(retVal);
@@ -354,7 +352,7 @@ int CikGroup::computeDq(std::vector<CikElement*>* validElements,bool nakedJacobi
     std::vector<int> _elementHandles; // going through the Jacobian rows
     std::vector<CikElement*> _elements; // going through the Jacobian rows
     std::vector<int> _equationType; // going through the Jacobian rows. 0-2: x,y,z, 3-5: alpha,beta,gamma, 6=jointLimits
-    _nakedJacobian.resize(0,_joints.size(),0.0);
+    _jacobian.resize(0,_joints.size(),0.0);
     _E.resize(0,1,0.0);
 
     for (size_t elNb=0;elNb<validElements->size();elNb++)
@@ -362,9 +360,9 @@ int CikGroup::computeDq(std::vector<CikElement*>* validElements,bool nakedJacobi
         CikElement* element=validElements->at(elNb);
         for (size_t i=0;i<element->errorVector.rows;i++)
         { // We go through the rows:
-            size_t rows=_nakedJacobian.rows+1;
+            size_t rows=_jacobian.rows+1;
             size_t currentRow=rows-1;
-            _nakedJacobian.resize(rows,_joints.size(),0.0);
+            _jacobian.resize(rows,_joints.size(),0.0);
             _E.resize(rows,1,0.0);
             _elementHandles.push_back(element->getIkElementHandle());
             _elements.push_back(element);
@@ -379,7 +377,7 @@ int CikGroup::computeDq(std::vector<CikElement*>* validElements,bool nakedJacobi
                 size_t index=0;
                 while ( (_joints[index]->getObjectHandle()!=jointHandle)||(_jointDofIndex[index]!=dofIndex) )
                     index++;
-                _nakedJacobian(currentRow,index)=element->jacobian(i,j);
+                _jacobian(currentRow,index)=element->jacobian(i,j);
             }
         }
     }
@@ -431,13 +429,13 @@ int CikGroup::computeDq(std::vector<CikElement*>* validElements,bool nakedJacobi
                 // If we are over the treshhold of more than 5%:
                 // (important in case target and tooltip are within tolerance)
 
-                int rows=int(_nakedJacobian.rows)+1;
+                int rows=int(_jacobian.rows)+1;
                 int currentRow=rows-1;
-                _nakedJacobian.resize(rows,_joints.size(),0.0);
+                _jacobian.resize(rows,_joints.size(),0.0);
                 _E.resize(rows,1,0.0);
                 _elementHandles.push_back(-1);
                 _equationType.push_back(6);
-                _nakedJacobian(currentRow,jointCounter)=activate;
+                _jacobian(currentRow,jointCounter)=activate;
                 _E(currentRow,0)=eq;
             }
         }
@@ -450,8 +448,7 @@ int CikGroup::computeDq(std::vector<CikElement*>* validElements,bool nakedJacobi
         return(ik_calc_cannotinvert);
 
     // Now we just have to solve:
-    _dQ.resize(_nakedJacobian.cols,1,0.0);
-    _jacobian=_nakedJacobian;
+    _dQ.resize(_jacobian.cols,1,0.0);
     bool computeHere=true;
     if (cb)
     {
@@ -515,33 +512,23 @@ int CikGroup::computeDq(std::vector<CikElement*>* validElements,bool nakedJacobi
                 Idamp(i,i)=dampingFact*dampingFact;
             CMatrix JT(_jacobian);
             JT.transpose();
-            CMatrix c;
             if (useJointWeights)
             {
                 CMatrix Winv(_jacobian.cols,_jacobian.cols);
                 Winv.clear();
                 for (size_t i=0;i<_joints.size();i++)
                     Winv(i,i)=_joints[i]->getIkWeight();
-                CMatrix a=Winv*JT;
-                CMatrix b=_jacobian*Winv*JT+Idamp;
-                _dQ=a*pinv(b,_E,&c);
-                _jacobianPseudoinv=a*c;
-                _jacobian=b;
+                _jacobianPseudoinv=Winv*JT*inv(_jacobian*Winv*JT+Idamp);
             }
             else
-            {
-                CMatrix b=_jacobian*JT+Idamp;
-                _dQ=JT*pinv(b,_E,&c);
-                _jacobianPseudoinv=JT*c;
-                _jacobian=b;
-            }
+                _jacobianPseudoinv=JT*inv(_jacobian*JT+Idamp);
+            _dQ=_jacobianPseudoinv*_E;
         }
         if (calcMethod==ik_method_jacobian_transpose)
         {
-            CMatrix JT(_jacobian);
-            JT.transpose();
-            _dQ=JT*_E;
-            _jacobianPseudoinv=JT;
+            _jacobianPseudoinv=_jacobian;
+            _jacobianPseudoinv.transpose();
+            _dQ=_jacobianPseudoinv*_E;
         }
     }
 
@@ -552,11 +539,6 @@ int CikGroup::computeDq(std::vector<CikElement*>* validElements,bool nakedJacobi
             _dQ(i,0)=atan2(sin(_dQ(i,0)),cos(_dQ(i,0)));
     }
     return(0);
-}
-
-const CMatrix& CikGroup::getNakedJacobian() const
-{
-    return(_nakedJacobian);
 }
 
 const CMatrix& CikGroup::getJacobian() const
@@ -677,6 +659,28 @@ CMatrix CikGroup::pinv(const CMatrix& J,const CMatrix& E,CMatrix* Jinv)
     return(dQ);
 }
 
+CMatrix CikGroup::inv(const CMatrix& M)
+{
+    Eigen::MatrixXd m(M.rows,M.cols);
+    for (size_t i=0;i<M.rows;i++)
+    {
+        for (size_t j=0;j<M.cols;j++)
+            m(i,j)=M(i,j);
+    }
+
+//    auto minv=m.inverse();
+    auto m_od=m.completeOrthogonalDecomposition();
+    Eigen::MatrixXd minv=m_od.pseudoInverse();
+
+    CMatrix Minv(minv.rows(),minv.cols());
+    for (int i=0;i<minv.rows();i++)
+    {
+        for (int j=0;j<minv.cols();j++)
+            Minv(i,j)=minv(i,j);
+    }
+    return(Minv);
+}
+
 bool CikGroup::computeOnlyJacobian_old()
 {
     std::vector<CikElement*> validElements;
@@ -696,20 +700,20 @@ bool CikGroup::computeOnlyJacobian_old()
 
 const double*  CikGroup::getLastJacobianData_old(size_t matrixSize[2])
 { // back compat. function. Deprecated
-    if (_nakedJacobian.data.size()==0)
+    if (_jacobian.data.size()==0)
         return(nullptr);
-    matrixSize[0]=_nakedJacobian.cols;
-    matrixSize[1]=_nakedJacobian.rows;
-    _lastJacobian_flipped=_nakedJacobian;
-    for (size_t i=0;i<_nakedJacobian.rows;i++)
+    matrixSize[0]=_jacobian.cols;
+    matrixSize[1]=_jacobian.rows;
+    _lastJacobian_flipped=_jacobian;
+    for (size_t i=0;i<_jacobian.rows;i++)
     {
         size_t jj=0;
-        for (size_t j=_nakedJacobian.cols;j>0;j--)
+        for (size_t j=_jacobian.cols;j>0;j--)
         {
             size_t cnt=size_t(_jointDofIndex[j-1]+1);
             j=j-cnt+1;
             for (size_t k=0;k<cnt;k++)
-                _lastJacobian_flipped(i,jj++)=_nakedJacobian(i,j-1+k);
+                _lastJacobian_flipped(i,jj++)=_jacobian(i,j-1+k);
         }
     }
     return(_lastJacobian_flipped.data.data());
@@ -719,14 +723,14 @@ const double*  CikGroup::getLastJacobianData_old(size_t matrixSize[2])
 double  CikGroup::getLastManipulabilityValue_old(bool& ok) const
 {
     double retVal=0.0;
-    if (_nakedJacobian.data.size()==0)
+    if (_jacobian.data.size()==0)
         ok=false;
     else
     {
         ok=true;
-        CMatrix JT(_nakedJacobian);
+        CMatrix JT(_jacobian);
         JT.transpose();
-        CMatrix JJT(_nakedJacobian*JT);
+        CMatrix JJT(_jacobian*JT);
         retVal=sqrt(getDeterminant_old(JJT,nullptr,nullptr));
     }
     return(retVal);
