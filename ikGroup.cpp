@@ -276,6 +276,7 @@ bool CikGroup::computeGroupIk(CMatrix& jacobian,CMatrix& errorVect)
         selectJoints(&validElements,nullptr,nullptr);
         computeDq(&validElements,true,nullptr);
         errorVect=_E;
+        jacobian=_jacobian;
     }
     return(retVal);
 }
