@@ -3,8 +3,8 @@
 #include "ik.h"
 #include "serialization.h"
 #include <vector>
-#include "4X4Matrix.h"
-#include "MMatrix.h"
+#include <simMath/4X4Matrix.h>
+#include <simMath/MMatrix.h>
 
 class CSceneObject;
 

@@ -1,8 +1,8 @@
 #pragma once
 
 #include <vector>
-#include "mathDefines.h"
-#include "7Vector.h"
+#include <simMath/mathDefines.h>
+#include <simMath/7Vector.h>
 #include <string>
 
 #define SIM_IS_BIT_SET(var,bit) (((var) & (1<<(bit)))!=0)

@@ -3,9 +3,9 @@
 #include "ik.h"
 #include <vector>
 #include "serialization.h"
-#include "3Vector.h"
-#include "4Vector.h"
-#include "7Vector.h"
+#include <simMath/3Vector.h>
+#include <simMath/4Vector.h>
+#include <simMath/7Vector.h>
 
 class CSceneObject
 {
