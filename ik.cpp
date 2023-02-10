@@ -1357,7 +1357,7 @@ bool ikSetJointInterval(int jointHandle,bool cyclic,const double* intervalMinAnd
     return(retVal);
 }
 
-bool ikSetJointScrewPitch(int jointHandle,double pitch)
+bool ikSetJointScrewLead(int jointHandle,double lead)
 {
     debugInfo inf(__FUNCTION__,jointHandle);
     bool retVal=false;
@@ -1366,8 +1366,8 @@ bool ikSetJointScrewPitch(int jointHandle,double pitch)
         CJoint* it=CEnvironment::currentEnvironment->objectContainer->getJoint(jointHandle);
         if (it!=nullptr)
         {
-            if ( fabs(it->getScrewPitch()-pitch)>0.000001 )
-                it->setScrewPitch(pitch);
+            if ( fabs(it->getScrewLead()-lead)>0.000001 )
+                it->setScrewLead(lead);
             retVal=true;
         }
         else
@@ -1572,7 +1572,7 @@ bool ikGetJointInterval(int jointHandle,bool* cyclic,double* intervalMinAndRange
     return(retVal);
 }
 
-bool ikGetJointScrewPitch(int jointHandle,double* pitch)
+bool ikGetJointScrewLead(int jointHandle,double* lead)
 {
     debugInfo inf(__FUNCTION__,jointHandle);
     bool retVal=false;
@@ -1581,7 +1581,7 @@ bool ikGetJointScrewPitch(int jointHandle,double* pitch)
         CJoint* it=CEnvironment::currentEnvironment->objectContainer->getJoint(jointHandle);
         if (it!=nullptr)
         {
-            pitch[0]=it->getScrewPitch();
+            lead[0]=it->getScrewLead();
             retVal=true;
         }
         else
@@ -2310,3 +2310,40 @@ bool ikHandleIkGroup(int ikGroupHandle,int* result,double* precision,int(*cb)(co
     handles.push_back(ikGroupHandle);
     return(ikHandleGroups(&handles,result,precision,cb));
 }
+
+bool ikGetJointScrewPitch(int jointHandle,double* pitch)
+{ /* backward compatibility */
+    debugInfo inf(__FUNCTION__,jointHandle);
+    bool retVal=false;
+    if (hasLaunched())
+    {
+        CJoint* it=CEnvironment::currentEnvironment->objectContainer->getJoint(jointHandle);
+        if (it!=nullptr)
+        {
+            pitch[0]=it->getScrewLead()/piValT2;
+            retVal=true;
+        }
+        else
+            _setLastError("Joint does not exist: %i",jointHandle);
+    }
+    return(retVal);
+}
+
+bool ikSetJointScrewPitch(int jointHandle,double pitch)
+{ /* backward compatibility */
+    debugInfo inf(__FUNCTION__,jointHandle);
+    bool retVal=false;
+    if (hasLaunched())
+    {
+        CJoint* it=CEnvironment::currentEnvironment->objectContainer->getJoint(jointHandle);
+        if (it!=nullptr)
+        {
+            it->setScrewLead(pitch*piValT2);
+            retVal=true;
+        }
+        else
+            _setLastError("Invalid joint handle: %i",jointHandle);
+    }
+    return(retVal);
+}
+

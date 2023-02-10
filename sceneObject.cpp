@@ -115,7 +115,7 @@ C7Vector CSceneObject::getLocalTransformation() const
         if (it->getJointType()==ik_jointtype_revolute)
         {
             jointTr.Q.setAngleAndAxis(val,C3Vector(0.0,0.0,1.0));
-            jointTr.X(2)=val*it->getScrewPitch();
+            jointTr.X(2)=val*it->getScrewLead()/piValT2;
         }
         if (it->getJointType()==ik_jointtype_prismatic)
             jointTr.X(2)=val;

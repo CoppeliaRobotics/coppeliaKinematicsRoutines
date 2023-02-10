@@ -20,8 +20,8 @@ public:
     double getPosition() const;
     void setPosition(double parameter,const CJoint* masterJoint=nullptr);
 
-    double getScrewPitch() const;
-    void setScrewPitch(double p);
+    double getScrewLead() const;
+    void setScrewLead(double p);
     void setSphericalTransformation(const C4Vector& tr);
     C4Vector getSphericalTransformation() const;
     int getJointType() const;
@@ -61,7 +61,7 @@ protected:
     int _jointType;
     C4Vector _sphericalTransformation; // spherical joints don't have a range anymore since 22.10.22
     bool _positionIsCyclic;
-    double _screwPitch;
+    double _screwLead;
     double _jointMinPosition;
     double _jointPositionRange;
 

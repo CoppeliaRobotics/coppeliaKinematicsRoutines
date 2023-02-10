@@ -14,7 +14,7 @@ CJoint::CJoint(int jointType)
     _jointMode=ik_jointmode_ik;
     _objectName="joint";
     _jointPosition=0.0;
-    _screwPitch=0.0;
+    _screwLead=0.0;
     _sphericalTransformation.setIdentity();
     _ikWeight=1.0;
     _dependencyJointHandle=-1;
@@ -158,15 +158,15 @@ int CJoint::getJointType() const
     return(_jointType);
 }
 
-double CJoint::getScrewPitch() const
+double CJoint::getScrewLead() const
 {
-    return(_screwPitch);
+    return(_screwLead);
 }
 
-void CJoint::setScrewPitch(double p)
+void CJoint::setScrewLead(double p)
 {
     if (_jointType==ik_jointtype_revolute)
-        _screwPitch=p;
+        _screwLead=p;
 }
 
 void CJoint::setSphericalTransformation(const C4Vector& tr)
@@ -196,7 +196,7 @@ CSceneObject* CJoint::copyYourself() const
     duplicate->_jointType=_jointType;
     duplicate->_sphericalTransformation=_sphericalTransformation;
     duplicate->_positionIsCyclic=_positionIsCyclic;
-    duplicate->_screwPitch=_screwPitch;
+    duplicate->_screwLead=_screwLead;
     duplicate->_jointMinPosition=_jointMinPosition;
     duplicate->_jointPositionRange=_jointPositionRange;
     duplicate->_jointPosition=_jointPosition;
@@ -313,7 +313,7 @@ void CJoint::setPositionIsCyclic(bool c)
     {
         if (getJointType()==ik_jointtype_revolute)
         {
-            _screwPitch=0.0;
+            _screwLead=0.0;
             _jointMinPosition=-piValue;
             _jointPositionRange=piValT2;
             _positionIsCyclic=c;
@@ -348,7 +348,7 @@ void CJoint::serialize(CSerialization& ar)
     if (ar.isWriting())
     {
         ar.writeInt(_jointType);
-        ar.writeFloat(float(_screwPitch));
+        ar.writeFloat(float(_screwLead/piValT2));
 
         ar.writeFloat(float(_sphericalTransformation(0)));
         ar.writeFloat(float(_sphericalTransformation(1)));
@@ -372,7 +372,7 @@ void CJoint::serialize(CSerialization& ar)
     else
     {
         _jointType=ar.readInt();
-        _screwPitch=double(ar.readFloat());
+        _screwLead=double(ar.readFloat())*piValT2;
         _sphericalTransformation(0)=double(ar.readFloat());
         _sphericalTransformation(1)=double(ar.readFloat());
         _sphericalTransformation(2)=double(ar.readFloat());

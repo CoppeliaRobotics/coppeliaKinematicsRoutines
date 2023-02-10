@@ -90,8 +90,8 @@ bool ikGetJointMode(int jointHandle,int* mode);
 bool ikSetJointMode(int jointHandle,int jointMode);
 bool ikGetJointInterval(int jointHandle,bool* cyclic,double* intervalMinAndRange);
 bool ikSetJointInterval(int jointHandle,bool cyclic,const double* intervalMinAndRange=nullptr);
-bool ikGetJointScrewPitch(int jointHandle,double* pitch);
-bool ikSetJointScrewPitch(int jointHandle,double pitch);
+bool ikGetJointScrewLead(int jointHandle,double* lead);
+bool ikSetJointScrewLead(int jointHandle,double lead);
 bool ikGetJointWeight(int jointHandle,double* ikWeight);
 bool ikSetJointWeight(int jointHandle,double ikWeight);
 bool ikGetJointLimitMargin(int jointHandle,double* m);
@@ -173,3 +173,5 @@ bool ikSetIkElementWeights(int ikGroupHandle,int ikElementHandle,double linearWe
 bool ikHandleIkGroup(int ikGroupHandle=ik_handle_all,int* result=nullptr,double* precision=nullptr,int(*cb)(const int*,double*,const int*,const int*,const int*,const int*,double*,double*,double*)=nullptr);
 bool ikGetLinkedDummy(int dummyHandle,int* linkedDummyHandle);
 bool ikSetLinkedDummy(int dummyHandle,int linkedDummyHandle);
+bool ikGetJointScrewPitch(int jointHandle,double* pitch);
+bool ikSetJointScrewPitch(int jointHandle,double pitch);
