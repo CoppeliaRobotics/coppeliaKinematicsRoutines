@@ -1106,6 +1106,24 @@ bool ikSetSphericalJointMatrix(int jointHandle,const C3X3Matrix* rotMatrix)
     return(ikSetSphericalJointQuaternion(jointHandle,&q));
 }
 
+bool ikGetObjectType(int objectHandle,int* objectType)
+{
+    debugInfo inf(__FUNCTION__,objectHandle);
+    bool retVal=false;
+    if (hasLaunched())
+    {
+        CSceneObject* it=CEnvironment::currentEnvironment->objectContainer->getObject(objectHandle);
+        if (it!=nullptr)
+        {
+            objectType[0]=it->getObjectType();
+            retVal=true;
+        }
+        else
+            _setLastError("Invalid object handle: %i",objectHandle);
+    }
+    return(retVal);
+}
+
 bool ikGetObjectParent(int objectHandle,int* parentObjectHandle)
 {
     debugInfo inf(__FUNCTION__,objectHandle);

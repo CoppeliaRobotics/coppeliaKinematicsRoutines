@@ -77,6 +77,7 @@ bool ikGetObjectHandle(const char* objectName,int* objectHandle);
 bool ikGetObjects(size_t index,int* objectHandle=nullptr,std::string* objectName=nullptr,bool* isJoint=nullptr,int* jointType=nullptr);
 bool ikDoesObjectExist(const char* objectName);
 bool ikEraseObject(int objectHandle);
+bool ikGetObjectType(int objectHandle,int* objectType);
 bool ikGetObjectParent(int objectHandle,int* parentObjectHandle);
 bool ikSetObjectParent(int objectHandle,int parentObjectHandle,bool keepInPlace);
 
