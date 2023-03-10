@@ -459,7 +459,8 @@ CMatrix CikElement::_getNakedJacobian(const CSceneObject* tip,const CSceneObject
         targetQ=target->getCumulativeTransformationPart1().Q;
         targetQ.buildInterpolation(tip->getCumulativeTransformationPart1().Q,targetQ,interpolationFactor);
     }
-    C4Vector tipTop(tip->getCumulativeTransformationPart1().Q.getInverse()*targetQ);
+    C4Vector tip2target_init(tip->getCumulativeTransformationPart1().Q.getInverse()*targetQ);
+    C4Vector tipCumulInv_init(tip->getCumulativeTransformationPart1().Q.getInverse());
 
     int dofIndex=0;
     size_t jointIndex=0;
@@ -491,17 +492,27 @@ CMatrix CikElement::_getNakedJacobian(const CSceneObject* tip,const CSceneObject
                 dj.Q.setAngleAndAxis(dq,C3Vector(0.0,0.0,1.0));
             dofIndex++;
             tipRelConstrBase_changed=(jb*dj*x).X;
-            targetQ_changed=jbabs.Q*dj.Q*x.Q*tipTop;
+            targetQ_changed=jbabs.Q*dj.Q*x.Q*tip2target_init; // here we can use tip2target_init, since a sph. joint does not have any dep. joints
         }
         else
         {
             double tmp=joint->getPosition();
             joint->setPosition(tmp+dq);
+
             C7Vector constrBaseTrInv(C7Vector::identityTransformation);
             if (constrBase!=nullptr)
                 constrBaseTrInv=constrBase->getCumulativeTransformationPart1().getInverse(); // important to recompute constrBaseTrInv freshly, base could have moved too (b/c of joint dep. for instance)
             tipRelConstrBase_changed=(constrBaseTrInv*tip->getCumulativeTransformationPart1()).X;
-            targetQ_changed=tip->getCumulativeTransformationPart1().Q*tipTop;
+
+            // Here too, we need to recompute this freshly:
+            C4Vector targQ(tip->getCumulativeTransformationPart1().Q);
+            if (target!=nullptr)
+            {
+                targQ=target->getCumulativeTransformationPart1().Q;
+                targQ.buildInterpolation(tip->getCumulativeTransformationPart1().Q,targQ,interpolationFactor);
+            }
+            targetQ_changed=tip->getCumulativeTransformationPart1().Q*tipCumulInv_init*targQ;
+
             joint->setPosition(tmp);
         }
         C4Vector dx_q(targetQ.getInverse()*targetQ_changed);
