@@ -274,6 +274,7 @@ bool CikElement::getJacobian(CMatrix& jacob,CMatrix& errVect,int ttip,int tbase,
             C7Vector tipTrRel(constrBasePoseInv*tip->getCumulativeTransformationPart1());
             C7Vector targetTrRel(constrBasePoseInv*target->getCumulativeTransformationPart1());
             targetTrRel.buildInterpolation(tipTrRel,targetTrRel,interpolationFactor);
+            /*
             if ((constraints&ik_constraint_orientation)==ik_constraint_alpha_beta)
             { // We need to reorient the tip around its z-axis to "ressemble" most the target orientation
                 C3Vector targetXaxisProj(tipTrRel.Q.getInverse()*targetTrRel.Q.getMatrix().axis[0]);
@@ -297,6 +298,7 @@ bool CikElement::getJacobian(CMatrix& jacob,CMatrix& errVect,int ttip,int tbase,
                     tipTrRel.Q=q*tipTrRel.Q;
                 }
             }
+            */
             C7Vector interpolTargetRel;
             double dq=0.01; // not that relevant apparently
             interpolTargetRel.buildInterpolation(tipTrRel,targetTrRel,dq);
@@ -453,14 +455,10 @@ CMatrix CikElement::_getNakedJacobian(const CSceneObject* tip,const CSceneObject
         constrBaseTrInv_init=constrBase->getCumulativeTransformationPart1().getInverse();
     C3Vector tipRelConstrBase((constrBaseTrInv_init*tip->getCumulativeTransformationPart1()).X);
 
-    C4Vector targetQ(tip->getCumulativeTransformationPart1().Q);
-    if (target!=nullptr)
-    {
-        targetQ=target->getCumulativeTransformationPart1().Q;
-        targetQ.buildInterpolation(tip->getCumulativeTransformationPart1().Q,targetQ,interpolationFactor);
-    }
-    C4Vector tip2target_init(tip->getCumulativeTransformationPart1().Q.getInverse()*targetQ);
-    C4Vector tipCumulInv_init(tip->getCumulativeTransformationPart1().Q.getInverse());
+    C4Vector baseQ_init(C4Vector::identityRotation);
+    if (base!=nullptr)
+        baseQ_init=base->getCumulativeTransformationPart1().Q;
+    C4Vector tipOrientInv_init(tip->getCumulativeTransformationPart1().Q.getInverse()*baseQ_init);
 
     int dofIndex=0;
     size_t jointIndex=0;
@@ -476,7 +474,7 @@ CMatrix CikElement::_getNakedJacobian(const CSceneObject* tip,const CSceneObject
         double dq=0.01; // starts breaking at dj>0.05 or at dj<0.01
 
         C3Vector tipRelConstrBase_changed;
-        C4Vector targetQ_changed;
+        C4Vector tipQ_changed;
         if (joint->getJointType()==ik_jointtype_spherical)
         {
             C7Vector jbabs(joint->getCumulativeTransformation());
@@ -492,7 +490,7 @@ CMatrix CikElement::_getNakedJacobian(const CSceneObject* tip,const CSceneObject
                 dj.Q.setAngleAndAxis(dq,C3Vector(0.0,0.0,1.0));
             dofIndex++;
             tipRelConstrBase_changed=(jb*dj*x).X;
-            targetQ_changed=jbabs.Q*dj.Q*x.Q*tip2target_init; // here we can use tip2target_init, since a sph. joint does not have any dep. joints
+            tipQ_changed=baseQ_init.getInverse()*jbabs.Q*dj.Q*x.Q; // here we can use baseQ_init, since a sph. joint does not have any dep. joints
         }
         else
         {
@@ -501,23 +499,17 @@ CMatrix CikElement::_getNakedJacobian(const CSceneObject* tip,const CSceneObject
 
             C7Vector constrBaseTrInv(C7Vector::identityTransformation);
             if (constrBase!=nullptr)
-                constrBaseTrInv=constrBase->getCumulativeTransformationPart1().getInverse(); // important to recompute constrBaseTrInv freshly, base could have moved too (b/c of joint dep. for instance)
+                constrBaseTrInv=constrBase->getCumulativeTransformationPart1().getInverse(); // important to recompute the constraint base freshly, it could have moved too (b/c of joint dep. for instance)
             tipRelConstrBase_changed=(constrBaseTrInv*tip->getCumulativeTransformationPart1()).X;
 
-            // Here too, we need to recompute this freshly:
-            C4Vector targQ(tip->getCumulativeTransformationPart1().Q);
-            if (target!=nullptr)
-            {
-                targQ=target->getCumulativeTransformationPart1().Q;
-                targQ.buildInterpolation(tip->getCumulativeTransformationPart1().Q,targQ,interpolationFactor);
-            }
-            targetQ_changed=tip->getCumulativeTransformationPart1().Q*tipCumulInv_init*targQ;
+            C4Vector baseQ(C4Vector::identityRotation);
+            if (base!=nullptr)
+                baseQ=base->getCumulativeTransformationPart1().Q; // important to recompute the base freshly, it could have moved too (b/c of joint dep. for instance)
+            tipQ_changed=baseQ.getInverse()*tip->getCumulativeTransformationPart1().Q;
 
             joint->setPosition(tmp);
         }
-        C4Vector dx_q(targetQ.getInverse()*targetQ_changed);
-        C3Vector euler(dx_q.getEulerAngles());
-
+        C3Vector euler((tipOrientInv_init*tipQ_changed).getEulerAngles());
         C3Vector dx_x(tipRelConstrBase_changed-tipRelConstrBase);
 
         size_t rowIndex=0;
