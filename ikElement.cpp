@@ -234,18 +234,13 @@ void CikElement::setPrecisions(const double p[2])
 
 void CikElement::prepareRawJacobian(double interpolationFactor)
 {
-    C7Vector altBasePose;
-    altBasePose.setIdentity();
-    CSceneObject* base=CEnvironment::currentEnvironment->objectContainer->getObject(_baseHandle);
-    if (base!=nullptr)
-        altBasePose=base->getCumulativeTransformationPart1();
-    CSceneObject* altBase=CEnvironment::currentEnvironment->objectContainer->getObject(_altBaseHandleForConstraints);
-    if (altBase!=nullptr)
-        altBasePose=altBase->getCumulativeTransformationPart1();
-    getJacobian(jacobian,errorVector,_tipHandle,_baseHandle,_constraints,&altBasePose,interpolationFactor,&equationTypes,&jointHandles,&jointDofIndex,_backCompatibility);
+    int constrBase=_baseHandle;
+    if (_altBaseHandleForConstraints!=-1)
+        constrBase=_altBaseHandleForConstraints;
+    getJacobian(jacobian,errorVector,_tipHandle,_baseHandle,_constraints,constrBase,interpolationFactor,&equationTypes,&jointHandles,&jointDofIndex,_backCompatibility);
 }
 
-bool CikElement::getJacobian(CMatrix& jacob,CMatrix& errVect,int ttip,int tbase,int constraints,const C7Vector* altBasePose,double interpolationFactor,std::vector<int>* equTypes,std::vector<int>* jHandles,std::vector<int>* jDofIndex,double backCompatibility/*=1.0*/)
+bool CikElement::getJacobian(CMatrix& jacob,CMatrix& errVect,int ttip,int tbase,int constraints,int constrBase,double interpolationFactor,std::vector<int>* equTypes,std::vector<int>* jHandles,std::vector<int>* jDofIndex,double backCompatibility/*=1.0*/)
 { // equTypes, jHandles and jDofIndex can be nullptr
     if (jHandles!=nullptr)
         jHandles->clear();
@@ -263,15 +258,9 @@ bool CikElement::getJacobian(CMatrix& jacob,CMatrix& errVect,int ttip,int tbase,
     CDummy* target=CEnvironment::currentEnvironment->objectContainer->getDummy(tip->getTargetDummyHandle());
     if (target==nullptr)
         target=CEnvironment::currentEnvironment->objectContainer->getDummy(tip->getLinkedDummyHandle_old()); // for backward compatibility
-    C7Vector constrBasePoseInv;
-    constrBasePoseInv.setIdentity();
-    if (base!=nullptr)
-        constrBasePoseInv=base->getCumulativeTransformationPart1();
-    if (altBasePose!=nullptr)
-        constrBasePoseInv=altBasePose[0];
-    constrBasePoseInv=constrBasePoseInv.getInverse();
+    CSceneObject* constraintBase=CEnvironment::currentEnvironment->objectContainer->getObject(constrBase);
     std::vector<double> mem;
-    jacob=_getNakedJacobian(tip,target,base,altBasePose,constraints,interpolationFactor,jHandles,jDofIndex,backCompatibility);
+    jacob=_getNakedJacobian(tip,target,base,constraintBase,constraints,interpolationFactor,jHandles,jDofIndex,backCompatibility);
     bool retVal=false;
     if ( (jacob.rows!=0)&&(jacob.cols!=0) )
     {
@@ -279,6 +268,9 @@ bool CikElement::getJacobian(CMatrix& jacob,CMatrix& errVect,int ttip,int tbase,
         if (target!=nullptr)
         {
             errVect.resize(jacob.rows,1,0.0);
+            C7Vector constrBasePoseInv(C7Vector::identityTransformation);
+            if (constraintBase!=nullptr)
+                constrBasePoseInv=constraintBase->getCumulativeTransformationPart1().getInverse();
             C7Vector tipTrRel(constrBasePoseInv*tip->getCumulativeTransformationPart1());
             C7Vector targetTrRel(constrBasePoseInv*target->getCumulativeTransformationPart1());
             targetTrRel.buildInterpolation(tipTrRel,targetTrRel,interpolationFactor);
@@ -369,13 +361,13 @@ void CikElement::getTipTargetDistance(double& linDist,double& angDist) const
         C7Vector targetTr(targetObject->getCumulativeTransformationPart1());
         CDummy* tooltipObject=CEnvironment::currentEnvironment->objectContainer->getDummy(_tipHandle);
         C7Vector tooltipTr(tooltipObject->getCumulativeTransformationPart1());
+        int constrBase=_baseHandle;
+        if (_altBaseHandleForConstraints!=-1)
+            constrBase=_altBaseHandleForConstraints;
         C7Vector baseTrInv(C7Vector::identityTransformation);
-        CDummy* baseObject=CEnvironment::currentEnvironment->objectContainer->getDummy(_baseHandle);
-        if (baseObject!=nullptr)
-            baseTrInv=baseObject->getCumulativeTransformationPart1().getInverse();
-        CDummy* altBaseObject=CEnvironment::currentEnvironment->objectContainer->getDummy(_altBaseHandleForConstraints);
-        if (altBaseObject!=nullptr)
-            baseTrInv=altBaseObject->getCumulativeTransformationPart1().getInverse();
+        CSceneObject* constrBaseObj=CEnvironment::currentEnvironment->objectContainer->getObject(constrBase);
+        if (constrBaseObj!=nullptr)
+            baseTrInv=constrBaseObj->getCumulativeTransformationPart1().getInverse();
         tooltipTr=baseTrInv*tooltipTr;
         targetTr=baseTrInv*targetTr;
 
@@ -402,7 +394,7 @@ void CikElement::getTipTargetDistance(double& linDist,double& angDist) const
     }
 }
 
-CMatrix CikElement::_getNakedJacobian(const CSceneObject* tip,const CSceneObject* target,const CSceneObject* base,const C7Vector* constrBasePose,int constraints,double interpolationFactor,std::vector<int>* jHandles,std::vector<int>* jDofIndex,double backCompatibility/*=1.0*/)
+CMatrix CikElement::_getNakedJacobian(const CSceneObject* tip,const CSceneObject* target,const CSceneObject* base,const CSceneObject* constrBase,int constraints,double interpolationFactor,std::vector<int>* jHandles,std::vector<int>* jDofIndex,double backCompatibility/*=1.0*/)
 { // jHandles and jDofIndex can be nullptr
     size_t rows=0;
     if ((constraints&ik_constraint_x)!=0)
@@ -456,11 +448,10 @@ CMatrix CikElement::_getNakedJacobian(const CSceneObject* tip,const CSceneObject
     }
 
     CMatrix jacobian(rows,0);
-    C7Vector constrBaseTrInverse;
-    constrBaseTrInverse.setIdentity();
-    if (constrBasePose!=nullptr)
-        constrBaseTrInverse=constrBasePose->getInverse();
-    C3Vector tipRelConstrBase((constrBaseTrInverse*tip->getCumulativeTransformationPart1()).X);
+    C7Vector constrBaseTrInv_init(C7Vector::identityTransformation);
+    if (constrBase!=nullptr)
+        constrBaseTrInv_init=constrBase->getCumulativeTransformationPart1().getInverse();
+    C3Vector tipRelConstrBase((constrBaseTrInv_init*tip->getCumulativeTransformationPart1()).X);
 
     C4Vector targetQ(tip->getCumulativeTransformationPart1().Q);
     if (target!=nullptr)
@@ -488,7 +479,7 @@ CMatrix CikElement::_getNakedJacobian(const CSceneObject* tip,const CSceneObject
         if (joint->getJointType()==ik_jointtype_spherical)
         {
             C7Vector jbabs(joint->getCumulativeTransformation());
-            C7Vector jb(constrBaseTrInverse*jbabs);
+            C7Vector jb(constrBaseTrInv_init*jbabs); // here we can use constrBaseTrInv_init, since a sph. joint does not have any dep. joints
             C7Vector x(jbabs.getInverse()*tip->getCumulativeTransformationPart1());
             C7Vector dj;
             dj.setIdentity();
@@ -506,7 +497,10 @@ CMatrix CikElement::_getNakedJacobian(const CSceneObject* tip,const CSceneObject
         {
             double tmp=joint->getPosition();
             joint->setPosition(tmp+dq);
-            tipRelConstrBase_changed=(constrBaseTrInverse*tip->getCumulativeTransformationPart1()).X;
+            C7Vector constrBaseTrInv(C7Vector::identityTransformation);
+            if (constrBase!=nullptr)
+                constrBaseTrInv=constrBase->getCumulativeTransformationPart1().getInverse(); // important to recompute constrBaseTrInv freshly, base could have moved too (b/c of joint dep. for instance)
+            tipRelConstrBase_changed=(constrBaseTrInv*tip->getCumulativeTransformationPart1()).X;
             targetQ_changed=tip->getCumulativeTransformationPart1().Q*tipTop;
             joint->setPosition(tmp);
         }

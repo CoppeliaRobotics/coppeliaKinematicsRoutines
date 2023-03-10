@@ -899,14 +899,28 @@ bool ikComputeJacobian(int baseHandle,int jointHandle,int constraints,const C7Ve
         CMatrix errVect;
         CDummy* tip=CEnvironment::currentEnvironment->objectContainer->getDummy(CEnvironment::currentEnvironment->objectContainer->createDummy(nullptr));
         CDummy* target=CEnvironment::currentEnvironment->objectContainer->getDummy(CEnvironment::currentEnvironment->objectContainer->createDummy(nullptr));
+        CDummy* altBase=CEnvironment::currentEnvironment->objectContainer->getDummy(CEnvironment::currentEnvironment->objectContainer->createDummy(nullptr));
         tip->setLocalTransformation(*tipPose);
-        target->setLocalTransformation(*targetPose);
+        if (targetPose!=nullptr)
+            target->setLocalTransformation(*targetPose);
+        else
+            target->setLocalTransformation(*tipPose);
         tip->setTargetDummyHandle(target->getObjectHandle());
+        if (taltBasePose!=nullptr)
+            altBase->setLocalTransformation(*taltBasePose);
+        else
+        {
+            CSceneObject* base=CEnvironment::currentEnvironment->objectContainer->getObject(baseHandle);
+            if (base!=nullptr)
+                altBase->setLocalTransformation(base->getCumulativeTransformationPart1());
+            else
+                altBase->setLocalTransformation(C7Vector::identityTransformation);
+        }
         CJoint* tipJoint=CEnvironment::currentEnvironment->objectContainer->getJoint(jointHandle);
         if (tipJoint!=nullptr)
         {
             CEnvironment::currentEnvironment->objectContainer->makeObjectChildOf(tip,tipJoint);
-            if (CikElement::getJacobian(jacob,errVect,tip->getObjectHandle(),baseHandle,constraints,taltBasePose,1.0,nullptr,nullptr,nullptr))
+            if (CikElement::getJacobian(jacob,errVect,tip->getObjectHandle(),baseHandle,constraints,altBase->getObjectHandle(),1.0,nullptr,nullptr,nullptr))
             {
                 if (jacobian!=nullptr)
                     jacobian->assign(jacob.data.begin(),jacob.data.end());
@@ -919,6 +933,7 @@ bool ikComputeJacobian(int baseHandle,int jointHandle,int constraints,const C7Ve
         }
         else
             _setLastError("Failed getting the Jacobian. Are handles valid?");
+        CEnvironment::currentEnvironment->objectContainer->eraseObject(altBase);
         CEnvironment::currentEnvironment->objectContainer->eraseObject(target);
         CEnvironment::currentEnvironment->objectContainer->eraseObject(tip);
     }
