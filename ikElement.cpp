@@ -274,39 +274,39 @@ bool CikElement::getJacobian(CMatrix& jacob,CMatrix& errVect,int ttip,int tbase,
             C7Vector tipTrRel(constrBasePoseInv*tip->getCumulativeTransformationPart1());
             C7Vector targetTrRel(constrBasePoseInv*target->getCumulativeTransformationPart1());
             targetTrRel.buildInterpolation(tipTrRel,targetTrRel,interpolationFactor);
-            /*
-            if ((constraints&ik_constraint_orientation)==ik_constraint_alpha_beta)
-            { // We need to reorient the tip around its z-axis to "ressemble" most the target orientation
-                C3Vector targetXaxisProj(tipTrRel.Q.getInverse()*targetTrRel.Q.getMatrix().axis[0]);
-                double angle=targetXaxisProj.getAngle(C3Vector::unitXVector);
-                if (fabs(angle)>0.001)
-                {
-                    if (targetXaxisProj(1)<0.0)
-                        angle=-angle;
-                    C4Vector q(angle,C3Vector::unitZVector);
-                    tipTrRel.Q*=q;
+
+            if ( ((constraints&ik_constraint_orientation)==ik_constraint_alpha_beta)||((constraints&ik_constraint_orientation)==ik_constraint_gamma) )
+            { // we have partial orient. constr.
+                if ((constraints&ik_constraint_orientation)==ik_constraint_alpha_beta)
+                { // We need to reorient the target around its z-axis to "ressemble" most the tip orientation
+                    C3Vector tipXaxisProj(targetTrRel.Q.getInverse()*tipTrRel.Q.getMatrix().axis[0]);
+                    double angle=tipXaxisProj.getAngle(C3Vector::unitXVector);
+                    if (fabs(angle)>0.001)
+                    {
+                        if (tipXaxisProj(1)<0.0)
+                            angle=-angle;
+                        C4Vector q(angle,C3Vector::unitZVector);
+                        targetTrRel.Q*=q;
+                    }
+                }
+                else
+                { // gamma constraint only. We need to reorient the target with a rotation that brings both z-axes together
+                    C3Vector tipZaxis(tipTrRel.Q.getMatrix().axis[2]);
+                    C3Vector targetZaxis(targetTrRel.Q.getMatrix().axis[2]);
+                    double angle=targetZaxis.getAngle(tipZaxis);
+                    if (angle>0.001)
+                    {
+                        C4Vector q(angle,(targetZaxis^tipZaxis).getNormalized());
+                        targetTrRel.Q=q*targetTrRel.Q;
+                    }
                 }
             }
-            if ((constraints&ik_constraint_orientation)==ik_constraint_gamma)
-            { // We need to reorient the target with a rotation that brings both z-axes together
-                C3Vector tipZaxis(tipTrRel.Q.getMatrix().axis[2]);
-                C3Vector targetZaxis(targetTrRel.Q.getMatrix().axis[2]);
-                double angle=tipZaxis.getAngle(targetZaxis);
-                if (angle>0.001)
-                {
-                    C4Vector q(angle,(tipZaxis^targetZaxis).getNormalized());
-                    tipTrRel.Q=q*tipTrRel.Q;
-                }
-            }
-            */
+
             C7Vector interpolTargetRel;
             double dq=0.01; // not that relevant apparently
             interpolTargetRel.buildInterpolation(tipTrRel,targetTrRel,dq);
 
-            C4Vector dx_q(tipTrRel.Q.getInverse()*interpolTargetRel.Q);
-            C3Vector euler(dx_q.getEulerAngles());
-
-
+            C3Vector euler( (tipTrRel.Q.getInverse()*interpolTargetRel.Q).getEulerAngles() );
             C3Vector dx_x(interpolTargetRel.X-tipTrRel.X);
 
             size_t rowIndex=0;
@@ -390,7 +390,17 @@ void CikElement::getTipTargetDistance(double& linDist,double& angDist) const
         else if ( (_constraints&ik_constraint_alpha_beta)!=0 )
             angDist=targetTr.getMatrix().M.axis[2].getAngle(tooltipTr.getMatrix().M.axis[2]);
         else if ( (_constraints&ik_constraint_gamma)!=0 ) // gamma constraint can exist also without alpha/beta constraint, e.g. in 2D
-            angDist=fabs((targetTr.getInverse()*tooltipTr).Q.getEulerAngles()(2));
+        { // gamma constraint only. We need to reorient the target with a rotation that brings both z-axes together
+            C3Vector tipZaxis(tooltipTr.Q.getMatrix().axis[2]);
+            C3Vector targetZaxis(targetTr.Q.getMatrix().axis[2]);
+            double angle=targetZaxis.getAngle(tipZaxis);
+            if (angle>0.001)
+            {
+                C4Vector q(angle,(targetZaxis^tipZaxis).getNormalized());
+                targetTr.Q=q*targetTr.Q;
+            }
+            (targetTr.getInverse()*tooltipTr).Q.getAngleAndAxis(angDist);
+        }
         else
             angDist=0.0;
     }
