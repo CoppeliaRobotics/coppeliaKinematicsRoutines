@@ -274,7 +274,7 @@ bool CikGroup::computeGroupIk(CMatrix& jacobian,CMatrix& errorVect)
         retVal=true;
         prepareRawJacobians(validElements,1.0);
         selectJoints(&validElements,nullptr,nullptr);
-        computeDq(&validElements,true,nullptr);
+        computeDq(&validElements,true,-1,nullptr);
         errorVect=_E;
         jacobian=_jacobian;
     }
@@ -348,7 +348,7 @@ bool CikGroup::selectJoints(std::vector<CikElement*>* validElements,std::vector<
     return(retVal);
 }
 
-int CikGroup::computeDq(std::vector<CikElement*>* validElements,bool nakedJacobianOnly,int(*cb)(const int*,double*,const int*,const int*,const int*,const int*,double*,double*,double*))
+int CikGroup::computeDq(std::vector<CikElement*>* validElements,bool nakedJacobianOnly,int iteration,int(*cb)(const int*,double*,const int*,const int*,const int*,const int*,double*,double*,double*,int,int))
 {   // Return value: one of ik_calc_...-values
     std::vector<int> _elementHandles; // going through the Jacobian rows
     std::vector<CikElement*> _elements; // going through the Jacobian rows
@@ -455,7 +455,7 @@ int CikGroup::computeDq(std::vector<CikElement*>* validElements,bool nakedJacobi
     {
         int js[2]={int(_jacobian.rows),int(_jacobian.cols)};
         _jacobianPseudoinv.resize(_jacobian.cols,_jacobian.rows,0.0);
-        int res=cb(js,_jacobian.data.data(),_equationType.data(),_elementHandles.data(),_jointHandles.data(),_jointDofIndex.data(),_E.data.data(),_dQ.data.data(),_jacobianPseudoinv.data.data());
+        int res=cb(js,_jacobian.data.data(),_equationType.data(),_elementHandles.data(),_jointHandles.data(),_jointDofIndex.data(),_E.data.data(),_dQ.data.data(),_jacobianPseudoinv.data.data(),_objectHandle,iteration);
         computeHere=((res&1)==0);
         if (computeHere)
         {
@@ -694,7 +694,7 @@ bool CikGroup::computeOnlyJacobian_old()
 
     prepareRawJacobians(validElements,1.0);
     selectJoints(&validElements,nullptr,nullptr);
-    int retVal=computeDq(&validElements,true,nullptr);
+    int retVal=computeDq(&validElements,true,-1,nullptr);
     CEnvironment::currentEnvironment->objectContainer->restoreJointConfig(memorizedConf_handles,memorizedConf_vals);
     return(retVal!=ik_calc_cannotinvert);
 }

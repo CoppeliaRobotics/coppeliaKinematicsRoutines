@@ -120,14 +120,14 @@ void CIkGroupContainer::addIkGroup(CikGroup* anIkGroup,bool keepCurrentHandle)
     ikGroups.push_back(anIkGroup);
 }
 
-int CIkGroupContainer::computeIk(int groupHandle,double precision[2],int(*cb)(const int*,double*,const int*,const int*,const int*,const int*,double*,double*,double*))
+int CIkGroupContainer::computeIk(int groupHandle,double precision[2],int(*cb)(const int*,double*,const int*,const int*,const int*,const int*,double*,double*,double*,int,int))
 { // Return value is one ik_resultinfo...-value
     std::vector<int> gr;
     gr.push_back(groupHandle);
     return(computeIk(gr,precision,cb));
 }
 
-int CIkGroupContainer::computeIk(const std::vector<int>& groupHandles,double precision[2],int(*cb)(const int*,double*,const int*,const int*,const int*,const int*,double*,double*,double*))
+int CIkGroupContainer::computeIk(const std::vector<int>& groupHandles,double precision[2],int(*cb)(const int*,double*,const int*,const int*,const int*,const int*,double*,double*,double*,int,int))
 { // Return value is one ik_resultinfo...-value
     if (precision!=nullptr)
     {
@@ -176,7 +176,7 @@ int CIkGroupContainer::computeIk(const std::vector<int>& groupHandles,double pre
             CikGroup* ikGroup=ikGroups[i];
             if (ikGroups.size()>1)
                 ikGroup->selectJoints(&ikElements[i],&allJoints,&allJointDofIndices); // needs to be called a second time
-            int r=ikGroup->computeDq(&ikElements[i],false,cb);
+            int r=ikGroup->computeDq(&ikElements[i],false,iterationNb,cb);
             if (r==ik_calc_cannotinvert)
             {
                 cumulResultInfo=cumulResultInfo|ik_calc_cannotinvert|ik_calc_notwithintolerance;

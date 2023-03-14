@@ -1030,7 +1030,7 @@ bool ikGetManipulability_old(int ikGroupHandle,double* manip)
     return(retVal);
 }
 
-bool ikHandleGroups(const std::vector<int>* ikGroupHandles,int* result/*=nullptr*/,double* precision/*=nullptr*/,int(*cb)(const int*,double*,const int*,const int*,const int*,const int*,double*,double*,double*)/*=nullptr*/)
+bool ikHandleGroups(const std::vector<int>* ikGroupHandles,int* result/*=nullptr*/,double* precision/*=nullptr*/,int(*cb)(const int*,double*,const int*,const int*,const int*,const int*,double*,double*,double*,int,int)/*=nullptr*/)
 {
 //    debugInfo inf(__FUNCTION__,ikGroupHandle);
     bool retVal=false;
@@ -2337,7 +2337,7 @@ bool ikSetIkElementWeights(int ikGroupHandle,int ikElementHandle,double linearWe
 { /* backward compatibility */
     return(ikSetElementWeights(ikGroupHandle,ikElementHandle,linearWeight,angularWeight,1.0));
 }
-bool ikHandleIkGroup(int ikGroupHandle,int* result,double* precision,int(*cb)(const int*,double*,const int*,const int*,const int*,const int*,double*,double*,double*))
+bool ikHandleIkGroup(int ikGroupHandle,int* result,double* precision,int(*cb)(const int*,double*,const int*,const int*,const int*,const int*,double*,double*,double*,int,int))
 { /* backward compatibility */
     std::vector<int> handles;
     handles.push_back(ikGroupHandle);
