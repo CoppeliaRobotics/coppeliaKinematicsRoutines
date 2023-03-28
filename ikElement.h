@@ -4,7 +4,7 @@
 #include "serialization.h"
 #include <vector>
 #include <simMath/4X4Matrix.h>
-#include <simMath/MMatrix.h>
+#include <simMath/mXnMatrix.h>
 
 class CSceneObject;
 

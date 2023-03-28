@@ -1,6 +1,6 @@
 #include "ikElement.h"
 #include "environment.h"
-#include <simMath/MyMath.h>
+#include <simMath/mathFuncs.h>
 #include <unordered_set>
 
 CikElement::CikElement(int theTooltip)
