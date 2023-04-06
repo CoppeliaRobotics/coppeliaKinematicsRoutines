@@ -177,13 +177,13 @@ int CIkGroupContainer::computeIk(const std::vector<int>& groupHandles,double pre
             if (ikGroups.size()>1)
                 ikGroup->selectJoints(&ikElements[i],&allJoints,&allJointDofIndices); // needs to be called a second time
             int r=ikGroup->computeDq(&ikElements[i],false,iterationNb,cb);
-            if (r==ik_calc_cannotinvert)
+            if ( (r==ik_calc_cannotinvert)||(r==ik_calc_invalidcallbackdata) )
             {
-                cumulResultInfo=cumulResultInfo|ik_calc_cannotinvert|ik_calc_notwithintolerance;
+                cumulResultInfo=cumulResultInfo|r|ik_calc_notwithintolerance;
                 break;
             }
         }
-        if ((cumulResultInfo&ik_calc_cannotinvert)!=0)
+        if ((cumulResultInfo&(ik_calc_cannotinvert|ik_calc_invalidcallbackdata))!=0)
             break;
 
         // "Assemble" result here:

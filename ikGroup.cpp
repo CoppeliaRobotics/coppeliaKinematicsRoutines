@@ -271,12 +271,15 @@ bool CikGroup::computeGroupIk(CMatrix& jacobian,CMatrix& errorVect)
     std::vector<CikElement*> validElements;
     if (getValidElements(validElements))
     {
-        retVal=true;
         prepareRawJacobians(validElements,1.0);
         selectJoints(&validElements,nullptr,nullptr);
-        computeDq(&validElements,true,-1,nullptr);
-        errorVect=_E;
-        jacobian=_jacobian;
+        int r=computeDq(&validElements,true,-1,nullptr);
+        if ( (r!=ik_calc_cannotinvert)&&(r!=ik_calc_invalidcallbackdata) )
+        {
+            retVal=true;
+            errorVect=_E;
+            jacobian=_jacobian;
+        }
     }
     return(retVal);
 }
@@ -456,6 +459,8 @@ int CikGroup::computeDq(std::vector<CikElement*>* validElements,bool nakedJacobi
         int js[2]={int(_jacobian.rows),int(_jacobian.cols)};
         _jacobianPseudoinv.resize(_jacobian.cols,_jacobian.rows,0.0);
         int res=cb(js,_jacobian.data.data(),_equationType.data(),_elementHandles.data(),_jointHandles.data(),_jointDofIndex.data(),_E.data.data(),_dQ.data.data(),_jacobianPseudoinv.data.data(),_objectHandle,iteration);
+        if (res==-2)
+            return(ik_calc_invalidcallbackdata);
         computeHere=((res&1)==0);
         if (computeHere)
         {

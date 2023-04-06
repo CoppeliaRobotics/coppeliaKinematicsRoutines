@@ -1,5 +1,6 @@
 #include "ik.h"
 #include "environment.h"
+#include <simMath/mathFuncs.h>
 #include <stdio.h>
 #include <string.h>
 #ifdef _WIN32
@@ -194,13 +195,13 @@ CikElement* getIkElementFromHandleOrTipDummy(const CikGroup* ikGroup,int ikEleme
         ikElementHandle-=ik_handleflag_tipdummy;
         retVal=ikGroup->getIkElementWithTooltipHandle(ikElementHandle);
         if (retVal==nullptr)
-            _setLastError("Invalid IK element tip dummy handle: %i",ikElementHandle);
+            _setLastError("Invalid element tip dummy handle: %i",ikElementHandle);
     }
     else
     {
         retVal=ikGroup->getIkElement(ikElementHandle);
         if (retVal==nullptr)
-            _setLastError("Invalid IK element handle: %i",ikElementHandle);
+            _setLastError("Invalid element handle: %i",ikElementHandle);
     }
     return(retVal);
 }
@@ -439,9 +440,16 @@ bool ikSetObjectTransformation(int objectHandle,int relativeToObjectHandle,const
                     CEnvironment::currentEnvironment->objectContainer->setAbsoluteConfiguration(it->getObjectHandle(),transf[0],false);
                 else
                 {
-                    C7Vector relTr(relObj->getCumulativeTransformation());
-                    C7Vector absTr(relTr*transf[0]);
-                    CEnvironment::currentEnvironment->objectContainer->setAbsoluteConfiguration(it->getObjectHandle(),absTr,false);
+                    if ( isFloatArrayOk(transf->X.data,3)&&isFloatArrayOk(transf->Q.data,4) )
+                    {
+                        C7Vector ttr(transf[0]);
+                        ttr.Q.normalize();
+                        C7Vector relTr(relObj->getCumulativeTransformation());
+                        C7Vector absTr(relTr*ttr);
+                        CEnvironment::currentEnvironment->objectContainer->setAbsoluteConfiguration(it->getObjectHandle(),absTr,false);
+                    }
+                    else
+                        _setLastError("Invalid float data");
                 }
                 retVal=true;
             }
@@ -457,8 +465,14 @@ bool ikSetObjectTransformation(int objectHandle,int relativeToObjectHandle,const
 bool ikSetObjectMatrix(int objectHandle,int relativeToObjectHandle,const C4X4Matrix* matrix)
 {
     debugInfo inf(__FUNCTION__,objectHandle,relativeToObjectHandle);
-    C7Vector transf(matrix->getTransformation());
-    return(ikSetObjectTransformation(objectHandle,relativeToObjectHandle,&transf));
+    bool retVal=false;
+    if ( isFloatArrayOk(matrix->X.data,3)&&isFloatArrayOk(matrix->M.axis[0].data,3)&&isFloatArrayOk(matrix->M.axis[1].data,3)&&isFloatArrayOk(matrix->M.axis[2].data,3) )
+    {   C4X4Matrix m(matrix[0]);
+        m.M.normalize();
+        C7Vector transf(m.getTransformation());
+        retVal=ikSetObjectTransformation(objectHandle,relativeToObjectHandle,&transf);
+    }
+    return(retVal);
 }
 
 bool ikGetJointPosition(int jointHandle,double* position)
@@ -495,8 +509,13 @@ bool ikSetJointPosition(int jointHandle,double position)
         {
             if (it->getJointType()!=ik_jointtype_spherical)
             {
-                it->setPosition(position);
-                retVal=true;
+                if (isFloatArrayOk(&position,1))
+                {
+                    it->setPosition(position);
+                    retVal=true;
+                }
+                else
+                    _setLastError("Invalid float");
             }
             else
                 _setLastError("Invalid call with spherical joint");
@@ -532,7 +551,7 @@ bool ikGetGroupHandle(const char* ikGroupName,int* ikGroupHandle)
             retVal=true;
         }
         else
-            _setLastError("IK group does not exist: %s",ikGroupName);
+            _setLastError("Group does not exist: %s",ikGroupName);
     }
     return(retVal);
 }
@@ -568,7 +587,7 @@ bool ikCreateGroup(const char* ikGroupName/*=nullptr*/,int* ikGroupHandle)
             retVal=true;
         }
         else
-            _setLastError("Invalid IK group name: %s",ikGroupName);
+            _setLastError("Invalid group name: %s",ikGroupName);
     }
     inf.debugMsg("handle: ",ikGroupHandle[0]);
     return(retVal);
@@ -587,7 +606,7 @@ bool ikEraseGroup(int ikGroupHandle)
             CEnvironment::currentEnvironment->ikGroupContainer->removeIkGroup(ikGroupHandle);
         }
         else
-            _setLastError("Invalid IK group handle: %i",ikGroupHandle);
+            _setLastError("Invalid group handle: %i",ikGroupHandle);
     }
     return(retVal);
 }
@@ -612,7 +631,7 @@ bool ikAddElement(int ikGroupHandle,int tipHandle,int* ikElementHandle)
                 _setLastError("Invalid tip dummy handle: %i",tipHandle);
         }
         else
-            _setLastError("Invalid IK group handle: %i",ikGroupHandle);
+            _setLastError("Invalid group handle: %i",ikGroupHandle);
     }
     inf.debugMsg("handle: ",ikElementHandle[0]);
     return(retVal);
@@ -635,7 +654,7 @@ bool ikEraseElement(int ikGroupHandle,int ikElementHandle)
             }
         }
         else
-            _setLastError("Invalid IK group handle: %i",ikGroupHandle);
+            _setLastError("Invalid group handle: %i",ikGroupHandle);
     }
     return(retVal);
 }
@@ -658,7 +677,7 @@ bool ikSetElementFlags(int ikGroupHandle,int ikElementHandle,int flags)
             }
         }
         else
-            _setLastError("Invalid IK group handle: %i",ikGroupHandle);
+            _setLastError("Invalid group handle: %i",ikGroupHandle);
     }
     return(retVal);
 }
@@ -682,7 +701,7 @@ bool ikGetElementFlags(int ikGroupHandle,int ikElementHandle,int* flags)
             }
         }
         else
-            _setLastError("Invalid IK group handle: %i",ikGroupHandle);
+            _setLastError("Invalid group handle: %i",ikGroupHandle);
     }
     return(retVal);
 }
@@ -719,7 +738,7 @@ bool ikSetElementBase(int ikGroupHandle,int ikElementHandle,int baseHandle,int c
             }
         }
         else
-            _setLastError("Invalid IK group handle: %i",ikGroupHandle);
+            _setLastError("Invalid group handle: %i",ikGroupHandle);
     }
     return(retVal);
 }
@@ -742,7 +761,7 @@ bool ikGetElementBase(int ikGroupHandle,int ikElementHandle,int* baseHandle,int*
             }
         }
         else
-            _setLastError("Invalid IK group handle: %i",ikGroupHandle);
+            _setLastError("Invalid group handle: %i",ikGroupHandle);
     }
     return(retVal);
 }
@@ -765,7 +784,7 @@ bool ikSetElementConstraints(int ikGroupHandle,int ikElementHandle,int constrain
             }
         }
         else
-            _setLastError("Invalid IK group handle: %i",ikGroupHandle);
+            _setLastError("Invalid group handle: %i",ikGroupHandle);
     }
     return(retVal);
 }
@@ -785,9 +804,11 @@ bool ikGetElementConstraints(int ikGroupHandle,int ikElementHandle,int* constrai
                 constraints[0]=ikElement->getConstraints();
                 retVal=true;
             }
+            else
+                _setLastError("Invalid element handle: %i",ikElementHandle);
         }
         else
-            _setLastError("Invalid IK group handle: %i",ikGroupHandle);
+            _setLastError("Invalid group handle: %i",ikGroupHandle);
     }
     return(retVal);
 }
@@ -805,12 +826,19 @@ bool ikSetElementPrecision(int ikGroupHandle,int ikElementHandle,double linearPr
             if (ikElement!=nullptr)
             {
                 double p[2]={linearPrecision,angularPrecision};
-                ikElement->setPrecisions(p);
-                retVal=true;
+                if (isFloatArrayOk(p,2))
+                {
+                    ikElement->setPrecisions(p);
+                    retVal=true;
+                }
+                else
+                    _setLastError("Invalid float");
             }
+            else
+                _setLastError("Invalid element handle: %i",ikElementHandle);
         }
         else
-            _setLastError("Invalid IK group handle: %i",ikGroupHandle);
+            _setLastError("Invalid group handle: %i",ikGroupHandle);
     }
     return(retVal);
 }
@@ -833,9 +861,11 @@ bool ikGetElementPrecision(int ikGroupHandle,int ikElementHandle,double* linearP
                 angularPrecision[0]=p[1];
                 retVal=true;
             }
+            else
+                _setLastError("Invalid element handle: %i",ikElementHandle);
         }
         else
-            _setLastError("Invalid IK group handle: %i",ikGroupHandle);
+            _setLastError("Invalid group handle: %i",ikGroupHandle);
     }
     return(retVal);
 }
@@ -853,12 +883,19 @@ bool ikSetElementWeights(int ikGroupHandle,int ikElementHandle,double linearWeig
             if (ikElement!=nullptr)
             {
                 double w[3]={linearWeight,angularWeight,elementWeight};
-                ikElement->setWeights(w);
-                retVal=true;
+                if (isFloatArrayOk(w,3))
+                {
+                    ikElement->setWeights(w);
+                    retVal=true;
+                }
+                else
+                     _setLastError("Invalid float");
             }
+            else
+                _setLastError("Invalid element handle: %i",ikElementHandle);
         }
         else
-            _setLastError("Invalid IK group handle: %i",ikGroupHandle);
+            _setLastError("Invalid group handle: %i",ikGroupHandle);
     }
     return(retVal);
 }
@@ -883,9 +920,11 @@ bool ikGetElementWeights(int ikGroupHandle,int ikElementHandle,double* linearWei
                     elementWeight[0]=w[2];
                 retVal=true;
             }
+            else
+                _setLastError("Invalid element handle: %i",ikElementHandle);
         }
         else
-            _setLastError("Invalid IK group handle: %i",ikGroupHandle);
+            _setLastError("Invalid group handle: %i",ikGroupHandle);
     }
     return(retVal);
 }
@@ -963,7 +1002,7 @@ bool ikComputeGroupJacobian(int ikGroupHandle,std::vector<double>* jacobian,std:
                 _setLastError("Failed getting the Jacobian");
         }
         else
-            _setLastError("Invalid IK group handle: %i",ikGroupHandle);
+            _setLastError("Invalid group handle: %i",ikGroupHandle);
     }
     return(retVal);
 }
@@ -983,7 +1022,7 @@ bool ikComputeJacobian_old(int ikGroupHandle,int options,bool* success/*=nullptr
                 success[0]=succ;
         }
         else
-            _setLastError("Invalid IK group handle: %i",ikGroupHandle);
+            _setLastError("Invalid group handle: %i",ikGroupHandle);
     }
     return(retVal);
 }
@@ -1006,7 +1045,7 @@ double* ikGetJacobian_old(int ikGroupHandle,size_t* matrixSize)
             }
         }
         else
-            _setLastError("Invalid IK group handle: %i",ikGroupHandle);
+            _setLastError("Invalid group handle: %i",ikGroupHandle);
     }
     return(retVal);
 }
@@ -1025,7 +1064,7 @@ bool ikGetManipulability_old(int ikGroupHandle,double* manip)
                 manip[0]=b;
         }
         else
-            _setLastError("Invalid IK group handle: %i",ikGroupHandle);
+            _setLastError("Invalid group handle: %i",ikGroupHandle);
     }
     return(retVal);
 }
@@ -1045,16 +1084,24 @@ bool ikHandleGroups(const std::vector<int>* ikGroupHandles,int* result/*=nullptr
             {
                 if (it->getExplicitHandling_old())
                 {
-                    int res=CEnvironment::currentEnvironment->ikGroupContainer->computeIk(ikGroupHandles[0],precision,cb);
-                    if (result!=nullptr)
-                        result[0]=res;
-                    retVal=true;
+                    if ( (precision==nullptr)||isFloatArrayOk(precision,2) )
+                    {
+                        int res=CEnvironment::currentEnvironment->ikGroupContainer->computeIk(ikGroupHandles[0],precision,cb);
+                        if (result!=nullptr)
+                            result[0]=res;
+                        if ((res&ik_calc_invalidcallbackdata)==0)
+                            retVal=true;
+                        else
+                            _setLastError("Invalid callback data");
+                    }
+                    else
+                        _setLastError("Invalid float data");
                 }
                 else
-                    _setLastError("IK group cannot explicitely be handled");
+                    _setLastError("Group cannot explicitely be handled");
             }
             else
-                _setLastError("Invalid IK group handle: %i",ikGroupHandles->at(0));
+                _setLastError("Invalid group handle: %i",ikGroupHandles->at(0));
         }
     }
     return(retVal);
@@ -1102,8 +1149,15 @@ bool ikSetSphericalJointQuaternion(int jointHandle,const C4Vector* quaternion)
         {
             if (it->getJointType()==ik_jointtype_spherical)
             {
-                it->setSphericalTransformation(quaternion[0]);
-                retVal=true;
+                if (isFloatArrayOk(quaternion->data,4))
+                {
+                    C4Vector q(quaternion[0]);
+                    q.normalize();
+                    it->setSphericalTransformation(q);
+                    retVal=true;
+                }
+                else
+                    _setLastError("Invalid float data");
             }
             else
                 _setLastError("Joint is not spherical");
@@ -1117,8 +1171,17 @@ bool ikSetSphericalJointQuaternion(int jointHandle,const C4Vector* quaternion)
 bool ikSetSphericalJointMatrix(int jointHandle,const C3X3Matrix* rotMatrix)
 {
     debugInfo inf(__FUNCTION__,jointHandle);
-    C4Vector q(rotMatrix->getQuaternion());
-    return(ikSetSphericalJointQuaternion(jointHandle,&q));
+    bool retVal=false;
+    if ( isFloatArrayOk(rotMatrix->axis[0].data,3)&&isFloatArrayOk(rotMatrix->axis[1].data,3)&&isFloatArrayOk(rotMatrix->axis[2].data,3) )
+    {
+        C3X3Matrix m(rotMatrix[0]);
+        m.normalize();
+        C4Vector q(m.getQuaternion());
+        retVal=ikSetSphericalJointQuaternion(jointHandle,&q);
+    }
+    else
+        _setLastError("Invalid float data");
+    return(retVal);
 }
 
 bool ikGetObjectType(int objectHandle,int* objectType)
@@ -1371,18 +1434,23 @@ bool ikSetJointInterval(int jointHandle,bool cyclic,const double* intervalMinAnd
         CJoint* it=CEnvironment::currentEnvironment->objectContainer->getJoint(jointHandle);
         if (it!=nullptr)
         {
-            double previousPos=it->getPosition();
-            if (it->getPositionIsCyclic()!=cyclic)
-                it->setPositionIsCyclic(cyclic);
-            if (intervalMinAndRange!=nullptr)
+            if ( (intervalMinAndRange==nullptr)||isFloatArrayOk(intervalMinAndRange,2) )
             {
-                if ( fabs(it->getPositionIntervalMin()-intervalMinAndRange[0])>0.00001 )
-                    it->setPositionIntervalMin(intervalMinAndRange[0]);
-                if ( fabs(it->getPositionIntervalRange()-intervalMinAndRange[1])>0.00001 )
-                    it->setPositionIntervalRange(intervalMinAndRange[1]);
+                double previousPos=it->getPosition();
+                if (it->getPositionIsCyclic()!=cyclic)
+                    it->setPositionIsCyclic(cyclic);
+                if (intervalMinAndRange!=nullptr)
+                {
+                    if ( fabs(it->getPositionIntervalMin()-intervalMinAndRange[0])>0.00001 )
+                        it->setPositionIntervalMin(intervalMinAndRange[0]);
+                    if ( fabs(it->getPositionIntervalRange()-intervalMinAndRange[1])>0.00001 )
+                        it->setPositionIntervalRange(intervalMinAndRange[1]);
+                }
+                it->setPosition(previousPos);
+                retVal=true;
             }
-            it->setPosition(previousPos);
-            retVal=true;
+            else
+                _setLastError("Invalid float data");
         }
         else
             _setLastError("Invalid joint handle: %i",jointHandle);
@@ -1399,9 +1467,14 @@ bool ikSetJointScrewLead(int jointHandle,double lead)
         CJoint* it=CEnvironment::currentEnvironment->objectContainer->getJoint(jointHandle);
         if (it!=nullptr)
         {
-            if ( fabs(it->getScrewLead()-lead)>0.000001 )
-                it->setScrewLead(lead);
-            retVal=true;
+            if (isFloatArrayOk(&lead,1))
+            {
+                if ( fabs(it->getScrewLead()-lead)>0.000001 )
+                    it->setScrewLead(lead);
+                retVal=true;
+            }
+            else
+                _setLastError("Invalid float");
         }
         else
             _setLastError("Invalid joint handle: %i",jointHandle);
@@ -1418,9 +1491,14 @@ bool ikSetJointWeight(int jointHandle,double ikWeight)
         CJoint* it=CEnvironment::currentEnvironment->objectContainer->getJoint(jointHandle);
         if (it!=nullptr)
         {
-            if ( fabs(it->getIkWeight()-ikWeight)>0.0001 )
-                it->setIkWeight(ikWeight);
-            retVal=true;
+            if (isFloatArrayOk(&ikWeight,1))
+            {
+                if ( fabs(it->getIkWeight()-ikWeight)>0.0001 )
+                    it->setIkWeight(ikWeight);
+                retVal=true;
+            }
+            else
+                _setLastError("Invalid float");
         }
         else
             _setLastError("Invalid joint handle: %i",jointHandle);
@@ -1455,8 +1533,13 @@ bool ikSetJointLimitMargin(int jointHandle,double m)
         CJoint* it=CEnvironment::currentEnvironment->objectContainer->getJoint(jointHandle);
         if (it!=nullptr)
         {
-            it->setLimitMargin(m);
-            retVal=true;
+            if (isFloatArrayOk(&m,1))
+            {
+                it->setLimitMargin(m);
+                retVal=true;
+            }
+            else
+                _setLastError("Invalid float");
         }
         else
             _setLastError("Invalid joint handle: %i",jointHandle);
@@ -1491,9 +1574,14 @@ bool ikSetJointMaxStepSize(int jointHandle,double maxStepSize)
         CJoint* it=CEnvironment::currentEnvironment->objectContainer->getJoint(jointHandle);
         if (it!=nullptr)
         {
-            if ( fabs(it->getMaxStepSize()-maxStepSize)>0.00001 )
-                it->setMaxStepSize(maxStepSize);
-            retVal=true;
+            if (isFloatArrayOk(&maxStepSize,1))
+            {
+                if ( fabs(it->getMaxStepSize()-maxStepSize)>0.00001 )
+                    it->setMaxStepSize(maxStepSize);
+                retVal=true;
+            }
+            else
+                _setLastError("Invalid float");
         }
         else
             _setLastError("Invalid joint handle: %i",jointHandle);
@@ -1531,15 +1619,20 @@ bool ikSetJointDependency(int jointHandle,int dependencyJointHandle,double offse
             CJoint* it2=CEnvironment::currentEnvironment->objectContainer->getJoint(dependencyJointHandle);
             if ( (it2!=nullptr)||(dependencyJointHandle==-1) )
             {
-                if (it->getDependencyJointHandle()!=dependencyJointHandle)
-                    it->setDependencyJointHandle(dependencyJointHandle);
-                if (dependencyJointHandle!=-1)
+                if (isFloatArrayOk(&offset,1)&&isFloatArrayOk(&mult,1))
                 {
-                    it->setDependencyJointMult(mult);
-                    it->setDependencyJointAdd(offset);
-                    it->setDependencyJointCallback(cb);
+                    if (it->getDependencyJointHandle()!=dependencyJointHandle)
+                        it->setDependencyJointHandle(dependencyJointHandle);
+                    if (dependencyJointHandle!=-1)
+                    {
+                        it->setDependencyJointMult(mult);
+                        it->setDependencyJointAdd(offset);
+                        it->setDependencyJointCallback(cb);
+                    }
+                    retVal=true;
                 }
-                retVal=true;
+                else
+                    _setLastError("Invalid float");
             }
             else
                 _setLastError("Invalid dependency joint handle: %i",dependencyJointHandle);
@@ -1636,7 +1729,7 @@ bool ikGetGroupJointLimitHits(int ikGroupHandle,std::vector<int>* jointHandles,s
             retVal=true;
         }
         else
-            _setLastError("Invalid IK group handle: %i",ikGroupHandle);
+            _setLastError("Invalid group handle: %i",ikGroupHandle);
     }
     return(retVal);
 }
@@ -1654,7 +1747,7 @@ bool ikGetGroupJoints(int ikGroupHandle,std::vector<int>* jointHandles)
             retVal=true;
         }
         else
-            _setLastError("Invalid IK group handle: %i",ikGroupHandle);
+            _setLastError("Invalid group handle: %i",ikGroupHandle);
     }
     return(retVal);
 }
@@ -1674,7 +1767,7 @@ bool ikGetGroupCalculation(int ikGroupHandle,int* method,double* damping,int* ma
             maxIterations[0]=it->getMaxIterations();
         }
         else
-            _setLastError("Invalid IK group handle: %i",ikGroupHandle);
+            _setLastError("Invalid group handle: %i",ikGroupHandle);
     }
     return(retVal);
 }
@@ -1688,16 +1781,21 @@ bool ikSetGroupCalculation(int ikGroupHandle,int method,double damping,int maxIt
         CikGroup* it=CEnvironment::currentEnvironment->ikGroupContainer->getIkGroup(ikGroupHandle);
         if (it!=nullptr)
         {
-            if (it->getCalculationMethod()!=method)
-                it->setCalculationMethod(method);
-            if ( fabs(it->getDlsFactor()-damping)>0.0001 )
-                it->setDlsFactor(damping);
-            if (it->getMaxIterations()!=maxIterations)
-                it->setMaxIterations(maxIterations);
-            retVal=true;
+            if (isFloatArrayOk(&damping,1))
+            {
+                if (it->getCalculationMethod()!=method)
+                    it->setCalculationMethod(method);
+                if ( fabs(it->getDlsFactor()-damping)>0.0001 )
+                    it->setDlsFactor(damping);
+                if (it->getMaxIterations()!=maxIterations)
+                    it->setMaxIterations(maxIterations);
+                retVal=true;
+            }
+            else
+                _setLastError("Invalid float");
         }
         else
-            _setLastError("Invalid IK group handle: %i",ikGroupHandle);
+            _setLastError("Invalid group handle: %i",ikGroupHandle);
     }
     return(retVal);
 }
@@ -1715,7 +1813,7 @@ bool ikSetGroupFlags(int ikGroupHandle,int flags)
             retVal=true;
         }
         else
-            _setLastError("Invalid IK group handle: %i",ikGroupHandle);
+            _setLastError("Invalid group handle: %i",ikGroupHandle);
     }
     return(retVal);
 }
@@ -1733,7 +1831,7 @@ bool ikGetGroupFlags(int ikGroupHandle,int* flags)
             flags[0]=it->getOptions();
         }
         else
-            _setLastError("Invalid IK group handle: %i",ikGroupHandle);
+            _setLastError("Invalid group handle: %i",ikGroupHandle);
     }
     return(retVal);
 }
@@ -1744,15 +1842,26 @@ int ikFindConfig(int ikGroupHandle,size_t jointCnt,const int* jointHandles,doubl
     std::vector<double> retConf(jointCnt);
     if (!hasLaunched())
         return(-1);
+    if (!isFloatArrayOk(&thresholdDist,1))
+    {
+        _setLastError("Invalid float");
+        return(-1);
+    }
+    if ( (metric!=nullptr)&&(!isFloatArrayOk(metric,4)) )
+    {
+        _setLastError("Invalid float data");
+        return(-1);
+    }
+
     CikGroup* ikGroup=CEnvironment::currentEnvironment->ikGroupContainer->getIkGroup(ikGroupHandle);
     if (ikGroup==nullptr)
     {
-        _setLastError("Invalid IK group handle: %i",ikGroupHandle);
+        _setLastError("Invalid group handle: %i",ikGroupHandle);
         return(-1);
     }
     if ( ((ikGroup->getOptions()&ik_group_enabled)==0)||(ikGroup->getIkElementCount()==0) )
     {
-        _setLastError("Invalid IK group");
+        _setLastError("Invalid group");
         return(-1);
     }
     if (jointCnt<=0)
@@ -1792,7 +1901,7 @@ int ikFindConfig(int ikGroupHandle,size_t jointCnt,const int* jointHandles,doubl
             base=CEnvironment::currentEnvironment->objectContainer->getObject(ikEl->getBaseHandle());
         if ((tip==nullptr)||(target==nullptr))
         {
-            _setLastError("Found invalid IK element");
+            _setLastError("Found invalid element");
             return(-1);
         }
         tips.push_back(tip);
@@ -2060,7 +2169,7 @@ int ikGetConfigForTipPose(int ikGroupHandle,size_t jointCnt,const int* jointHand
                 int savedIkGroupOptions=ikGroup->getOptions();
                 ikGroup->setOptions(savedIkGroupOptions|ik_group_enabled);
 
-                // It can happen that some IK elements get deactivated when the user provided wrong handles, so save the activation state:
+                // It can happen that some elements get deactivated when the user provided wrong handles, so save the activation state:
                 std::vector<bool> enabledElements;
                 for (size_t i=0;i<ikGroup->getIkElementCount();i++)
                     enabledElements.push_back(ikGroup->getIkElementFromIndex(i)->getIsActive());
@@ -2161,7 +2270,7 @@ int ikGetConfigForTipPose(int ikGroupHandle,size_t jointCnt,const int* jointHand
 
                 ikGroup->setOptions(savedIkGroupOptions);
 
-                // Restore the IK element activation state:
+                // Restore the element activation state:
                 for (size_t i=0;i<ikGroup->getIkElementCount();i++)
                     ikGroup->getIkElementFromIndex(i)->setIsActive(enabledElements[i]);
 
@@ -2179,13 +2288,13 @@ int ikGetConfigForTipPose(int ikGroupHandle,size_t jointCnt,const int* jointHand
                 if (err==1)
                     _setLastError("Found invalid joint handle(s)");
                 if (err==2)
-                    _setLastError("Found ill-defined IK element(s)");
+                    _setLastError("Found ill-defined element(s)");
                 if (err==3)
-                    _setLastError("Ill-defined IK group");
+                    _setLastError("Ill-defined group");
             }
         }
         else
-            _setLastError("Invalid IK group handle: %i",ikGroupHandle);
+            _setLastError("Invalid group handle: %i",ikGroupHandle);
     }
     return(retVal);
 }
