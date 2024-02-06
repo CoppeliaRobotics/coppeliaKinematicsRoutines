@@ -238,13 +238,6 @@ int CIkGroupContainer::computeIk(const std::vector<int>& groupHandles,double pre
                     withinPosition=false;
                 if (ap>pr[1])
                     withinOrientation=false;
-                if (precision!=nullptr)
-                {
-                    if (lp>precision[0])
-                        precision[0]=lp;
-                    if (ap>precision[1])
-                        precision[1]=ap;
-                }
             }
         }
         if ( (!withinPosition)||(!withinOrientation) )
@@ -258,10 +251,28 @@ int CIkGroupContainer::computeIk(const std::vector<int>& groupHandles,double pre
         }
     }
 
+    if (precision!=nullptr)
+    {
+        for (size_t i=0;i<ikElements.size();i++)
+        {
+            for (size_t j=0;j<ikElements[i].size();j++)
+            {
+                CikElement* element=ikElements[i][j];
+                double lp,ap;
+                element->getTipTargetDistance(lp,ap);
+                if (lp>precision[0])
+                    precision[0]=lp;
+                if (ap>precision[1])
+                    precision[1]=ap;
+            }
+        }
+    }
+
     bool restoreConfig=(cumulResultInfo&ik_calc_cannotinvert)!=0;
     if ( (cumulResultInfo&ik_calc_notwithintolerance)!=0 ) // notwithintolerance cannot always be considered as an error (e.g. when we want slow convergence, etc.) and results are applied by default
         restoreConfig=( (((firstIkGroup->getOptions()&ik_group_restoreonbadlintol)!=0)&&(!withinPosition))||(((firstIkGroup->getOptions()&ik_group_restoreonbadangtol)!=0)&&(!withinOrientation)) );
     if (restoreConfig)
         CEnvironment::currentEnvironment->objectContainer->restoreJointConfig(memorizedConf_handles,memorizedConf_vals);
+
     return(cumulResultInfo);
 }
