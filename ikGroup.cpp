@@ -284,6 +284,22 @@ bool CikGroup::computeGroupIk(CMatrix& jacobian,CMatrix& errorVect)
     return(retVal);
 }
 
+double CikGroup::getTipTargetDistance(double orientationMetric)
+{
+    double d = 0.0;
+    for (size_t i = 0; i < _ikElements.size(); i++)
+    {
+        CikElement* element = _ikElements[i];
+        if (element->getIsActive())
+        {
+            double l, a;
+            element->getTipTargetDistance(l, a);
+            d = d + sqrt((l * l) + (a * orientationMetric) * (a * orientationMetric));
+        }
+    }
+    return d;
+}
+
 bool CikGroup::getValidElements(std::vector<CikElement*>& el)
 {
     for (size_t i=0;i<_ikElements.size();i++)

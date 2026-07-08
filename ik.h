@@ -45,10 +45,13 @@
 #define ik_result_success 1
 #define ik_result_fail 2
 
+#define ik_calc_ok 0
 #define ik_calc_notperformed 1
 #define ik_calc_cannotinvert 2
-#define ik_calc_notwithintolerance 16
-#define ik_calc_stepstoobig 32
+#define ik_calc_outoftolerance 16
+#define ik_calc_notwithintolerance ik_calc_outoftolerance
+#define ik_calc_largesteps 32
+#define ik_calc_stepstoobig ik_calc_largesteps
 #define ik_calc_limithit 64
 #define ik_calc_invalidcallbackdata 128
 
@@ -120,6 +123,7 @@ bool ikGetGroupCalculation(int ikGroupHandle,int* method,double* damping,int* ma
 bool ikSetGroupCalculation(int ikGroupHandle,int method,double damping,int maxIterations);
 bool ikGetGroupJointLimitHits(int ikGroupHandle,std::vector<int>* jointHandles,std::vector<double>* underOrOvershots);
 bool ikGetGroupJoints(int ikGroupHandle,std::vector<int>* jointHandles);
+bool ikGetGroupTipTargetDistance(int ikGroupHandle, double* dist, double orientationMetric);
 
 bool ikAddElement(int ikGroupHandle,int tipHandle,int* ikElementHandle);
 bool ikEraseElement(int ikGroupHandle,int ikElementHandle);

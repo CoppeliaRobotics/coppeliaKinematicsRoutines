@@ -1752,6 +1752,24 @@ bool ikGetGroupJoints(int ikGroupHandle,std::vector<int>* jointHandles)
     return(retVal);
 }
 
+bool ikGetGroupTipTargetDistance(int ikGroupHandle, double* dist, double orientationMetric)
+{
+    debugInfo inf(__FUNCTION__, ikGroupHandle);
+    bool retVal = false;
+    if (hasLaunched())
+    {
+        CikGroup* it = CEnvironment::currentEnvironment->ikGroupContainer->getIkGroup(ikGroupHandle);
+        if (it != nullptr)
+        {
+            dist[0] = it->getTipTargetDistance(orientationMetric);
+            retVal = true;
+        }
+        else
+            _setLastError("Invalid group handle: %i", ikGroupHandle);
+    }
+    return retVal;
+}
+
 bool ikGetGroupCalculation(int ikGroupHandle,int* method,double* damping,int* maxIterations)
 {
     debugInfo inf(__FUNCTION__,ikGroupHandle);

@@ -40,6 +40,7 @@ public:
     void setOptions(int options);
     int getOptions() const;
 
+    double getTipTargetDistance(double orientationMetric);
     bool getValidElements(std::vector<CikElement*>& el);
     void prepareRawJacobians(std::vector<CikElement*>& el,double interpolFact);
     bool computeGroupIk(CMatrix& jacobian,CMatrix& errorVect);
