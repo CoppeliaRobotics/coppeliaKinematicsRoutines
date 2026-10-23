@@ -250,7 +250,7 @@ bool CikElement::getJacobian(CMatrix& jacob,CMatrix& errVect,int ttip,int tbase,
         equTypes->clear();
     errVect.resize(0,1,0.0);
     CDummy* tip=CEnvironment::currentEnvironment->objectContainer->getDummy(ttip);
-    C7Vector tr(tip->getCumulativeTransformation());
+    CPose tr(tip->getCumulativeTransformation());
 
     CSceneObject* base=CEnvironment::currentEnvironment->objectContainer->getObject(tbase);
     if ( (tip==nullptr)||((base!=nullptr)&&(!tip->isObjectAffiliatedWith(base))) )
@@ -268,11 +268,11 @@ bool CikElement::getJacobian(CMatrix& jacob,CMatrix& errVect,int ttip,int tbase,
         if (target!=nullptr)
         {
             errVect.resize(jacob.rows,1,0.0);
-            C7Vector constrBasePoseInv(C7Vector::identityTransformation);
+            CPose constrBasePoseInv(CPose::identityTransformation);
             if (constraintBase!=nullptr)
                 constrBasePoseInv=constraintBase->getCumulativeTransformationPart1().getInverse();
-            C7Vector tipTrRel(constrBasePoseInv*tip->getCumulativeTransformationPart1());
-            C7Vector targetTrRel(constrBasePoseInv*target->getCumulativeTransformationPart1());
+            CPose tipTrRel(constrBasePoseInv*tip->getCumulativeTransformationPart1());
+            CPose targetTrRel(constrBasePoseInv*target->getCumulativeTransformationPart1());
             targetTrRel.buildInterpolation(tipTrRel,targetTrRel,interpolationFactor);
 
             if ( ((constraints&ik_constraint_orientation)==ik_constraint_alpha_beta)||((constraints&ik_constraint_orientation)==ik_constraint_gamma) )
@@ -285,7 +285,7 @@ bool CikElement::getJacobian(CMatrix& jacob,CMatrix& errVect,int ttip,int tbase,
                     {
                         if (tipXaxisProj(1)<0.0)
                             angle=-angle;
-                        C4Vector q(angle,C3Vector::unitZVector);
+                        CQuaternion q(angle,C3Vector::unitZVector);
                         targetTrRel.Q*=q;
                     }
                 }
@@ -296,13 +296,13 @@ bool CikElement::getJacobian(CMatrix& jacob,CMatrix& errVect,int ttip,int tbase,
                     double angle=targetZaxis.getAngle(tipZaxis);
                     if (angle>0.001)
                     {
-                        C4Vector q(angle,(targetZaxis^tipZaxis).getNormalized());
+                        CQuaternion q(angle,(targetZaxis^tipZaxis).getNormalized());
                         targetTrRel.Q=q*targetTrRel.Q;
                     }
                 }
             }
 
-            C7Vector interpolTargetRel;
+            CPose interpolTargetRel;
             double dq=0.01; // not that relevant apparently
             interpolTargetRel.buildInterpolation(tipTrRel,targetTrRel,dq);
 
@@ -360,13 +360,13 @@ void CikElement::getTipTargetDistance(double& linDist,double& angDist) const
     CDummy* targetObject=CEnvironment::currentEnvironment->objectContainer->getDummy(getTargetHandle());
     if (targetObject!=nullptr)
     {
-        C7Vector targetTr(targetObject->getCumulativeTransformationPart1());
+        CPose targetTr(targetObject->getCumulativeTransformationPart1());
         CDummy* tooltipObject=CEnvironment::currentEnvironment->objectContainer->getDummy(_tipHandle);
-        C7Vector tooltipTr(tooltipObject->getCumulativeTransformationPart1());
+        CPose tooltipTr(tooltipObject->getCumulativeTransformationPart1());
         int constrBase=_baseHandle;
         if (_altBaseHandleForConstraints!=-1)
             constrBase=_altBaseHandleForConstraints;
-        C7Vector baseTrInv(C7Vector::identityTransformation);
+        CPose baseTrInv(CPose::identityTransformation);
         CSceneObject* constrBaseObj=CEnvironment::currentEnvironment->objectContainer->getObject(constrBase);
         if (constrBaseObj!=nullptr)
             baseTrInv=constrBaseObj->getCumulativeTransformationPart1().getInverse();
@@ -396,7 +396,7 @@ void CikElement::getTipTargetDistance(double& linDist,double& angDist) const
             double angle=targetZaxis.getAngle(tipZaxis);
             if (angle>0.001)
             {
-                C4Vector q(angle,(targetZaxis^tipZaxis).getNormalized());
+                CQuaternion q(angle,(targetZaxis^tipZaxis).getNormalized());
                 targetTr.Q=q*targetTr.Q;
             }
             (targetTr.getInverse()*tooltipTr).Q.getAngleAndAxis(angDist);
@@ -460,15 +460,15 @@ CMatrix CikElement::_getNakedJacobian(const CSceneObject* tip,const CSceneObject
     }
 
     CMatrix jacobian(rows,0);
-    C7Vector constrBaseTrInv_init(C7Vector::identityTransformation);
+    CPose constrBaseTrInv_init(CPose::identityTransformation);
     if (constrBase!=nullptr)
         constrBaseTrInv_init=constrBase->getCumulativeTransformationPart1().getInverse();
     C3Vector tipRelConstrBase((constrBaseTrInv_init*tip->getCumulativeTransformationPart1()).X);
 
-    C4Vector baseQ_init(C4Vector::identityRotation);
+    CQuaternion baseQ_init(CQuaternion::identityRotation);
     if (base!=nullptr)
         baseQ_init=base->getCumulativeTransformationPart1().Q;
-    C4Vector tipOrientInv_init(tip->getCumulativeTransformationPart1().Q.getInverse()*baseQ_init);
+    CQuaternion tipOrientInv_init(tip->getCumulativeTransformationPart1().Q.getInverse()*baseQ_init);
 
     int dofIndex=0;
     size_t jointIndex=0;
@@ -484,13 +484,13 @@ CMatrix CikElement::_getNakedJacobian(const CSceneObject* tip,const CSceneObject
         double dq=0.01; // starts breaking at dj>0.05 or at dj<0.01
 
         C3Vector tipRelConstrBase_changed;
-        C4Vector tipQ_changed;
+        CQuaternion tipQ_changed;
         if (joint->getJointType()==ik_jointtype_spherical)
         {
-            C7Vector jbabs(joint->getCumulativeTransformation());
-            C7Vector jb(constrBaseTrInv_init*jbabs); // here we can use constrBaseTrInv_init, since a sph. joint does not have any dep. joints
-            C7Vector x(jbabs.getInverse()*tip->getCumulativeTransformationPart1());
-            C7Vector dj;
+            CPose jbabs(joint->getCumulativeTransformation());
+            CPose jb(constrBaseTrInv_init*jbabs); // here we can use constrBaseTrInv_init, since a sph. joint does not have any dep. joints
+            CPose x(jbabs.getInverse()*tip->getCumulativeTransformationPart1());
+            CPose dj;
             dj.setIdentity();
             if (dofIndex==0)
                 dj.Q.setAngleAndAxis(dq,C3Vector(1.0,0.0,0.0));
@@ -507,12 +507,12 @@ CMatrix CikElement::_getNakedJacobian(const CSceneObject* tip,const CSceneObject
             double tmp=joint->getPosition();
             joint->setPosition(tmp+dq);
 
-            C7Vector constrBaseTrInv(C7Vector::identityTransformation);
+            CPose constrBaseTrInv(CPose::identityTransformation);
             if (constrBase!=nullptr)
                 constrBaseTrInv=constrBase->getCumulativeTransformationPart1().getInverse(); // important to recompute the constraint base freshly, it could have moved too (b/c of joint dep. for instance)
             tipRelConstrBase_changed=(constrBaseTrInv*tip->getCumulativeTransformationPart1()).X;
 
-            C4Vector baseQ(C4Vector::identityRotation);
+            CQuaternion baseQ(CQuaternion::identityRotation);
             if (base!=nullptr)
                 baseQ=base->getCumulativeTransformationPart1().Q; // important to recompute the base freshly, it could have moved too (b/c of joint dep. for instance)
             tipQ_changed=baseQ.getInverse()*tip->getCumulativeTransformationPart1().Q;

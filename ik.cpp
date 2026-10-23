@@ -370,7 +370,7 @@ bool ikDoesObjectExist(const char* objectName)
     return(retVal);
 }
 
-bool ikGetObjectTransformation(int objectHandle,int relativeToObjectHandle,C7Vector* transf)
+bool ikGetObjectTransformation(int objectHandle,int relativeToObjectHandle,CPose* transf)
 {
     debugInfo inf(__FUNCTION__,objectHandle,relativeToObjectHandle);
     bool retVal=false;
@@ -393,7 +393,7 @@ bool ikGetObjectTransformation(int objectHandle,int relativeToObjectHandle,C7Vec
                     transf[0]=it->getCumulativeTransformationPart1();
                 else
                 {
-                    C7Vector relTr(relObj->getCumulativeTransformation());
+                    CPose relTr(relObj->getCumulativeTransformation());
                     transf[0]=relTr.getInverse()*it->getCumulativeTransformationPart1();
                 }
                 retVal=true;
@@ -410,14 +410,14 @@ bool ikGetObjectTransformation(int objectHandle,int relativeToObjectHandle,C7Vec
 bool ikGetObjectMatrix(int objectHandle,int relativeToObjectHandle,C4X4Matrix* matrix)
 {
     debugInfo inf(__FUNCTION__,objectHandle,relativeToObjectHandle);
-    C7Vector transf;
+    CPose transf;
     bool retVal=ikGetObjectTransformation(objectHandle,relativeToObjectHandle,&transf);
     if (retVal)
         matrix[0]=transf.getMatrix();
     return(retVal);
 }
 
-bool ikSetObjectTransformation(int objectHandle,int relativeToObjectHandle,const C7Vector* transf)
+bool ikSetObjectTransformation(int objectHandle,int relativeToObjectHandle,const CPose* transf)
 {
     debugInfo inf(__FUNCTION__,objectHandle,relativeToObjectHandle);
     bool retVal=false;
@@ -442,10 +442,10 @@ bool ikSetObjectTransformation(int objectHandle,int relativeToObjectHandle,const
                 {
                     if ( isFloatArrayOk(transf->X.data,3)&&isFloatArrayOk(transf->Q.data,4) )
                     {
-                        C7Vector ttr(transf[0]);
+                        CPose ttr(transf[0]);
                         ttr.Q.normalize();
-                        C7Vector relTr(relObj->getCumulativeTransformation());
-                        C7Vector absTr(relTr*ttr);
+                        CPose relTr(relObj->getCumulativeTransformation());
+                        CPose absTr(relTr*ttr);
                         CEnvironment::currentEnvironment->objectContainer->setAbsoluteConfiguration(it->getObjectHandle(),absTr,false);
                     }
                     else
@@ -469,7 +469,7 @@ bool ikSetObjectMatrix(int objectHandle,int relativeToObjectHandle,const C4X4Mat
     if ( isFloatArrayOk(matrix->X.data,3)&&isFloatArrayOk(matrix->M.axis[0].data,3)&&isFloatArrayOk(matrix->M.axis[1].data,3)&&isFloatArrayOk(matrix->M.axis[2].data,3) )
     {   C4X4Matrix m(matrix[0]);
         m.M.normalize();
-        C7Vector transf(m.getTransformation());
+        CPose transf(m.getTransformation());
         retVal=ikSetObjectTransformation(objectHandle,relativeToObjectHandle,&transf);
     }
     return(retVal);
@@ -929,7 +929,7 @@ bool ikGetElementWeights(int ikGroupHandle,int ikElementHandle,double* linearWei
     return(retVal);
 }
 
-bool ikComputeJacobian(int baseHandle,int jointHandle,int constraints,const C7Vector* tipPose,const C7Vector* targetPose,const C7Vector* taltBasePose,std::vector<double>* jacobian,std::vector<double>* errorVect)
+bool ikComputeJacobian(int baseHandle,int jointHandle,int constraints,const CPose* tipPose,const CPose* targetPose,const CPose* taltBasePose,std::vector<double>* jacobian,std::vector<double>* errorVect)
 {
     bool retVal=false;
     if (hasLaunched())
@@ -953,7 +953,7 @@ bool ikComputeJacobian(int baseHandle,int jointHandle,int constraints,const C7Ve
             if (base!=nullptr)
                 altBase->setLocalTransformation(base->getCumulativeTransformationPart1());
             else
-                altBase->setLocalTransformation(C7Vector::identityTransformation);
+                altBase->setLocalTransformation(CPose::identityTransformation);
         }
         CJoint* tipJoint=CEnvironment::currentEnvironment->objectContainer->getJoint(jointHandle);
         if (tipJoint!=nullptr)
@@ -1107,7 +1107,7 @@ bool ikHandleGroups(const std::vector<int>* ikGroupHandles,int* result/*=nullptr
     return(retVal);
 }
 
-bool ikGetJointTransformation(int jointHandle,C7Vector* transf)
+bool ikGetJointTransformation(int jointHandle,CPose* transf)
 {
     debugInfo inf(__FUNCTION__,jointHandle);
     bool retVal=false;
@@ -1116,9 +1116,9 @@ bool ikGetJointTransformation(int jointHandle,C7Vector* transf)
         CJoint* it=CEnvironment::currentEnvironment->objectContainer->getJoint(jointHandle);
         if (it!=nullptr)
         {
-            C7Vector trFull(it->getLocalTransformation());
-            C7Vector trPart1(it->getLocalTransformationPart1());
-            C7Vector tr(trPart1.getInverse()*trFull);
+            CPose trFull(it->getLocalTransformation());
+            CPose trPart1(it->getLocalTransformationPart1());
+            CPose tr(trPart1.getInverse()*trFull);
             transf[0]=tr;
             retVal=true;
         }
@@ -1131,14 +1131,14 @@ bool ikGetJointTransformation(int jointHandle,C7Vector* transf)
 bool ikGetJointMatrix(int jointHandle,C4X4Matrix* matrix)
 {
     debugInfo inf(__FUNCTION__,jointHandle);
-    C7Vector transf;
+    CPose transf;
     bool retVal=ikGetJointTransformation(jointHandle,&transf);
     if (retVal)
         matrix[0]=transf.getMatrix();
     return(retVal);
 }
 
-bool ikSetSphericalJointQuaternion(int jointHandle,const C4Vector* quaternion)
+bool ikSetSphericalJointQuaternion(int jointHandle,const CQuaternion* quaternion)
 {
     debugInfo inf(__FUNCTION__,jointHandle);
     bool retVal=false;
@@ -1151,7 +1151,7 @@ bool ikSetSphericalJointQuaternion(int jointHandle,const C4Vector* quaternion)
             {
                 if (isFloatArrayOk(quaternion->data,4))
                 {
-                    C4Vector q(quaternion[0]);
+                    CQuaternion q(quaternion[0]);
                     q.normalize();
                     it->setSphericalTransformation(q);
                     retVal=true;
@@ -1176,7 +1176,7 @@ bool ikSetSphericalJointMatrix(int jointHandle,const C3X3Matrix* rotMatrix)
     {
         C3X3Matrix m(rotMatrix[0]);
         m.normalize();
-        C4Vector q(m.getQuaternion());
+        CQuaternion q(m.getQuaternion());
         retVal=ikSetSphericalJointQuaternion(jointHandle,&q);
     }
     else
@@ -1967,9 +1967,9 @@ int ikFindConfig(int ikGroupHandle,size_t jointCnt,const int* jointHandles,doubl
         double cumulatedDist=0.0;
         for (size_t el=0;el<ikGroup->getIkElementCount();el++)
         {
-            C7Vector tipTr(tips[el]->getCumulativeTransformation());
-            C7Vector targetTr(targets[el]->getCumulativeTransformation());
-            C7Vector relTrInv(C7Vector::identityTransformation);
+            CPose tipTr(tips[el]->getCumulativeTransformation());
+            CPose targetTr(targets[el]->getCumulativeTransformation());
+            CPose relTrInv(CPose::identityTransformation);
             if (bases[el]!=nullptr)
                 relTrInv=bases[el]->getCumulativeTransformationPart1().getInverse();
             tipTr=relTrInv*tipTr;
@@ -2223,9 +2223,9 @@ int ikGetConfigForTipPose(int ikGroupHandle,size_t jointCnt,const int* jointHand
                     double cumulatedDist=0.0;
                     for (size_t el=0;el<ikGroup->getIkElementCount();el++)
                     {
-                        C7Vector tipTr(tips[el]->getCumulativeTransformation());
-                        C7Vector targetTr(targets[el]->getCumulativeTransformation());
-                        C7Vector relTrInv(C7Vector::identityTransformation);
+                        CPose tipTr(tips[el]->getCumulativeTransformation());
+                        CPose targetTr(targets[el]->getCumulativeTransformation());
+                        CPose relTrInv(CPose::identityTransformation);
                         if (bases[el]!=nullptr)
                             relTrInv=bases[el]->getCumulativeTransformationPart1().getInverse();
                         tipTr=relTrInv*tipTr;

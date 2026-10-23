@@ -22,8 +22,8 @@ public:
 
     double getScrewLead() const;
     void setScrewLead(double p);
-    void setSphericalTransformation(const C4Vector& tr);
-    C4Vector getSphericalTransformation() const;
+    void setSphericalTransformation(const CQuaternion& tr);
+    CQuaternion getSphericalTransformation() const;
     int getJointType() const;
     double getPositionIntervalMin() const;
     void setPositionIntervalMin(double m);
@@ -59,7 +59,7 @@ public:
 protected:
 
     int _jointType;
-    C4Vector _sphericalTransformation; // spherical joints don't have a range anymore since 22.10.22
+    CQuaternion _sphericalTransformation; // spherical joints don't have a range anymore since 22.10.22
     bool _positionIsCyclic;
     double _screwLead;
     double _jointMinPosition;

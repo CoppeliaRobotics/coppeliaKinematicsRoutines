@@ -27,7 +27,7 @@ public:
     int createJoint(const char* objectName,int jointType);
 
     bool makeObjectChildOf(CSceneObject* childObject,CSceneObject* parentObject);
-    void setAbsoluteConfiguration(int objectHandle,const C7Vector& v,bool keepChildrenInPlace);
+    void setAbsoluteConfiguration(int objectHandle,const CPose& v,bool keepChildrenInPlace);
 
     int getHighestObjectHandle() const;
     bool eraseObject(CSceneObject* it);

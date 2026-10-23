@@ -109,8 +109,8 @@ bool ikGetJointPosition(int jointHandle,double* position);
 bool ikSetJointPosition(int jointHandle,double position);
 bool ikGetJointMatrix(int jointHandle,C4X4Matrix* matrix);
 bool ikSetSphericalJointMatrix(int jointHandle,const C3X3Matrix* rotMatrix);
-bool ikGetJointTransformation(int jointHandle,C7Vector* transf);
-bool ikSetSphericalJointQuaternion(int jointHandle,const C4Vector* quaternion);
+bool ikGetJointTransformation(int jointHandle,CPose* transf);
+bool ikSetSphericalJointQuaternion(int jointHandle,const CQuaternion* quaternion);
 
 bool ikGetGroupHandle(const char* ikGroupName,int* ikGroupHandle);
 bool ikDoesGroupExist(const char* ikGroupName);
@@ -139,12 +139,12 @@ bool ikGetElementWeights(int ikGroupHandle,int ikElementHandle,double* linearWei
 bool ikSetElementWeights(int ikGroupHandle,int ikElementHandle,double linearWeight,double angularWeight,double elementWeight);
 
 bool ikHandleGroups(const std::vector<int>* ikGroupHandles,int* result=nullptr,double* precision=nullptr,int(*cb)(const int*,double*,const int*,const int*,const int*,const int*,double*,double*,double*,int,int)=nullptr);
-bool ikComputeJacobian(int baseHandle,int jointHandle,int constraints,const C7Vector* tipPose,const C7Vector* targetPose,const C7Vector* taltBasePose,std::vector<double>* jacobian,std::vector<double>* errorVect);
+bool ikComputeJacobian(int baseHandle,int jointHandle,int constraints,const CPose* tipPose,const CPose* targetPose,const CPose* taltBasePose,std::vector<double>* jacobian,std::vector<double>* errorVect);
 bool ikComputeGroupJacobian(int ikGroupHandle,std::vector<double>* jacobian,std::vector<double>* errorVect);
 int ikFindConfig(int ikGroupHandle,size_t jointCnt,const int* jointHandles,double thresholdDist,int maxTimeInMs,double* retConfig,const double* metric=nullptr,bool(*validationCallback)(double*)=nullptr);
 
-bool ikGetObjectTransformation(int objectHandle,int relativeToObjectHandle,C7Vector* transf);
-bool ikSetObjectTransformation(int objectHandle,int relativeToObjectHandle,const C7Vector* transf);
+bool ikGetObjectTransformation(int objectHandle,int relativeToObjectHandle,CPose* transf);
+bool ikSetObjectTransformation(int objectHandle,int relativeToObjectHandle,const CPose* transf);
 bool ikGetObjectMatrix(int objectHandle,int relativeToObjectHandle,C4X4Matrix* matrix);
 bool ikSetObjectMatrix(int objectHandle,int relativeToObjectHandle,const C4X4Matrix* matrix);
 

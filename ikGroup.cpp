@@ -589,7 +589,7 @@ void CikGroup::applyDq(const CMatrix* dq)
         CJoint* it=_joints[i];
         if (it->getJointType()==ik_jointtype_spherical)
         {
-            C4Vector tr;
+            CQuaternion tr;
             tr.setEulerAngles(ddq[0](i,0),ddq[0](i+1,0),ddq[0](i+2,0));
             it->setSphericalTransformation(it->getSphericalTransformation()*tr);
             i+=2;

@@ -23,14 +23,14 @@ public:
     void serializeMain(CSerialization& ar);
 
     virtual CSceneObject* copyYourself() const;
-    C7Vector getParentCumulativeTransformation() const;
-    C7Vector getCumulativeTransformation() const;
-    C7Vector getLocalTransformation() const;
-    C7Vector getCumulativeTransformationPart1() const;
-    C7Vector getLocalTransformationPart1() const;
+    CPose getParentCumulativeTransformation() const;
+    CPose getCumulativeTransformation() const;
+    CPose getLocalTransformation() const;
+    CPose getCumulativeTransformationPart1() const;
+    CPose getLocalTransformationPart1() const;
 
-    void setLocalTransformation(const C7Vector& v);
-    void setLocalTransformation(const C4Vector& q);
+    void setLocalTransformation(const CPose& v);
+    void setLocalTransformation(const CQuaternion& q);
     void setLocalTransformation(const C3Vector& x);
 
     int getObjectHandle() const;
@@ -48,7 +48,7 @@ public:
 protected:
     int _objectHandle;
     std::string _objectName;
-    C7Vector _transformation;
+    CPose _transformation;
     CSceneObject* _parentObject;
     int _parentObjectHandle;
     int _objectType;

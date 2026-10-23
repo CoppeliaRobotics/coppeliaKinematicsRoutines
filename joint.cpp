@@ -169,12 +169,12 @@ void CJoint::setScrewLead(double p)
         _screwLead=p;
 }
 
-void CJoint::setSphericalTransformation(const C4Vector& tr)
+void CJoint::setSphericalTransformation(const CQuaternion& tr)
 {
         _sphericalTransformation=tr;
 }
 
-C4Vector CJoint::getSphericalTransformation() const
+CQuaternion CJoint::getSphericalTransformation() const
 {
     return(_sphericalTransformation);
 }

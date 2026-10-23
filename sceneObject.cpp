@@ -74,15 +74,15 @@ CSceneObject* CSceneObject::copyYourself() const
     return(duplicate);
 }
 
-C7Vector CSceneObject::getParentCumulativeTransformation() const
+CPose CSceneObject::getParentCumulativeTransformation() const
 {
     if (getParentObject()==nullptr)
-        return(C7Vector::identityTransformation);
+        return(CPose::identityTransformation);
     else
         return(getParentObject()->getCumulativeTransformation());
 }
 
-C7Vector CSceneObject::getCumulativeTransformation() const
+CPose CSceneObject::getCumulativeTransformation() const
 {
     if (getParentObject()==nullptr)
         return(getLocalTransformation());
@@ -90,7 +90,7 @@ C7Vector CSceneObject::getCumulativeTransformation() const
         return(getParentCumulativeTransformation()*getLocalTransformation());
 }
 
-C7Vector CSceneObject::getCumulativeTransformationPart1() const
+CPose CSceneObject::getCumulativeTransformationPart1() const
 {
     if (getObjectType()==ik_objecttype_joint)
     {
@@ -103,13 +103,13 @@ C7Vector CSceneObject::getCumulativeTransformationPart1() const
         return(getCumulativeTransformation());
 }
 
-C7Vector CSceneObject::getLocalTransformation() const
+CPose CSceneObject::getLocalTransformation() const
 {
-    C7Vector retVal=_transformation;
+    CPose retVal=_transformation;
     if (getObjectType()==ik_objecttype_joint)
     {
         const CJoint* it=dynamic_cast<const CJoint*>(this);
-        C7Vector jointTr;
+        CPose jointTr;
         jointTr.setIdentity();
         double val=it->getPosition();
         if (it->getJointType()==ik_jointtype_revolute)
@@ -126,17 +126,17 @@ C7Vector CSceneObject::getLocalTransformation() const
     return(retVal);
 }
 
-C7Vector CSceneObject::getLocalTransformationPart1() const
+CPose CSceneObject::getLocalTransformationPart1() const
 {
     return(_transformation);
 }
 
-void CSceneObject::setLocalTransformation(const C7Vector& v)
+void CSceneObject::setLocalTransformation(const CPose& v)
 {
     _transformation=v;
 }
 
-void CSceneObject::setLocalTransformation(const C4Vector& q)
+void CSceneObject::setLocalTransformation(const CQuaternion& q)
 {
     _transformation.Q=q;
 }
@@ -202,7 +202,7 @@ void CSceneObject::serializeMain(CSerialization& ar)
 {
     if (ar.isWriting())
     {
-        C7Vector tr=getLocalTransformationPart1();
+        CPose tr=getLocalTransformationPart1();
         ar.writeFloat(float(tr.Q(0)));
         ar.writeFloat(float(tr.Q(1)));
         ar.writeFloat(float(tr.Q(2)));

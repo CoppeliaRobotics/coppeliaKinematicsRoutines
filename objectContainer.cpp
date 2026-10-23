@@ -48,7 +48,7 @@ bool CObjectContainer::makeObjectChildOf(CSceneObject* childObject,CSceneObject*
         return(true);
     if (parentObject==nullptr)
     {
-        C7Vector oldAbsoluteTransf(childObject->getCumulativeTransformationPart1());
+        CPose oldAbsoluteTransf(childObject->getCumulativeTransformationPart1());
         childObject->setParentObject(nullptr);
         childObject->setLocalTransformation(oldAbsoluteTransf);
         actualizeObjectInformation();
@@ -57,20 +57,20 @@ bool CObjectContainer::makeObjectChildOf(CSceneObject* childObject,CSceneObject*
     // Illegal loop checking:
     if (parentObject->isObjectAffiliatedWith(childObject))
         return(false);
-    C7Vector oldAbsoluteTransf(childObject->getCumulativeTransformationPart1());
-    C7Vector parentInverse(parentObject->getCumulativeTransformation().getInverse());
+    CPose oldAbsoluteTransf(childObject->getCumulativeTransformationPart1());
+    CPose parentInverse(parentObject->getCumulativeTransformation().getInverse());
     childObject->setLocalTransformation(parentInverse*oldAbsoluteTransf);
     childObject->setParentObject(parentObject);
     actualizeObjectInformation();
     return(true);
 }
 
-void CObjectContainer::setAbsoluteConfiguration(int objectHandle,const C7Vector& v,bool keepChildrenInPlace)
+void CObjectContainer::setAbsoluteConfiguration(int objectHandle,const CPose& v,bool keepChildrenInPlace)
 {
     CSceneObject* it=getObject(objectHandle);
     if (it!=nullptr)
     {
-        C7Vector childPreTr(it->getLocalTransformation());
+        CPose childPreTr(it->getLocalTransformation());
         it->setLocalTransformation(it->getParentCumulativeTransformation().getInverse()*v);
         if (keepChildrenInPlace)
         {
@@ -528,7 +528,7 @@ void CObjectContainer::memorizeJointConfig(std::vector<int>& jointHandles,std::v
         CJoint* it=getJoint(jointList[i]);
         if (it->getJointType()==ik_jointtype_spherical)
         { // we memorize the 4 quaternion vals
-            C4Vector q(it->getSphericalTransformation());
+            CQuaternion q(it->getSphericalTransformation());
             for (size_t j=0;j<4;j++)
                 jointValues.push_back(q(j));
         }
@@ -547,7 +547,7 @@ void CObjectContainer::restoreJointConfig(const std::vector<int>& jointHandles,c
         {
             if (it->getJointType()==ik_jointtype_spherical)
             { // we memorize the 4 quaternion vals
-                C4Vector q;
+                CQuaternion q;
                 for (size_t j=0;j<4;j++)
                     q(j)=jointValues[ind++];
                 it->setSphericalTransformation(q);
