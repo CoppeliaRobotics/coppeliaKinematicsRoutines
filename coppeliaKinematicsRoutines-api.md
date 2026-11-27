@@ -725,8 +725,8 @@ bool ikGetGroupJointLimitHits(int ikGroupHandle,std::vector<int>* jointHandles,s
 #### Parameters:
 
 - **ikGroupHandle** (int): the handle of the IK group.
-- **jointHandles** (std::vector<int>*): the joint handles that that had joint limits under- or overshot. Can be null
-- **underOrOvershots** (std::vector<double>*): the corresponding under- or overshots, for each of the jointHandles. Can be null
+- **jointHandles** (std::vector&lt;int&gt;*): the joint handles that that had joint limits under- or overshot. Can be null
+- **underOrOvershots** (std::vector&lt;double&gt;*): the corresponding under- or overshots, for each of the jointHandles. Can be null
 
 #### Return values:
 
@@ -749,7 +749,7 @@ bool ikGetGroupJoints(int ikGroupHandle,std::vector<int>* jointHandles)
 #### Parameters:
 
 - **ikGroupHandle** (int): the handle of the IK group.
-- **jointHandles** (std::vector<int>*): the joint handles
+- **jointHandles** (std::vector&lt;int&gt;*): the joint handles
 
 #### Return values:
 
